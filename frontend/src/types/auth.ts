@@ -3,7 +3,7 @@
 export interface User {
   id: string;
   email: string;
-  display_name?: string;
+  name: string;
   avatar_url?: string;
 }
 

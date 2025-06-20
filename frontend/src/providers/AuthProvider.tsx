@@ -20,23 +20,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userData: User = {
           id: session.user.id,
           email: session.user.email || "",
-          display_name:
-            session.user.user_metadata?.name ||
+          name:
+            session.user.user_metadata?.display_name ||
             session.user.email?.split("@")[0],
           avatar_url: session.user.user_metadata?.avatar_url,
         };
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
       } else {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          try {
-            setUser(JSON.parse(storedUser));
-          } catch (error) {
-            console.error("Error parsing stored user:", error);
-            localStorage.removeItem("user");
-          }
-        }
+        setUser(null);
       }
       setIsLoading(false);
     };
@@ -50,16 +41,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userData: User = {
           id: session.user.id,
           email: session.user.email || "",
-          display_name:
+          name:
             session.user.user_metadata?.display_name ||
             session.user.email?.split("@")[0],
           avatar_url: session.user.user_metadata?.avatar_url,
         };
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
       } else {
         setUser(null);
-        localStorage.removeItem("user");
       }
       setIsLoading(false);
     });
@@ -73,8 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
     }
-    setUser(null);
-    localStorage.removeItem("user");
+    // User state will be updated automatically by onAuthStateChange
   };
 
   const value: AuthContextType = {
