@@ -1,12 +1,24 @@
 import { type RouteObject } from "react-router-dom";
+import React from "react";
 import Homepage from "../pages/Homepage";
 import NotFound from "../pages/NotFound";
 import RootLayout from "../components/RootLayout";
 
-export default [
+const routes: RouteObject[] = [
   {
-    element: RootLayout(),
-    children: [{ index: true, element: Homepage() }],
+    path: "/",
+    element: React.createElement(RootLayout),
+    children: [
+      {
+        index: true,
+        element: React.createElement(Homepage),
+      },
+    ],
   },
-  { path: "*", element: NotFound() },
-] satisfies RouteObject[];
+  {
+    path: "*",
+    element: React.createElement(NotFound),
+  },
+];
+
+export default routes;
