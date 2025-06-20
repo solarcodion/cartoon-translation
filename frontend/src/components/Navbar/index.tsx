@@ -5,7 +5,9 @@ import {
   FiUsers,
   FiMenu,
   FiChevronRight,
+  FiLogOut,
 } from "react-icons/fi";
+import { useAuth } from "../../hooks/useAuth";
 
 interface NavbarProps {
   collapsed: boolean;
@@ -13,8 +15,14 @@ interface NavbarProps {
 }
 
 export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
+  const { logout, user } = useAuth();
+
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -67,8 +75,27 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
         </nav>
       </div>
 
-      {/* Collapse button at bottom */}
-      <div className="p-4 border-t border-gray-200">
+      {/* User info and actions at bottom */}
+      <div className="p-4 border-t border-gray-200 space-y-2">
+        {/* User info */}
+        {user && !collapsed && (
+          <div className="text-xs text-gray-600 px-2 py-1 bg-gray-50 rounded">
+            {user.email}
+          </div>
+        )}
+
+        {/* Logout button */}
+        <button
+          onClick={handleLogout}
+          className={`flex items-center ${
+            collapsed ? "justify-center" : "justify-start"
+          } gap-3 w-full p-2 text-red-600 hover:bg-red-50 rounded-md`}
+        >
+          <FiLogOut className="text-lg" />
+          {!collapsed && <span>Logout</span>}
+        </button>
+
+        {/* Collapse button */}
         <button
           onClick={toggleCollapse}
           className={`flex items-center ${
