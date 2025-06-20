@@ -62,7 +62,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
     }
-    // User state will be updated automatically by onAuthStateChange
   };
 
   const value: AuthContextType = {
