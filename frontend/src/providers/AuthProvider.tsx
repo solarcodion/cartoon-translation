@@ -1,11 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type {
-  User,
-  LoginFormData,
-  RegisterFormData,
-  AuthContextType,
-} from "../types/auth";
+import type { User, AuthContextType } from "../types/auth";
 import { AuthContext } from "../contexts/AuthContext";
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -72,14 +67,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (data: LoginFormData): Promise<void> => {
-    console.log("Login handled by Supabase Auth UI", data);
-  };
-
-  const register = async (data: RegisterFormData): Promise<void> => {
-    console.log("Register handled by Supabase Auth UI", data);
-  };
-
   const logout = async (): Promise<void> => {
     try {
       await supabase.auth.signOut();
@@ -94,8 +81,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login,
-    register,
     logout,
   };
 

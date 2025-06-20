@@ -51,6 +51,7 @@ This project implements authentication using the **Supabase UI Library** for log
 - Manages user session and localStorage
 - Provides auth state to the entire app
 - Handles logout functionality
+- Login/register are handled entirely by Supabase Auth UI
 
 #### Protected Routes
 
@@ -126,6 +127,7 @@ The Supabase Auth UI is customized with:
 - **Easy Maintenance** - Updates handled by Supabase team
 - **Accessibility** - Built-in a11y features
 - **Responsive** - Mobile-friendly out of the box
+- **Clean Context** - Auth context only handles logout and state management
 
 ## 🚀 Getting Started
 
