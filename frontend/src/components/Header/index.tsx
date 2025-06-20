@@ -57,7 +57,7 @@ export default function Header() {
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
-                    alt={user.name || user.email}
+                    alt={user.display_name || user.email}
                     className="w-8 h-8 rounded-full object-cover"
                   />
                 ) : (
@@ -66,7 +66,7 @@ export default function Header() {
               </div>
               <div className="hidden sm:flex flex-col text-left">
                 <span className="text-sm font-medium text-gray-900">
-                  {user.name || user.email.split("@")[0]}
+                  {user.display_name || user.email.split("@")[0]}
                 </span>
               </div>
               <FiChevronDown
@@ -86,7 +86,7 @@ export default function Header() {
                       {user.avatar_url ? (
                         <img
                           src={user.avatar_url}
-                          alt={user.name || user.email}
+                          alt={user.display_name || user.email}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
@@ -95,7 +95,7 @@ export default function Header() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-gray-900">
-                        {user.name || user.email.split("@")[0]}
+                        {user.display_name || user.email.split("@")[0]}
                       </span>
                       <span className="text-xs text-gray-500">
                         {user.email}

@@ -3,7 +3,7 @@
 export interface User {
   id: string;
   email: string;
-  name?: string;
+  display_name?: string;
   avatar_url?: string;
 }
 
@@ -24,7 +24,7 @@ export interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
-  name?: string;
+  display_name?: string;
 }
 
 export interface AuthContextType {

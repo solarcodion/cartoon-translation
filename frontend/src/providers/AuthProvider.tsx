@@ -25,7 +25,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userData: User = {
           id: session.user.id,
           email: session.user.email || "",
-          name:
+          display_name:
             session.user.user_metadata?.name ||
             session.user.email?.split("@")[0],
           avatar_url: session.user.user_metadata?.avatar_url,
@@ -55,8 +55,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userData: User = {
           id: session.user.id,
           email: session.user.email || "",
-          name:
-            session.user.user_metadata?.name ||
+          display_name:
+            session.user.user_metadata?.display_name ||
             session.user.email?.split("@")[0],
           avatar_url: session.user.user_metadata?.avatar_url,
         };
