@@ -28,6 +28,7 @@ export default function Auth() {
         <div className="bg-white py-8 px-4 shadow-sm rounded-lg sm:px-10">
           <SupabaseAuth
             supabaseClient={supabase}
+            view="sign_in"
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -51,21 +52,24 @@ export default function Auth() {
               },
             }}
             providers={["google", "github"]}
-            redirectTo={window.location.origin}
+            redirectTo={`${window.location.origin}/`}
+            onlyThirdPartyProviders={false}
+            magicLink={false}
+            showLinks={true}
             localization={{
               variables: {
                 sign_in: {
                   email_label: "Email address",
                   password_label: "Password",
                   button_label: "Sign in",
-                  link_text: "Already have an account? Sign in",
+                  link_text: "Don't have an account? Sign up",
                   loading_button_label: "Signing in...",
                 },
                 sign_up: {
                   email_label: "Email address",
                   password_label: "Create a password",
                   button_label: "Create account",
-                  link_text: "Don't have an account? Sign up",
+                  link_text: "Already have an account? Sign in",
                   loading_button_label: "Creating account...",
                   confirmation_text:
                     "Check your email for the confirmation link",
@@ -80,8 +84,6 @@ export default function Auth() {
                 },
               },
             }}
-            theme="default"
-            showLinks={true}
           />
         </div>
       </div>

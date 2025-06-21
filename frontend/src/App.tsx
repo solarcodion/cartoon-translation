@@ -2,8 +2,6 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./providers/AuthProvider";
 import routes from "./routes";
 
-import "./App.css";
-
 // Create router from the routes configuration
 const router = createBrowserRouter(routes);
 
