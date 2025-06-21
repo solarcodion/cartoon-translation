@@ -8,6 +8,27 @@ import { TABLES } from "../types/database";
 
 // User service functions
 export const userService = {
+  // Get user by ID
+  async getById(id: string): Promise<DatabaseResponse<DatabaseUser>> {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.USERS)
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error("❌ Database error:", error);
+        return { data: null, error: error.message };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("💥 Unexpected error getting user:", error);
+      return { data: null, error: "An unexpected error occurred" };
+    }
+  },
+
   // Check if user exists by ID
   async existsById(id: string): Promise<DatabaseResponse<boolean>> {
     try {

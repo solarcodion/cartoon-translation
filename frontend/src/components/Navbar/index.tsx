@@ -24,10 +24,10 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
       }`}
     >
       {/* Logo section */}
-      <div className="h-24 p-4 border-b border-gray-200 flex justify-center items-center">
+      <div className="h-24 p-4 border-b border-gray-200 flex justify-start items-center">
         <Link
           to="/"
-          className="flex items-center justify-center gap-3 w-full h-full font-medium text-gray-800"
+          className="flex items-center justify-start gap-3 w-full h-full font-medium text-gray-800"
         >
           <FiFileText className="text-2xl" />
           {!collapsed && <span className="text-lg">ManhwaTrans</span>}

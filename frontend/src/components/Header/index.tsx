@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FiLogOut, FiUser, FiChevronDown } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
+import { Link } from "react-router-dom";
 
 export default function Header() {
   const { logout, user } = useAuth();
@@ -38,10 +39,10 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6">
+    <header className="h-24 border-b border-gray-200 bg-white flex items-center justify-between px-6">
       {/* Left side - could be used for breadcrumbs or page title in the future */}
       <div className="flex items-center">
-        <h1 className="text-lg font-semibold text-gray-800">Dashboard</h1>
+        {/* Empty space for future breadcrumbs or page title */}
       </div>
 
       {/* Right side - User profile dropdown */}
@@ -106,6 +107,14 @@ export default function Header() {
 
                 {/* Dropdown actions */}
                 <div className="py-2">
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <FiUser className="text-lg" />
+                    <span className="text-sm font-medium">View Profile</span>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
