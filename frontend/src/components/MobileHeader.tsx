@@ -1,5 +1,4 @@
-import { Link } from "react-router-dom";
-import { FiMenu, FiFileText } from "react-icons/fi";
+import { FiMenu } from "react-icons/fi";
 import ProfileDropdown from "./Header/ProfileDropdown";
 
 interface MobileHeaderProps {

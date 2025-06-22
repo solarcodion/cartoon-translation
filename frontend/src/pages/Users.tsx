@@ -272,63 +272,70 @@ export default function Users() {
         )}
       </div>
 
-      {/* Users Cards - Mobile */}
-      <div className="md:hidden space-y-4">
-        {users.map((user) => (
-          <div
-            key={user.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full">
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <FiUser className="text-gray-400 text-lg" />
-                    )}
+      {/* Users List - Mobile */}
+      <div className="md:hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
+          {users.map((user) => (
+            <div
+              key={user.id}
+              className="p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                {/* Left side - User info */}
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      {user.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <FiUser className="text-gray-400 text-lg" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">
-                      {user.name}
-                    </h3>
-                    <p className="text-sm text-gray-600 truncate">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {user.name}
+                      </p>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                          user.role
+                        )}`}
+                      >
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
                       {user.email}
                     </p>
                   </div>
                 </div>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
-                    user.role
-                  )}`}
-                >
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => handleEditUser(user.id)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit user"
-                >
-                  <FiEdit2 className="text-base" />
-                </button>
-                <button
-                  onClick={() => handleDeleteUser(user.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete user"
-                >
-                  <FiTrash2 className="text-base" />
-                </button>
+
+                {/* Right side - Actions */}
+                <div className="flex items-center space-x-1 ml-3">
+                  <button
+                    onClick={() => handleEditUser(user.id)}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit user"
+                  >
+                    <FiEdit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(user.id)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete user"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
         {/* Empty state - Mobile */}
         {users.length === 0 && (
