@@ -1,0 +1,150 @@
+import { useState, useEffect } from "react";
+import { FiX, FiSave, FiFileText } from "react-icons/fi";
+
+interface SeriesItem {
+  id: string;
+  name: string;
+  chapters: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EditSeriesModalProps {
+  series: SeriesItem | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (seriesId: string, newName: string) => Promise<void>;
+}
+
+export default function EditSeriesModal({
+  series,
+  isOpen,
+  onClose,
+  onSave,
+}: EditSeriesModalProps) {
+  const [seriesName, setSeriesName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Update series name when series changes
+  useEffect(() => {
+    if (series) {
+      setSeriesName(series.name);
+    }
+  }, [series]);
+
+  const handleSave = async () => {
+    if (!series || !seriesName.trim()) return;
+
+    try {
+      setIsLoading(true);
+      await onSave(series.id, seriesName.trim());
+      onClose();
+    } catch (error) {
+      console.error("Error saving series name:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isLoading) {
+      onClose();
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !isLoading && seriesName.trim() && seriesName.trim() !== series?.name) {
+      handleSave();
+    }
+    if (e.key === "Escape") {
+      handleClose();
+    }
+  };
+
+  if (!isOpen || !series) return null;
+
+  const hasChanges = seriesName.trim() !== series.name;
+  const isValidName = seriesName.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Series</h2>
+          <button
+            onClick={handleClose}
+            disabled={isLoading}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <FiX className="text-lg" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6">
+          {/* Series Info */}
+          <div className="flex items-center gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
+              <FiFileText className="text-gray-500 text-xl" />
+            </div>
+            <div>
+              <h3 className="font-medium text-gray-900">{series.name}</h3>
+              <p className="text-sm text-gray-600">{series.chapters} chapters</p>
+            </div>
+          </div>
+
+          {/* Series Name Input */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Series Name
+            </label>
+            <input
+              type="text"
+              value={seriesName}
+              onChange={(e) => setSeriesName(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Enter series name"
+              disabled={isLoading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              autoFocus
+            />
+            {!isValidName && seriesName.length > 0 && (
+              <p className="text-sm text-red-600">Series name cannot be empty</p>
+            )}
+          </div>
+
+          {/* Help Text */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-800">
+              <strong>Tip:</strong> Press Enter to save or Escape to cancel
+            </p>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+          <button
+            onClick={handleClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isLoading || !hasChanges || !isValidName}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <FiSave className="text-sm" />
+            )}
+            {isLoading ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
