@@ -6,6 +6,7 @@ import {
   FiMenu,
   FiChevronRight,
 } from "react-icons/fi";
+import { useUserProfile } from "../../hooks/useUserProfile";
 
 interface NavbarProps {
   collapsed: boolean;
@@ -13,6 +14,8 @@ interface NavbarProps {
 }
 
 export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
+  const { user } = useUserProfile();
+
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
   };
@@ -55,15 +58,18 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
             <FiFileText className="text-lg" />
             {!collapsed && <span>Series</span>}
           </Link>
-          <Link
-            to="/users"
-            className={`flex items-center ${
-              collapsed ? "justify-center" : "justify-start"
-            } gap-3 p-3 rounded-md text-gray-500 hover:bg-gray-100`}
-          >
-            <FiUsers className="text-lg" />
-            {!collapsed && <span>Users</span>}
-          </Link>
+          {/* Users tab - only visible for admin users */}
+          {user?.role === "admin" && (
+            <Link
+              to="/users"
+              className={`flex items-center ${
+                collapsed ? "justify-center" : "justify-start"
+              } gap-3 p-3 rounded-md text-gray-500 hover:bg-gray-100`}
+            >
+              <FiUsers className="text-lg" />
+              {!collapsed && <span>Users</span>}
+            </Link>
+          )}
         </nav>
       </div>
 

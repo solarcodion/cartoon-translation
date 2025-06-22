@@ -54,6 +54,26 @@ export const userService = {
     }
   },
 
+  // Get all users
+  async getAll(): Promise<DatabaseResponse<DatabaseUser[]>> {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.USERS)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ Database error:", error);
+        return { data: null, error: error.message };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("💥 Unexpected error getting users:", error);
+      return { data: null, error: "An unexpected error occurred" };
+    }
+  },
+
   // Create new user with simplified approach
   async create(
     userData: CreateUserData
