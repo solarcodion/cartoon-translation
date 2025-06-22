@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
 import EditSeriesModal from "../components/Modals/EditSeriesModal";
 import DeleteSeriesModal from "../components/Modals/DeleteSeriesModal";
@@ -233,9 +234,12 @@ export default function Series() {
               {series.map((seriesItem) => (
                 <tr key={seriesItem.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                    <Link
+                      to={`/series/${seriesItem.id}/chapters`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                    >
                       {seriesItem.name}
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-600">
