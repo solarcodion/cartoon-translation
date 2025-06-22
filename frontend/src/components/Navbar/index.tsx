@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   FiGrid,
   FiFileText,
@@ -15,9 +15,30 @@ interface NavbarProps {
 
 export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
   const { user } = useUserProfile();
+  const location = useLocation();
 
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
+  };
+
+  // Function to determine if a link is active
+  const isActiveLink = (path: string) => {
+    if (path === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  // Function to get link classes based on active state
+  const getLinkClasses = (path: string) => {
+    const baseClasses = `flex items-center ${
+      collapsed ? "justify-center" : "justify-start"
+    } gap-3 p-3 rounded-md transition-colors`;
+
+    if (isActiveLink(path)) {
+      return `${baseClasses} bg-gray-100 text-gray-700`;
+    }
+    return `${baseClasses} text-gray-500 hover:bg-gray-100`;
   };
 
   return (
@@ -40,32 +61,17 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
       {/* Navigation links */}
       <div className="flex-1 p-2">
         <nav className="space-y-1">
-          <Link
-            to="/"
-            className={`flex items-center ${
-              collapsed ? "justify-center" : "justify-start"
-            } gap-3 p-3 bg-gray-100 rounded-md text-gray-700`}
-          >
+          <Link to="/" className={getLinkClasses("/")}>
             <FiGrid className="text-lg" />
             {!collapsed && <span>Dashboard</span>}
           </Link>
-          <Link
-            to="/series"
-            className={`flex items-center ${
-              collapsed ? "justify-center" : "justify-start"
-            } gap-3 p-3 rounded-md text-gray-500 hover:bg-gray-100`}
-          >
+          <Link to="/series" className={getLinkClasses("/series")}>
             <FiFileText className="text-lg" />
             {!collapsed && <span>Series</span>}
           </Link>
           {/* Users tab - only visible for admin users */}
           {user?.role === "admin" && (
-            <Link
-              to="/users"
-              className={`flex items-center ${
-                collapsed ? "justify-center" : "justify-start"
-              } gap-3 p-3 rounded-md text-gray-500 hover:bg-gray-100`}
-            >
+            <Link to="/users" className={getLinkClasses("/users")}>
               <FiUsers className="text-lg" />
               {!collapsed && <span>Users</span>}
             </Link>
