@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiUser } from "react-icons/fi";
 import { usersApi } from "../services/usersApi";
 import type { DatabaseUser } from "../types/database";
+import EditUserModal from "../components/Modals/EditUserModal";
 
 export default function Users() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch users using API service
   const fetchUsers = async () => {
@@ -53,8 +56,11 @@ export default function Users() {
   };
 
   const handleEditUser = (userId: string) => {
-    // TODO: Implement edit user functionality
-    console.log("Edit user:", userId);
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setEditingUser(user);
+      setIsModalOpen(true);
+    }
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -62,9 +68,44 @@ export default function Users() {
     console.log("Delete user:", userId);
   };
 
+  const handleSaveUserRole = async (
+    userId: string,
+    newRole: "admin" | "editor" | "translator"
+  ) => {
+    try {
+      const result = await usersApi.updateUserRole(userId, newRole);
+
+      if (result.error) {
+        console.error("Failed to update user role:", result.error);
+        // TODO: Show error toast/notification
+        return;
+      }
+
+      // Update the user in the local state
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === userId
+            ? { ...user, role: newRole, updated_at: new Date().toISOString() }
+            : user
+        )
+      );
+
+      console.log("User role updated successfully");
+      // TODO: Show success toast/notification
+    } catch (error) {
+      console.error("Unexpected error updating user role:", error);
+      // TODO: Show error toast/notification
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingUser(null);
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading users...</p>
@@ -207,6 +248,14 @@ export default function Users() {
           </div>
         )}
       </div>
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        user={editingUser}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveUserRole}
+      />
     </div>
   );
 }

@@ -74,6 +74,34 @@ export const userService = {
     }
   },
 
+  // Update user role
+  async updateRole(
+    userId: string,
+    newRole: "admin" | "editor" | "translator"
+  ): Promise<DatabaseResponse<DatabaseUser>> {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.USERS)
+        .update({
+          role: newRole,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("❌ Database error:", error);
+        return { data: null, error: error.message };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("💥 Unexpected error updating user role:", error);
+      return { data: null, error: "An unexpected error occurred" };
+    }
+  },
+
   // Create new user with simplified approach
   async create(
     userData: CreateUserData

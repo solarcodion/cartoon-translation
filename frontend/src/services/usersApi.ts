@@ -13,12 +13,13 @@ export const usersApi = {
   async getAllUsers(): Promise<DatabaseResponse<DatabaseUser[]>> {
     try {
       const result = await userService.getAll();
-      
+
       if (result.error) {
         console.error("Failed to fetch users:", result.error);
         return {
           data: null,
-          error: "Failed to load users. Please check your connection and try again.",
+          error:
+            "Failed to load users. Please check your connection and try again.",
         };
       }
 
@@ -43,7 +44,7 @@ export const usersApi = {
   async getUserById(userId: string): Promise<DatabaseResponse<DatabaseUser>> {
     try {
       const result = await userService.getById(userId);
-      
+
       if (result.error) {
         console.error("Failed to fetch user:", result.error);
         return {
@@ -76,7 +77,7 @@ export const usersApi = {
   }): Promise<DatabaseResponse<DatabaseUser>> {
     try {
       const result = await userService.create(userData);
-      
+
       if (result.error) {
         console.error("Failed to create user:", result.error);
         return {
@@ -96,6 +97,37 @@ export const usersApi = {
   },
 
   /**
+   * Update user role
+   * @param userId - The user ID to update
+   * @param newRole - The new role to assign
+   * @returns Promise with updated user data or error
+   */
+  async updateUserRole(
+    userId: string,
+    newRole: "admin" | "editor" | "translator"
+  ): Promise<DatabaseResponse<DatabaseUser>> {
+    try {
+      const result = await userService.updateRole(userId, newRole);
+
+      if (result.error) {
+        console.error("Failed to update user role:", result.error);
+        return {
+          data: null,
+          error: "Failed to update user role. Please try again.",
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Unexpected error in updateUserRole:", error);
+      return {
+        data: null,
+        error: "An unexpected error occurred while updating user role.",
+      };
+    }
+  },
+
+  /**
    * Check if a user exists by ID
    * @param userId - The user ID to check
    * @returns Promise with boolean result or error
@@ -103,7 +135,7 @@ export const usersApi = {
   async userExists(userId: string): Promise<DatabaseResponse<boolean>> {
     try {
       const result = await userService.existsById(userId);
-      
+
       if (result.error) {
         console.error("Failed to check user existence:", result.error);
         return {

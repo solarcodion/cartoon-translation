@@ -7,6 +7,7 @@ import NotFound from "../pages/NotFound";
 import Auth from "../pages/Auth";
 import RootLayout from "../components/Layouts/RootLayout";
 import ProtectedRoute from "../components/Auth/ProtectedRoute";
+import AdminRoute from "../components/Auth/AdminRoute";
 
 const routes: RouteObject[] = [
   {
@@ -25,13 +26,19 @@ const routes: RouteObject[] = [
       },
       {
         path: "users",
-        element: React.createElement(Users),
+        element: React.createElement(AdminRoute, {
+          children: React.createElement(Users),
+        }),
       },
     ],
   },
   {
     path: "/auth",
     element: React.createElement(Auth),
+  },
+  {
+    path: "/not-found",
+    element: React.createElement(NotFound),
   },
   {
     path: "*",
