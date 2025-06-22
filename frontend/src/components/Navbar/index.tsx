@@ -5,20 +5,32 @@ import {
   FiUsers,
   FiMenu,
   FiChevronRight,
+  FiX,
 } from "react-icons/fi";
 import { useUserProfile } from "../../hooks/useUserProfile";
 
 interface NavbarProps {
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
 }
 
-export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
+export default function Navbar({
+  collapsed,
+  setCollapsed,
+  mobileOpen,
+  setMobileOpen,
+}: NavbarProps) {
   const { user } = useUserProfile();
   const location = useLocation();
 
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
+  };
+
+  const closeMobile = () => {
+    setMobileOpen(false);
   };
 
   // Function to determine if a link is active
@@ -42,36 +54,131 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
   };
 
   return (
-    <div
-      className={`flex flex-col h-full bg-white border-r border-gray-200 overflow-hidden transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      }`}
-    >
-      {/* Logo section */}
-      <div className="h-24 p-4 border-b border-gray-200 flex justify-start items-center">
-        <Link
-          to="/"
-          className="flex items-center justify-start gap-3 w-full h-full font-medium text-gray-800"
-        >
-          <FiFileText className="text-2xl" />
-          {!collapsed && <span className="text-lg">ManhwaTrans</span>}
-        </Link>
+    <>
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={closeMobile}
+        />
+      )}
+
+      {/* Desktop Sidebar */}
+      <div
+        className={`hidden lg:flex flex-col h-full bg-white border-r border-gray-200 overflow-hidden transition-all duration-300 ${
+          collapsed ? "w-16" : "w-64"
+        }`}
+      >
+        {/* Desktop Content */}
+        <NavbarContent
+          collapsed={collapsed}
+          user={user}
+          getLinkClasses={getLinkClasses}
+          toggleCollapse={toggleCollapse}
+          onLinkClick={() => {}} // No action needed for desktop
+        />
       </div>
+
+      {/* Mobile Sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:hidden ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Mobile Header with Close Button */}
+        <div className="h-16 p-4 border-b border-gray-200 flex justify-between items-center">
+          <Link
+            to="/"
+            className="flex items-center gap-3 font-medium text-gray-800"
+            onClick={closeMobile}
+          >
+            <FiFileText className="text-2xl" />
+            <span className="text-lg">ManhwaTrans</span>
+          </Link>
+          <button
+            onClick={closeMobile}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+          >
+            <FiX className="text-lg" />
+          </button>
+        </div>
+
+        {/* Mobile Content */}
+        <NavbarContent
+          collapsed={false}
+          user={user}
+          getLinkClasses={getLinkClasses}
+          toggleCollapse={toggleCollapse}
+          onLinkClick={closeMobile} // Close mobile menu when link is clicked
+        />
+      </div>
+    </>
+  );
+}
+
+// Shared navbar content component
+function NavbarContent({
+  collapsed,
+  user,
+  getLinkClasses,
+  toggleCollapse,
+  onLinkClick,
+}: {
+  collapsed: boolean;
+  user: any;
+  getLinkClasses: (path: string) => string;
+  toggleCollapse: () => void;
+  onLinkClick: () => void;
+}) {
+  return (
+    <>
+      {/* Logo section - Desktop only */}
+      {!collapsed && (
+        <div className="hidden lg:block h-24 p-4 border-b border-gray-200">
+          <Link
+            to="/"
+            className="flex items-center justify-start gap-3 w-full h-full font-medium text-gray-800"
+          >
+            <FiFileText className="text-2xl" />
+            <span className="text-lg">ManhwaTrans</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Collapsed logo - Desktop only */}
+      {collapsed && (
+        <div className="hidden lg:flex h-24 p-4 border-b border-gray-200 justify-center items-center">
+          <Link
+            to="/"
+            className="flex items-center justify-center font-medium text-gray-800"
+          >
+            <FiFileText className="text-2xl" />
+          </Link>
+        </div>
+      )}
 
       {/* Navigation links */}
       <div className="flex-1 p-2">
         <nav className="space-y-1">
-          <Link to="/" className={getLinkClasses("/")}>
+          <Link to="/" className={getLinkClasses("/")} onClick={onLinkClick}>
             <FiGrid className="text-lg" />
             {!collapsed && <span>Dashboard</span>}
           </Link>
-          <Link to="/series" className={getLinkClasses("/series")}>
+          <Link
+            to="/series"
+            className={getLinkClasses("/series")}
+            onClick={onLinkClick}
+          >
             <FiFileText className="text-lg" />
             {!collapsed && <span>Series</span>}
           </Link>
           {/* Users tab - only visible for admin users */}
           {user?.role === "admin" && (
-            <Link to="/users" className={getLinkClasses("/users")}>
+            <Link
+              to="/users"
+              className={getLinkClasses("/users")}
+              onClick={onLinkClick}
+            >
               <FiUsers className="text-lg" />
               {!collapsed && <span>Users</span>}
             </Link>
@@ -79,8 +186,8 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
         </nav>
       </div>
 
-      {/* Collapse button at bottom */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Collapse button at bottom - Desktop only */}
+      <div className="hidden lg:block p-4 border-t border-gray-200">
         <button
           onClick={toggleCollapse}
           className={`flex items-center ${
@@ -100,6 +207,6 @@ export default function Navbar({ collapsed, setCollapsed }: NavbarProps) {
           )}
         </button>
       </div>
-    </div>
+    </>
   );
 }

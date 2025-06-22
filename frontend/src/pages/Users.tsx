@@ -105,10 +105,31 @@ export default function Users() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading users...</p>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              User Management
+            </h1>
+          </div>
+          <button
+            onClick={handleAddUser}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+          >
+            <FiPlus className="text-sm" />
+            <span className="sm:inline">Add User</span>
+          </button>
+        </div>
+
+        {/* Loading State */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading users...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -117,18 +138,18 @@ export default function Users() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               User Management
             </h1>
           </div>
           <button
             onClick={handleAddUser}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
           >
             <FiPlus className="text-sm" />
-            Add User
+            <span className="sm:inline">Add User</span>
           </button>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -150,21 +171,23 @@ export default function Users() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            User Management
+          </h1>
         </div>
         <button
           onClick={handleAddUser}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
         >
           <FiPlus className="text-sm" />
-          Add User
+          <span className="sm:inline">Add User</span>
         </button>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Users Table - Desktop */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -240,9 +263,76 @@ export default function Users() {
           </table>
         </div>
 
-        {/* Empty state */}
+        {/* Empty state - Desktop */}
         {users.length === 0 && (
           <div className="text-center py-12">
+            <div className="text-gray-400 text-xl mb-2">👥</div>
+            <p className="text-gray-600">No users found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Users Cards - Mobile */}
+      <div className="md:hidden space-y-4">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full">
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <FiUser className="text-gray-400 text-lg" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-medium text-gray-900 truncate">
+                      {user.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                    user.role
+                  )}`}
+                >
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={() => handleEditUser(user.id)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Edit user"
+                >
+                  <FiEdit2 className="text-base" />
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(user.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete user"
+                >
+                  <FiTrash2 className="text-base" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Empty state - Mobile */}
+        {users.length === 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <div className="text-gray-400 text-xl mb-2">👥</div>
             <p className="text-gray-600">No users found</p>
           </div>
