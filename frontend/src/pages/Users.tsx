@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiUser } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiUser } from "react-icons/fi";
+import { BiSolidEdit } from "react-icons/bi";
 import { usersApi } from "../services/usersApi";
 import type { DatabaseUser } from "../types/database";
 import EditUserModal from "../components/Modals/EditUserModal";
@@ -115,7 +116,7 @@ export default function Users() {
           </div>
           <button
             onClick={handleAddUser}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
           >
             <FiPlus className="text-sm" />
             <span className="sm:inline">Add User</span>
@@ -146,7 +147,7 @@ export default function Users() {
           </div>
           <button
             onClick={handleAddUser}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
           >
             <FiPlus className="text-sm" />
             <span className="sm:inline">Add User</span>
@@ -179,7 +180,7 @@ export default function Users() {
         </div>
         <button
           onClick={handleAddUser}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
         >
           <FiPlus className="text-sm" />
           <span className="sm:inline">Add User</span>
@@ -201,7 +202,7 @@ export default function Users() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -239,21 +240,21 @@ export default function Users() {
                       {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex items-center gap-2 justify-end">
                       <button
                         onClick={() => handleEditUser(user.id)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
                         title="Edit user"
                       >
-                        <FiEdit2 className="text-sm" />
+                        <BiSolidEdit className="text-lg" />
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
                         title="Delete user"
                       >
-                        <FiTrash2 className="text-sm" />
+                        <FiTrash2 className="text-lg" />
                       </button>
                     </div>
                   </td>
@@ -319,17 +320,17 @@ export default function Users() {
                 <div className="flex items-center space-x-1 ml-3">
                   <button
                     onClick={() => handleEditUser(user.id)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
                     title="Edit user"
                   >
-                    <FiEdit2 className="w-4 h-4" />
+                    <BiSolidEdit className="w-6 h-6" />
                   </button>
                   <button
                     onClick={() => handleDeleteUser(user.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
                     title="Delete user"
                   >
-                    <FiTrash2 className="w-4 h-4" />
+                    <FiTrash2 className="w-6 h-6" />
                   </button>
                 </div>
               </div>

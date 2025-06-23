@@ -45,7 +45,7 @@ export default function ProfileDropdown() {
       {/* Profile trigger button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
       >
         <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
           {user.avatar_url ? (
@@ -91,9 +91,7 @@ export default function ProfileDropdown() {
                 <span className="text-sm font-medium text-gray-900">
                   {user.name || user.email.split("@")[0]}
                 </span>
-                <span className="text-xs text-gray-500">
-                  {user.email}
-                </span>
+                <span className="text-xs text-gray-500">{user.email}</span>
               </div>
             </div>
           </div>
@@ -103,14 +101,14 @@ export default function ProfileDropdown() {
             <Link
               to="/profile"
               onClick={() => setIsDropdownOpen(false)}
-              className="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               <FiUser className="text-lg" />
               <span className="text-sm font-medium">View Profile</span>
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
             >
               <FiLogOut className="text-lg" />
               <span className="text-sm font-medium">Logout</span>

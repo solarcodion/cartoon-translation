@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { Link, useNavigate } from "react-router-dom";
+import { FiPlus, FiTrash2 } from "react-icons/fi";
+import { BiSolidEdit } from "react-icons/bi";
 import EditSeriesModal from "../components/Modals/EditSeriesModal";
 import DeleteSeriesModal from "../components/Modals/DeleteSeriesModal";
 
@@ -13,6 +14,7 @@ interface SeriesItem {
 }
 
 export default function Series() {
+  const navigate = useNavigate();
   const [series, setSeries] = useState<SeriesItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,27 +138,27 @@ export default function Series() {
     setDeletingSeries(null);
   };
 
+  const handleSeriesClick = (seriesId: string) => {
+    navigate(`/series/${seriesId}/chapters`);
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Series
-            </h1>
-          </div>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Series</h1>
           <button
             onClick={handleAddSeries}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <FiPlus className="text-sm" />
-            <span className="sm:inline">Add Series</span>
+            Add Series
           </button>
         </div>
 
         {/* Loading State */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white">
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -170,19 +172,15 @@ export default function Series() {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Series
-            </h1>
-          </div>
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Series</h1>
           <button
             onClick={handleAddSeries}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <FiPlus className="text-sm" />
-            <span className="sm:inline">Add Series</span>
+            Add Series
           </button>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -191,7 +189,7 @@ export default function Series() {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={fetchSeries}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               Try Again
             </button>
@@ -202,131 +200,89 @@ export default function Series() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Series
-          </h1>
-        </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Series</h1>
         <button
           onClick={handleAddSeries}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
         >
           <FiPlus className="text-sm" />
-          <span className="sm:inline">Add Series</span>
+          Add Series
         </button>
       </div>
 
-      {/* Series Table - Desktop */}
-      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Series Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Chapters
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {series.map((seriesItem) => (
-                <tr key={seriesItem.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      to={`/series/${seriesItem.id}/chapters`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+      {/* Series Table */}
+      <div className="bg-white">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                Series Name
+              </th>
+              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                Chapters
+              </th>
+              <th className="px-6 py-4 text-right text-sm font-medium text-gray-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {series.map((seriesItem) => (
+              <tr
+                key={seriesItem.id}
+                className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleSeriesClick(seriesItem.id)}
+              >
+                <td className="px-6 py-4">
+                  <Link
+                    to={`/series/${seriesItem.id}/chapters`}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                  >
+                    {seriesItem.name}
+                  </Link>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm text-gray-900">
+                    {seriesItem.chapters}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEditSeries(seriesItem.id);
+                      }}
+                      className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                      title="Edit series"
                     >
-                      {seriesItem.name}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-600">
-                      {seriesItem.chapters}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditSeries(seriesItem.id)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Edit series"
-                      >
-                        <FiEdit2 className="text-sm" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSeries(seriesItem.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete series"
-                      >
-                        <FiTrash2 className="text-sm" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <BiSolidEdit className="text-lg" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteSeries(seriesItem.id);
+                      }}
+                      className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+                      title="Delete series"
+                    >
+                      <FiTrash2 className="text-lg" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-        {/* Empty state - Desktop */}
+        {/* Empty state */}
         {series.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-xl mb-2">📚</div>
-            <p className="text-gray-600">No series found</p>
-          </div>
-        )}
-      </div>
-
-      {/* Series Cards - Mobile */}
-      <div className="md:hidden space-y-4">
-        {series.map((seriesItem) => (
-          <div
-            key={seriesItem.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <Link
-                  to={`/series/${seriesItem.id}/chapters`}
-                  className="text-lg font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors block truncate"
-                >
-                  {seriesItem.name}
-                </Link>
-                <p className="text-sm text-gray-600 mt-1">
-                  {seriesItem.chapters} chapters
-                </p>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => handleEditSeries(seriesItem.id)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit series"
-                >
-                  <FiEdit2 className="text-base" />
-                </button>
-                <button
-                  onClick={() => handleDeleteSeries(seriesItem.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete series"
-                >
-                  <FiTrash2 className="text-base" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Empty state - Mobile */}
-        {series.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <div className="text-gray-400 text-xl mb-2">📚</div>
             <p className="text-gray-600">No series found</p>
           </div>
