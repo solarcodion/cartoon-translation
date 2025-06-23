@@ -262,17 +262,25 @@ export default function Chapters() {
               {chapters.map((chapter) => (
                 <tr key={chapter.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      to={`/series/${seriesId}/chapters/${chapter.id}/pages`}
+                      className="flex items-center gap-3 hover:bg-gray-50 -m-2 p-2 rounded transition-colors"
+                    >
                       <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
                         <FiFileText className="text-gray-500 text-sm" />
                       </div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-blue-600 hover:text-blue-800">
                         Chapter {chapter.number}
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{chapter.title}</div>
+                    <Link
+                      to={`/series/${seriesId}/chapters/${chapter.id}/pages`}
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                    >
+                      {chapter.title}
+                    </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -332,25 +340,30 @@ export default function Chapters() {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
-                    <FiFileText className="text-gray-500 text-sm" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Chapter {chapter.number}
-                  </h3>
-                </div>
-                <p className="text-sm text-gray-900 mb-2 truncate">
-                  {chapter.title}
-                </p>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
-                    chapter.status
-                  )}`}
+                <Link
+                  to={`/series/${seriesId}/chapters/${chapter.id}/pages`}
+                  className="block hover:bg-gray-50 -m-2 p-2 rounded transition-colors"
                 >
-                  {chapter.status.charAt(0).toUpperCase() +
-                    chapter.status.slice(1)}
-                </span>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
+                      <FiFileText className="text-gray-500 text-sm" />
+                    </div>
+                    <h3 className="text-lg font-medium text-blue-600">
+                      Chapter {chapter.number}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-gray-900 mb-2 truncate">
+                    {chapter.title}
+                  </p>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
+                      chapter.status
+                    )}`}
+                  >
+                    {chapter.status.charAt(0).toUpperCase() +
+                      chapter.status.slice(1)}
+                  </span>
+                </Link>
               </div>
               <div className="flex items-center gap-2 ml-4">
                 <button
