@@ -154,6 +154,56 @@ export const mockAiInsights: AIInsights = {
   insights: ["Consider standardizing 'gate' vs 'portal' terminology."],
 };
 
+// Mock Users Data
+export interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+  role: "admin" | "editor" | "translator";
+  created_at: string;
+  updated_at: string;
+}
+
+export const mockUsers: MockUser[] = [
+  {
+    id: "1",
+    name: "Admin User",
+    email: "admin@manhwatrans.com",
+    avatar: null,
+    role: "admin",
+    created_at: "2024-01-01T10:00:00Z",
+    updated_at: "2024-01-01T10:00:00Z",
+  },
+  {
+    id: "2",
+    name: "Editor One",
+    email: "editor1@manhwatrans.com",
+    avatar: null,
+    role: "editor",
+    created_at: "2024-01-02T10:00:00Z",
+    updated_at: "2024-01-02T10:00:00Z",
+  },
+  {
+    id: "3",
+    name: "Translator One",
+    email: "translator1@manhwatrans.com",
+    avatar: null,
+    role: "translator",
+    created_at: "2024-01-03T10:00:00Z",
+    updated_at: "2024-01-03T10:00:00Z",
+  },
+  {
+    id: "4",
+    name: "Translator Two",
+    email: "translator2@manhwatrans.com",
+    avatar: null,
+    role: "translator",
+    created_at: "2024-01-04T10:00:00Z",
+    updated_at: "2024-01-04T10:00:00Z",
+  },
+];
+
 // Translation Memory Data
 export const translationMemoryData: TranslationMemory[] = [
   {

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { FiX, FiUser, FiSave } from "react-icons/fi";
-import type { DatabaseUser } from "../../types/database";
+import type { MockUser } from "../../data/mockData";
 import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface EditUserModalProps {
-  user: DatabaseUser | null;
+  user: MockUser | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (

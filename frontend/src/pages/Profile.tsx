@@ -1,9 +1,9 @@
-import { FiUser, FiMail, FiShield, FiCalendar, FiClock } from "react-icons/fi";
-import { useUserProfile } from "../hooks/useUserProfile";
-import { LoadingSpinner, ErrorState } from "../components/common";
+import { FiUser, FiMail, FiShield } from "react-icons/fi";
+import { useAuth } from "../hooks/useAuth";
+import { LoadingSpinner } from "../components/common";
 
 export default function Profile() {
-  const { user, isLoading, error } = useUserProfile();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -13,10 +13,6 @@ export default function Profile() {
         centered
       />
     );
-  }
-
-  if (error) {
-    return <ErrorState error={error} />;
   }
 
   if (!user) {
@@ -29,21 +25,6 @@ export default function Profile() {
       </div>
     );
   }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Not available";
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
 
   const getRoleBadgeColor = (role?: string) => {
     switch (role) {
@@ -135,36 +116,6 @@ export default function Profile() {
                   {user.role
                     ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
                     : "Not specified"}
-                </p>
-              </div>
-            </div>
-
-            {/* Account Created */}
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg">
-                <FiCalendar className="text-gray-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Account Created
-                </p>
-                <p className="text-sm text-gray-600">
-                  {formatDate(user.created_at)}
-                </p>
-              </div>
-            </div>
-
-            {/* Last Updated */}
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg">
-                <FiClock className="text-gray-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Last Updated
-                </p>
-                <p className="text-sm text-gray-600">
-                  {formatDate(user.updated_at)}
                 </p>
               </div>
             </div>

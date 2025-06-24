@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { useUserProfile } from "../../hooks/useUserProfile";
+import { useAuth } from "../../hooks/useAuth";
 import { PageLoadingSpinner } from "../common/LoadingSpinner";
 
 interface AdminRouteProps {
@@ -8,7 +8,7 @@ interface AdminRouteProps {
 }
 
 export default function AdminRoute({ children }: AdminRouteProps) {
-  const { user, isLoading } = useUserProfile();
+  const { user, isLoading } = useAuth();
 
   // Show loading state while checking user role
   if (isLoading) {

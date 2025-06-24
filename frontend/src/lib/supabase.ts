@@ -14,23 +14,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
-
-// Test database connection
-export const testConnection = async (): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from("users")
-      .select("count", { count: "exact", head: true });
-
-    if (error) {
-      console.error("Database connection test failed:", error);
-      return false;
-    }
-
-    console.log("Database connection successful");
-    return true;
-  } catch (error) {
-    console.error("Database connection test error:", error);
-    return false;
-  }
-};

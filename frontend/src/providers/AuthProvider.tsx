@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { User, AuthContextType } from "../types/auth";
 import { AuthContext } from "../contexts/AuthContext";
-import { userService } from "../services/database";
+
 interface AuthProviderProps {
   children: React.ReactNode;
 }
@@ -29,6 +29,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               session.user.email?.split("@")[0] ||
               "Unknown User",
             avatar_url: session.user.user_metadata?.avatar_url,
+            role: "translator", // Default role for frontend display
           };
           setUser(userData);
         } else {
@@ -61,57 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               session.user.email?.split("@")[0] ||
               "Unknown User",
             avatar_url: session.user.user_metadata?.avatar_url,
+            role: "translator", // Default role for frontend display
           };
-
-          // Only save to database on sign in, not on token refresh
-          if (event === "SIGNED_IN") {
-            userService
-              .existsById(session.user.id)
-              .then(async (userExists) => {
-                if (userExists.error) {
-                  console.error(
-                    "❌ Error checking user existence:",
-                    userExists.error
-                  );
-
-                  const result = await userService.create({
-                    id: session.user.id,
-                    name: userData.name,
-                    email: userData.email,
-                    avatar: userData.avatar_url || "",
-                    role: "translator",
-                  });
-
-                  if (result.error) {
-                    console.error(
-                      "❌ Error saving user to database:",
-                      result.error
-                    );
-                  }
-                } else if (!userExists.data) {
-                  const result = await userService.create({
-                    id: session.user.id,
-                    name: userData.name,
-                    email: userData.email,
-                    avatar: userData.avatar_url || "",
-                    role: "translator",
-                  });
-
-                  if (result.error) {
-                    console.error(
-                      "❌ Error saving user to database:",
-                      result.error
-                    );
-                  }
-                }
-              })
-              .catch((error) => {
-                console.error(
-                  "💥 Unexpected error saving user to database:",
-                  error
-                );
-              });
-          }
 
           setUser(userData);
         } else if (event === "SIGNED_OUT") {

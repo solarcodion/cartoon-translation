@@ -2,11 +2,11 @@
 
 import { FiUser, FiTrash2 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import type { DatabaseUser } from "../../../types/database";
+import type { MockUser } from "../../../data/mockData";
 
 interface UserItemProps {
   /** User data to display */
-  user: DatabaseUser;
+  user: MockUser;
   /** Callback when edit button is clicked */
   onEdit: () => void;
   /** Callback when delete button is clicked */
@@ -37,9 +37,7 @@ export function UserTableRow({
               <FiUser className="text-gray-400" />
             )}
           </div>
-          <div className="text-sm font-medium text-gray-900">
-            {user.name}
-          </div>
+          <div className="text-sm font-medium text-gray-900">{user.name}</div>
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
@@ -114,9 +112,7 @@ export function UserListItem({
                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </span>
             </div>
-            <p className="text-sm text-gray-500 truncate">
-              {user.email}
-            </p>
+            <p className="text-sm text-gray-500 truncate">{user.email}</p>
           </div>
         </div>
 

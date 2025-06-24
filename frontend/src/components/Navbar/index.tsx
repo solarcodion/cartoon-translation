@@ -7,7 +7,8 @@ import {
   FiChevronRight,
   FiX,
 } from "react-icons/fi";
-import { useUserProfile } from "../../hooks/useUserProfile";
+import { useAuth } from "../../hooks/useAuth";
+import type { User } from "../../types/auth";
 
 interface NavbarProps {
   collapsed: boolean;
@@ -22,7 +23,7 @@ export default function Navbar({
   mobileOpen,
   setMobileOpen,
 }: NavbarProps) {
-  const { user } = useUserProfile();
+  const { user } = useAuth();
   const location = useLocation();
 
   const toggleCollapse = () => {
@@ -125,7 +126,7 @@ function NavbarContent({
   onLinkClick,
 }: {
   collapsed: boolean;
-  user: any;
+  user: User | null;
   getLinkClasses: (path: string) => string;
   toggleCollapse: () => void;
   onLinkClick: () => void;

@@ -1,12 +1,12 @@
 // Reusable User Table Component with Desktop and Mobile Views
 
-import type { DatabaseUser } from "../../types/database";
+import type { MockUser } from "../../data/mockData";
 import { UserTableRow, UserListItem } from "./Items";
 import { NoUsersFound } from "../common";
 
 interface UserTableProps {
   /** Array of users to display */
-  users: DatabaseUser[];
+  users: MockUser[];
   /** Callback when edit button is clicked */
   onEditUser: (userId: string) => void;
   /** Callback when delete button is clicked */

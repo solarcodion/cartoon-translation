@@ -1,19 +1,16 @@
 // Export all types from a central location
 
 // Authentication types
-export * from './auth';
-
-// Database types
-export * from './database';
+export * from "./auth";
 
 // Dashboard types
-export * from './dashboard';
+export * from "./dashboard";
 
 // Series types
-export * from './series';
+export * from "./series";
 
 // Pages types
-export * from './pages';
+export * from "./pages";
 
 // Translation types
-export * from './translation';
+export * from "./translation";

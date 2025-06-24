@@ -10,7 +10,6 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import { MdGTranslate } from "react-icons/md";
 import { EmptyState, TabContent } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import type { Page, ChapterInfo } from "../../types";

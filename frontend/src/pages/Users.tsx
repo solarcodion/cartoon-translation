@@ -1,37 +1,33 @@
 import { useState, useEffect } from "react";
 import { FiPlus } from "react-icons/fi";
-import { usersApi } from "../services/usersApi";
-import type { DatabaseUser } from "../types/database";
+import type { MockUser } from "../data/mockData";
+import { mockUsers } from "../data/mockData";
 import EditUserModal from "../components/Modals/EditUserModal";
 import { SectionLoadingSpinner, ErrorState } from "../components/common";
 import { ResponsivePageHeader } from "../components/Header/PageHeader";
 import { UserTable } from "../components/Lists";
 
 export default function Users() {
-  const [users, setUsers] = useState<DatabaseUser[]>([]);
+  const [users, setUsers] = useState<MockUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
+  const [editingUser, setEditingUser] = useState<MockUser | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch users using API service
+  // Fetch users using mock data
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const result = await usersApi.getAllUsers();
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      setUsers(result.data || []);
+      // Simulate loading
+      setTimeout(() => {
+        setUsers(mockUsers);
+        setIsLoading(false);
+      }, 500);
     } catch (err) {
       console.error("Unexpected error fetching users:", err);
       setError("An unexpected error occurred.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -76,15 +72,7 @@ export default function Users() {
     newRole: "admin" | "editor" | "translator"
   ) => {
     try {
-      const result = await usersApi.updateUserRole(userId, newRole);
-
-      if (result.error) {
-        console.error("Failed to update user role:", result.error);
-        // TODO: Show error toast/notification
-        return;
-      }
-
-      // Update the user in the local state
+      // Update the user in the local state (mock implementation)
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
           user.id === userId
