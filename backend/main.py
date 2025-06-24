@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from app.config import settings
+from app.routers import users
 
 # Create FastAPI instance
 app = FastAPI(
@@ -18,10 +21,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Exception handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors with detailed information"""
+    print(f"Validation error on {request.method} {request.url}")
+    print(f"Validation errors: {exc.errors()}")
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Validation error",
+            "errors": exc.errors()
+        }
+    )
+
+# Include routers
+app.include_router(users.router, prefix="/api")
+
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {"message": "ManhwaTrans API is running!"}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "API is running"}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,40 +1,70 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FiPlus } from "react-icons/fi";
 import type { MockUser } from "../data/mockData";
-import { mockUsers } from "../data/mockData";
 import EditUserModal from "../components/Modals/EditUserModal";
 import { SectionLoadingSpinner, ErrorState } from "../components/common";
 import { ResponsivePageHeader } from "../components/Header/PageHeader";
 import { UserTable } from "../components/Lists";
+import { userService, type UserResponse } from "../services/userService";
+import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabase";
 
 export default function Users() {
-  const [users, setUsers] = useState<MockUser[]>([]);
+  const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState<MockUser | null>(null);
+  const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { user: currentUser } = useAuth();
 
-  // Fetch users using mock data
-  const fetchUsers = async () => {
+  // Convert UserResponse to MockUser for compatibility with existing components
+  const convertToMockUser = (user: UserResponse): MockUser => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar_url || null,
+    role: user.role,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+  });
+
+  // Fetch users from API
+  const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Simulate loading
-      setTimeout(() => {
-        setUsers(mockUsers);
+      if (!currentUser) {
+        setError("Authentication required");
         setIsLoading(false);
-      }, 500);
+        return;
+      }
+
+      // Get access token from Supabase
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError("No valid session found");
+        setIsLoading(false);
+        return;
+      }
+
+      const usersData = await userService.getUsers(session.access_token);
+      setUsers(usersData);
+      setIsLoading(false);
     } catch (err) {
-      console.error("Unexpected error fetching users:", err);
-      setError("An unexpected error occurred.");
+      console.error("Error fetching users:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
       setIsLoading(false);
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -62,9 +92,32 @@ export default function Users() {
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    // TODO: Implement delete user functionality
-    console.log("Delete user:", userId);
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      if (!currentUser) {
+        setError("Authentication required");
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError("No valid session found");
+        return;
+      }
+
+      await userService.deleteUser(userId, session.access_token);
+
+      // Remove user from local state
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+      console.log("User deleted successfully");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to delete user"
+      );
+    }
   };
 
   const handleSaveUserRole = async (
@@ -72,20 +125,36 @@ export default function Users() {
     newRole: "admin" | "editor" | "translator"
   ) => {
     try {
-      // Update the user in the local state (mock implementation)
+      if (!currentUser) {
+        setError("Authentication required");
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError("No valid session found");
+        return;
+      }
+
+      const updatedUser = await userService.updateUserRole(
+        userId,
+        newRole,
+        session.access_token
+      );
+
+      // Update user in local state
       setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId
-            ? { ...user, role: newRole, updated_at: new Date().toISOString() }
-            : user
-        )
+        prevUsers.map((user) => (user.id === userId ? updatedUser : user))
       );
 
       console.log("User role updated successfully");
-      // TODO: Show success toast/notification
     } catch (error) {
-      console.error("Unexpected error updating user role:", error);
-      // TODO: Show error toast/notification
+      console.error("Error updating user role:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to update user role"
+      );
     }
   };
 
@@ -157,7 +226,7 @@ export default function Users() {
 
       {/* Users Table */}
       <UserTable
-        users={users}
+        users={users.map(convertToMockUser)}
         onEditUser={handleEditUser}
         onDeleteUser={handleDeleteUser}
         getRoleBadgeColor={getRoleBadgeColor}
@@ -165,7 +234,7 @@ export default function Users() {
 
       {/* Edit User Modal */}
       <EditUserModal
-        user={editingUser}
+        user={editingUser ? convertToMockUser(editingUser) : null}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveUserRole}

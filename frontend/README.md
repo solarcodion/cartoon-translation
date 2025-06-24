@@ -14,7 +14,7 @@ A React + TypeScript + Vite application with Supabase authentication for managin
 
 ## 🔐 Authentication with Supabase UI Library
 
-This project implements authentication using the **Supabase UI Library** for login and register functionality.
+This project implements authentication using the **Supabase UI Library** for login and register functionality, with backend API integration for user management.
 
 ### 🚀 Features
 
@@ -24,6 +24,9 @@ This project implements authentication using the **Supabase UI Library** for log
 - **Protected Routes** - Automatic redirection based on auth state
 - **Session Management** - Real-time auth state updates
 - **TypeScript** - Full type safety
+- **Backend Integration** - Automatic user creation in database after signup
+- **User Management** - Complete CRUD operations for user administration
+- **Role-based Access** - Admin, Editor, and Translator roles
 
 ### 📦 Authentication Packages
 
@@ -152,6 +155,54 @@ npm run build
 ### Development
 
 The application will be available at `http://localhost:5173` (or next available port).
+
+## 🔗 Backend Integration
+
+This frontend integrates with a FastAPI backend for user management:
+
+### Environment Variables
+
+Create a `.env` file in the frontend directory:
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Backend API Configuration
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+### User Management Flow
+
+1. **Registration**: When users sign up via Supabase Auth UI, the AuthProvider automatically calls the backend API to create a user record in the database with fields: `id`, `email`, `name`, `role`, `avatar_url`, `created_at`, `updated_at`.
+
+2. **Authentication**: All API requests use Supabase JWT tokens for authentication.
+
+3. **User Administration**: The Users page (`/users`) provides a complete interface for:
+   - Viewing all users
+   - Editing user roles (admin, editor, translator)
+   - Deleting users
+   - Real-time updates
+
+### API Services
+
+The frontend includes a complete API service layer:
+
+- `src/services/api.ts` - Base API client with authentication
+- `src/services/userService.ts` - User management operations
+
+### Backend Requirements
+
+Make sure the backend is running on `http://localhost:8000` with the following endpoints:
+
+- `POST /api/users/` - Create user after signup
+- `GET /api/users/` - Get all users
+- `GET /api/users/me` - Get current user profile
+- `PUT /api/users/{id}/role` - Update user role
+- `DELETE /api/users/{id}` - Delete user
+
+See the backend README for setup instructions.
 
 ## Expanding the ESLint configuration
 

@@ -23,5 +23,18 @@ class Settings:
         cors_origins_str = os.getenv("CORS_ORIGINS")
         self.cors_origins: List[str] = [origin.strip() for origin in cors_origins_str.split(',')]
 
+        # Supabase Settings
+        self.supabase_url: str = os.getenv("SUPABASE_URL")
+        self.supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY")
+        self.supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY")
+
+        # Validate required Supabase settings
+        if not self.supabase_url:
+            raise ValueError("SUPABASE_URL environment variable is required")
+        if not self.supabase_service_key:
+            raise ValueError("SUPABASE_SERVICE_KEY environment variable is required")
+        if not self.supabase_anon_key:
+            raise ValueError("SUPABASE_ANON_KEY environment variable is required")
+
 # Global settings instance
 settings = Settings()

@@ -62,14 +62,14 @@ export default function Auth() {
                   email_label: "Email address",
                   password_label: "Password",
                   button_label: "Sign in",
-                  link_text: "Don't have an account? Sign up",
+                  link_text: "Already have an account? Sign in",
                   loading_button_label: "Signing in...",
                 },
                 sign_up: {
                   email_label: "Email address",
                   password_label: "Create a password",
                   button_label: "Create account",
-                  link_text: "Already have an account? Sign in",
+                  link_text: "Don't have an account? Sign up",
                   loading_button_label: "Creating account...",
                   confirmation_text:
                     "Check your email for the confirmation link",
