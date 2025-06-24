@@ -108,13 +108,42 @@ Once the server is running, you can access:
 ### User Management
 
 - `POST /api/users/` - Create a new user
-- `GET /api/users/` - Get all users (with pagination)
-- `GET /api/users/me` - Get current user profile
-- `GET /api/users/{user_id}` - Get user by ID
-- `GET /api/users/email/{email}` - Get user by email
-- `PUT /api/users/{user_id}` - Update user information
-- `PUT /api/users/{user_id}/role` - Update user role
-- `DELETE /api/users/{user_id}` - Delete user
+- `GET /api/users/` - Get all users (with pagination) - **Requires authentication**
+- `GET /api/users/me` - Get current user profile - **Requires authentication**
+- `GET /api/users/{user_id}` - Get user by ID - **Requires authentication**
+- `GET /api/users/email/{email}` - Get user by email - **Requires authentication**
+- `PUT /api/users/me` - Update own profile (name, avatar) - **Requires authentication**
+- `PUT /api/users/{user_id}` - Update user information - **Requires authentication + admin for other users**
+- `PUT /api/users/{user_id}/role` - Update user role - **Requires admin permissions**
+- `DELETE /api/users/{user_id}` - Delete user - **Requires admin permissions**
+
+#### User Update API Details
+
+**Update Own Profile** (`PUT /api/users/me`)
+
+- Users can update their own name and avatar_url
+- Users cannot update their own role (admin-only operation)
+- Request body: `{"name": "string", "avatar_url": "string"}`
+
+**Update Any User** (`PUT /api/users/{user_id}`)
+
+- Users can update their own profile (name, avatar_url only)
+- Admins can update any user's information including role
+- Users cannot update their own role even through this endpoint
+- Request body: `{"name": "string", "role": "admin|editor|translator", "avatar_url": "string"}`
+
+**Update User Role** (`PUT /api/users/{user_id}/role`)
+
+- Only admins can update user roles
+- Users cannot update their own role (another admin must do it)
+- Request body: `{"role": "admin|editor|translator"}`
+
+#### Authorization Rules
+
+1. **Self-Profile Updates**: Users can update their own name and avatar_url
+2. **Role Updates**: Only admins can update roles, and users cannot update their own role
+3. **Admin Operations**: Admins can update any user's information and delete users
+4. **Self-Protection**: Users cannot delete their own account or update their own role
 
 ### Authentication
 

@@ -134,17 +134,34 @@ class UserService:
     async def update_user(self, user_id: str, user_data: UserUpdate) -> UserResponse:
         """Update user information"""
         try:
-            # Prepare update data
+            print(f"Updating user {user_id} with data: {user_data}")
+
+            # First check if user exists
+            existing_user = await self.get_user_by_id(user_id)
+            if not existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+
+            # Prepare update data - only include fields that are not None
             update_dict = {}
             if user_data.name is not None:
-                update_dict["name"] = user_data.name
+                update_dict["name"] = user_data.name.strip()  # Strip whitespace
             if user_data.role is not None:
                 update_dict["role"] = user_data.role.value
             if user_data.avatar_url is not None:
                 update_dict["avatar_url"] = user_data.avatar_url
-            
+
+            # If no fields to update, return existing user
+            if not update_dict:
+                print(f"No fields to update for user {user_id}")
+                return existing_user
+
             update_dict["updated_at"] = datetime.utcnow().isoformat()
-            
+
+            print(f"Updating user {user_id} with: {update_dict}")
+
             # Update user in database
             response = (
                 self.supabase.table(self.table_name)
@@ -152,18 +169,20 @@ class UserService:
                 .eq("id", user_id)
                 .execute()
             )
-            
+
             if not response.data:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    detail="User not found or update failed"
                 )
-            
+
+            print(f"User {user_id} updated successfully")
             return UserResponse(**response.data[0])
-            
+
         except HTTPException:
             raise
         except Exception as e:
+            print(f"Error updating user {user_id}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update user: {str(e)}"

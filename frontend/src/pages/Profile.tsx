@@ -1,9 +1,88 @@
-import { FiUser, FiMail, FiShield, FiCalendar, FiClock } from "react-icons/fi";
+import { useState } from "react";
+import {
+  FiUser,
+  FiMail,
+  FiShield,
+  FiCalendar,
+  FiClock,
+  FiEdit2,
+} from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { LoadingSpinner } from "../components/common";
+import EditProfileModal from "../components/Modals/EditProfileModal";
+import {
+  userService,
+  type UpdateProfileRequest,
+} from "../services/userService";
+import { supabase } from "../lib/supabase";
 
 export default function Profile() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const handleUpdateProfile = async (profileData: UpdateProfileRequest) => {
+    try {
+      setIsUpdating(true);
+      setUpdateError(null);
+
+      if (!user) {
+        setUpdateError(
+          "User not found. Please refresh the page and try again."
+        );
+        return;
+      }
+
+      // Get access token from Supabase
+      console.log("🔍 Getting Supabase session...");
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        setUpdateError(`Session error: ${sessionError.message}`);
+        return;
+      }
+
+      if (!session?.access_token) {
+        setUpdateError("No valid session found. Please log in again.");
+        return;
+      }
+
+      console.log("✅ Session found, making API call...");
+      console.log("📝 Profile data:", profileData);
+
+      await userService.updateMyProfile(profileData, session.access_token);
+
+      console.log("✅ Profile updated successfully!");
+      // Refresh user data from the server
+      await refreshUser();
+    } catch (error) {
+      console.error("❌ Error updating profile:", error);
+
+      // Enhanced error handling
+      if (error instanceof Error) {
+        if (error.message.includes("Not authenticated")) {
+          setUpdateError(
+            "Authentication failed. Please log out and log in again."
+          );
+        } else if (error.message.includes("CORS")) {
+          setUpdateError(
+            "Connection error. Please check if the backend is running."
+          );
+        } else {
+          setUpdateError(`Update failed: ${error.message}`);
+        }
+      } else {
+        setUpdateError("Failed to update profile. Please try again.");
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "Not available";
@@ -58,12 +137,29 @@ export default function Profile() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-        <p className="text-gray-600">
-          View your account information and details.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
+          <p className="text-gray-600">
+            View and edit your account information.
+          </p>
+        </div>
+        <button
+          onClick={() => setIsEditModalOpen(true)}
+          disabled={isUpdating}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FiEdit2 className="text-sm" />
+          Edit Profile
+        </button>
       </div>
+
+      {/* Error Message */}
+      {updateError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 text-sm">{updateError}</p>
+        </div>
+      )}
 
       {/* Profile Card */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -168,6 +264,14 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        user={user}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleUpdateProfile}
+      />
     </div>
   );
 }

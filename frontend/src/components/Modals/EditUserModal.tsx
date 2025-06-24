@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { FiX, FiUser, FiSave } from "react-icons/fi";
+import { FiX, FiUser, FiSave, FiCheck } from "react-icons/fi";
 import type { MockUser } from "../../data/mockData";
-import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface EditUserModalProps {
   user: MockUser | null;
@@ -23,11 +22,13 @@ export default function EditUserModal({
     "admin" | "editor" | "translator"
   >(user?.role || "translator");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   // Update selected role when user changes
   useEffect(() => {
     if (user) {
       setSelectedRole(user.role);
+      setIsSuccess(false);
     }
   }, [user]);
 
@@ -36,8 +37,14 @@ export default function EditUserModal({
 
     try {
       setIsLoading(true);
+      setIsSuccess(false);
       await onSave(user.id, selectedRole);
-      onClose();
+
+      // Show success state briefly before closing
+      setIsSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 800);
     } catch (error) {
       console.error("Error saving user role:", error);
     } finally {
@@ -46,7 +53,7 @@ export default function EditUserModal({
   };
 
   const handleClose = () => {
-    if (!isLoading) {
+    if (!isLoading && !isSuccess) {
       onClose();
     }
   };
@@ -76,8 +83,8 @@ export default function EditUserModal({
           </h2>
           <button
             onClick={handleClose}
-            disabled={isLoading}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            disabled={isLoading || isSuccess}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
             <FiX className="text-lg" />
           </button>
@@ -160,22 +167,45 @@ export default function EditUserModal({
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
           <button
             onClick={handleClose}
-            disabled={isLoading}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+            disabled={isLoading || isSuccess}
+            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            disabled={isLoading || selectedRole === user.role}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || isSuccess || selectedRole === user.role}
+            className={`
+              relative flex items-center justify-center gap-2 px-6 py-2.5 min-w-[140px]
+              text-white font-medium rounded-lg transition-all duration-200
+              ${
+                isSuccess
+                  ? "bg-green-500 cursor-default"
+                  : isLoading
+                  ? "bg-blue-500 cursor-not-allowed"
+                  : selectedRole !== user.role
+                  ? "bg-blue-600 hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                  : "bg-gray-400 cursor-not-allowed"
+              }
+              disabled:opacity-75
+            `}
           >
-            {isLoading ? (
-              <InlineLoadingSpinner color="white" />
+            {isSuccess ? (
+              <>
+                <FiCheck className="text-sm" />
+                <span>Saved!</span>
+              </>
+            ) : isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                <span>Saving...</span>
+              </>
             ) : (
-              <FiSave className="text-sm" />
+              <>
+                <FiSave className="text-sm" />
+                <span>Save Changes</span>
+              </>
             )}
-            {isLoading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

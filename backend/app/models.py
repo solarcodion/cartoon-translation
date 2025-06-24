@@ -30,6 +30,17 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
 
 
+class UserProfileUpdate(BaseModel):
+    """User profile update model (for users updating their own profile)"""
+    name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserRoleUpdate(BaseModel):
+    """User role update model"""
+    role: UserRole
+
+
 class UserResponse(UserBase):
     """User response model"""
     id: str

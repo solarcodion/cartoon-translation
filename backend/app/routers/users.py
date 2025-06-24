@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from fastapi.exceptions import RequestValidationError
 from typing import List, Dict, Any
 from supabase import Client
 from pydantic import ValidationError
 
 from app.database import get_supabase
-from app.auth import get_current_user, get_current_user_optional
+from app.auth import get_current_user
 from app.services.user_service import UserService
 from app.models import (
-    UserResponse, 
-    UserUpdate, 
-    CreateUserRequest, 
-    ApiResponse, 
-    ErrorResponse,
+    UserResponse,
+    UserUpdate,
+    UserProfileUpdate,
+    UserRoleUpdate,
+    CreateUserRequest,
+    ApiResponse,
     UserRole
 )
 
@@ -24,12 +24,30 @@ def get_user_service(supabase: Client = Depends(get_supabase)) -> UserService:
     return UserService(supabase)
 
 
-def check_admin_permission(current_user: Dict[str, Any]) -> None:
+async def check_admin_permission(current_user: Dict[str, Any], user_service: UserService) -> None:
     """Check if current user has admin permissions"""
-    # For now, we'll implement a basic check
-    # In a real app, you'd fetch the user's role from the database
-    # This is a simplified version for demonstration
-    pass
+    try:
+        # Get the current user's full profile to check their role
+        user_profile = await user_service.get_user_by_id(current_user["user_id"])
+
+        if not user_profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User profile not found"
+            )
+
+        if user_profile.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin permissions required for this operation"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to verify admin permissions: {str(e)}"
+        )
 
 
 @router.post("/", response_model=UserResponse)
@@ -136,6 +154,51 @@ async def get_user(
     return user
 
 
+@router.put("/me", response_model=UserResponse)
+async def update_my_profile(
+    request: Request,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Update current user's own profile information.
+    Users can only update their name and avatar_url, not their role.
+    """
+    try:
+        # Get raw request body for debugging
+        raw_body = await request.body()
+        print(f"Raw request body: {raw_body.decode()}")
+
+        # Parse and validate the request data
+        request_data = await request.json()
+        print(f"Parsed JSON data: {request_data}")
+
+        # Validate with Pydantic model
+        profile_data = UserProfileUpdate(**request_data)
+        print(f"Validated profile data: {profile_data}")
+
+        # Convert profile data to user update format
+        user_data = UserUpdate(
+            name=profile_data.name,
+            avatar_url=profile_data.avatar_url,
+            role=None  # Explicitly set role to None to prevent updates
+        )
+
+        return await user_service.update_user(current_user["user_id"], user_data)
+
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        print(f"Validation error details: {e.errors()}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {e.errors()}"
+        )
+    except Exception as e:
+        print(f"Error in update_my_profile endpoint: {str(e)}")
+        print(f"Error type: {type(e)}")
+        raise
+
+
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: str,
@@ -145,21 +208,27 @@ async def update_user(
 ):
     """
     Update user information.
-    Users can update their own profile, admins can update any user.
+    Users can update their own profile (except role), admins can update any user.
     """
-    # Check if user is updating their own profile or if they're an admin
-    if current_user["user_id"] != user_id:
-        # For now, allow any authenticated user to update any user
-        # In production, you'd check admin permissions here
-        pass
-    
+    # Check if user is updating their own profile
+    if current_user["user_id"] == user_id:
+        # Users can update their own profile but not their role
+        if user_data.role is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Users cannot update their own role. Contact an administrator."
+            )
+    else:
+        # If updating another user, must be admin
+        await check_admin_permission(current_user, user_service)
+
     return await user_service.update_user(user_id, user_data)
 
 
 @router.put("/{user_id}/role", response_model=UserResponse)
 async def update_user_role(
     user_id: str,
-    role: UserRole,
+    request: Request,
     current_user: Dict[str, Any] = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
@@ -167,10 +236,42 @@ async def update_user_role(
     Update user role.
     Requires admin permissions.
     """
-    # In production, you'd check admin permissions here
-    check_admin_permission(current_user)
-    
-    return await user_service.update_user_role(user_id, role)
+    try:
+        # Check admin permissions
+        await check_admin_permission(current_user, user_service)
+
+        # Prevent users from updating their own role
+        if current_user["user_id"] == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Users cannot update their own role. Another admin must perform this action."
+            )
+
+        # Get raw request body for debugging
+        raw_body = await request.body()
+        print(f"Raw request body: {raw_body.decode()}")
+
+        # Parse and validate the request data
+        request_data = await request.json()
+        print(f"Parsed JSON data: {request_data}")
+
+        # Validate with Pydantic model
+        role_data = UserRoleUpdate(**request_data)
+        print(f"Validated role data: {role_data}")
+
+        return await user_service.update_user_role(user_id, role_data.role)
+
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        print(f"Validation error details: {e.errors()}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {e.errors()}"
+        )
+    except Exception as e:
+        print(f"Error in update_user_role endpoint: {str(e)}")
+        print(f"Error type: {type(e)}")
+        raise
 
 
 @router.delete("/{user_id}", response_model=ApiResponse)
@@ -183,16 +284,23 @@ async def delete_user(
     Delete user.
     Requires admin permissions.
     """
-    # In production, you'd check admin permissions here
-    check_admin_permission(current_user)
-    
+    # Check admin permissions
+    await check_admin_permission(current_user, user_service)
+
+    # Prevent users from deleting their own account
+    if current_user["user_id"] == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Users cannot delete their own account. Contact another administrator."
+        )
+
     success = await user_service.delete_user(user_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     return ApiResponse(
         success=True,
         message="User deleted successfully"

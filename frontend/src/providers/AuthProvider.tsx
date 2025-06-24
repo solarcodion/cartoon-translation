@@ -81,18 +81,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
-        if (
-          session?.user &&
-          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
-        ) {
+        if (session?.user && event === "SIGNED_IN") {
           // For new signups, create user in database
-          if (event === "SIGNED_IN") {
-            await createUserInDatabase(session);
-          }
+          await createUserInDatabase(session);
 
           // Get user data from database
           const userData = await getUserFromDatabase(session);
           setUser(userData);
+        } else if (session?.user && event === "TOKEN_REFRESHED") {
+          // For token refresh, only update user data if we don't have it or if it's stale
+          if (!user) {
+            const userData = await getUserFromDatabase(session);
+            setUser(userData);
+          }
         } else if (event === "SIGNED_OUT") {
           setUser(null);
         }
@@ -115,11 +116,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const userData = await getUserFromDatabase(session);
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
     logout,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

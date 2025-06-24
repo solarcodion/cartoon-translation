@@ -15,6 +15,15 @@ export interface UpdateUserRequest {
   avatar_url?: string;
 }
 
+export interface UpdateProfileRequest {
+  name?: string;
+  avatar_url?: string;
+}
+
+export interface UpdateRoleRequest {
+  role: "admin" | "editor" | "translator";
+}
+
 export interface UserResponse {
   id: string;
   email: string;
@@ -72,7 +81,17 @@ class UserService {
   }
 
   /**
-   * Update user information
+   * Update current user's own profile (name and avatar)
+   */
+  async updateMyProfile(
+    profileData: UpdateProfileRequest,
+    token: string
+  ): Promise<UserResponse> {
+    return apiClient.put<UserResponse>("/users/me", profileData, token);
+  }
+
+  /**
+   * Update any user's information (admin only for other users)
    */
   async updateUser(
     userId: string,
@@ -90,7 +109,12 @@ class UserService {
     role: "admin" | "editor" | "translator",
     token: string
   ): Promise<UserResponse> {
-    return apiClient.put<UserResponse>(`/users/${userId}/role`, role, token);
+    const roleData: UpdateRoleRequest = { role };
+    return apiClient.put<UserResponse>(
+      `/users/${userId}/role`,
+      roleData,
+      token
+    );
   }
 
   /**
