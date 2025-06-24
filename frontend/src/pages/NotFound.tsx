@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { FiAlertCircle, FiArrowLeft } from "react-icons/fi";
+import { FiAlertCircle } from "react-icons/fi";
+import { BackButton } from "../components/common";
 
 export default function NotFound() {
   return (
@@ -9,13 +9,7 @@ export default function NotFound() {
       <p className="text-gray-600 mb-6 max-w-md">
         The page you are looking for doesn't exist or has been moved.
       </p>
-      <Link
-        to="/"
-        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
-      >
-        <FiArrowLeft />
-        <span>Back to Home</span>
-      </Link>
+      <BackButton text="Back to Home" to="/" />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FiX, FiUser, FiSave } from "react-icons/fi";
 import type { DatabaseUser } from "../../types/database";
+import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface EditUserModalProps {
   user: DatabaseUser | null;
@@ -170,7 +171,7 @@ export default function EditUserModal({
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <InlineLoadingSpinner color="white" />
             ) : (
               <FiSave className="text-sm" />
             )}

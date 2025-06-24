@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../Navbar";
-import Header from "../Header";
-import MobileHeader from "../MobileHeader";
+import LayoutHeader from "../Header/LayoutHeader";
 
 export default function RootLayout() {
   const [navbarCollapsed, setNavbarCollapsed] = useState(false);
@@ -17,15 +16,8 @@ export default function RootLayout() {
         setMobileOpen={setMobileNavOpen}
       />
       <div className={`flex-1 flex flex-col transition-all duration-300`}>
-        {/* Desktop Header */}
-        <div className="hidden lg:block">
-          <Header />
-        </div>
-
-        {/* Mobile Header */}
-        <div className="lg:hidden">
-          <MobileHeader onMenuClick={() => setMobileNavOpen(true)} />
-        </div>
+        {/* Combined Responsive Header */}
+        <LayoutHeader onMenuClick={() => setMobileNavOpen(true)} />
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           <Outlet />

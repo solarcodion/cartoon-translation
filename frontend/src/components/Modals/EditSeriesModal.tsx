@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
 import { FiX, FiSave, FiFileText } from "react-icons/fi";
-
-interface SeriesItem {
-  id: string;
-  name: string;
-  chapters: number;
-  created_at: string;
-  updated_at: string;
-}
+import type { SeriesItem } from "../../types";
+import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface EditSeriesModalProps {
   series: SeriesItem | null;
@@ -53,7 +47,12 @@ export default function EditSeriesModal({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !isLoading && seriesName.trim() && seriesName.trim() !== series?.name) {
+    if (
+      e.key === "Enter" &&
+      !isLoading &&
+      seriesName.trim() &&
+      seriesName.trim() !== series?.name
+    ) {
       handleSave();
     }
     if (e.key === "Escape") {
@@ -90,7 +89,9 @@ export default function EditSeriesModal({
             </div>
             <div>
               <h3 className="font-medium text-gray-900">{series.name}</h3>
-              <p className="text-sm text-gray-600">{series.chapters} chapters</p>
+              <p className="text-sm text-gray-600">
+                {series.chapters} chapters
+              </p>
             </div>
           </div>
 
@@ -110,7 +111,9 @@ export default function EditSeriesModal({
               autoFocus
             />
             {!isValidName && seriesName.length > 0 && (
-              <p className="text-sm text-red-600">Series name cannot be empty</p>
+              <p className="text-sm text-red-600">
+                Series name cannot be empty
+              </p>
             )}
           </div>
 
@@ -137,7 +140,7 @@ export default function EditSeriesModal({
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <InlineLoadingSpinner color="white" />
             ) : (
               <FiSave className="text-sm" />
             )}

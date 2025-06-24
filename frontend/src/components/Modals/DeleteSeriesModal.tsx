@@ -1,13 +1,7 @@
 import { useState } from "react";
 import { FiX, FiTrash2, FiAlertTriangle, FiFileText } from "react-icons/fi";
-
-interface SeriesItem {
-  id: string;
-  name: string;
-  chapters: number;
-  created_at: string;
-  updated_at: string;
-}
+import type { SeriesItem } from "../../types";
+import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface DeleteSeriesModalProps {
   series: SeriesItem | null;
@@ -64,7 +58,9 @@ export default function DeleteSeriesModal({
             <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
               <FiAlertTriangle className="text-red-600 text-lg" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Delete Series</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Delete Series
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -83,7 +79,8 @@ export default function DeleteSeriesModal({
               Are you sure you want to delete this series?
             </p>
             <p className="text-sm text-gray-600">
-              This action cannot be undone. All data associated with this series will be permanently removed.
+              This action cannot be undone. All data associated with this series
+              will be permanently removed.
             </p>
           </div>
 
@@ -94,7 +91,9 @@ export default function DeleteSeriesModal({
             </div>
             <div>
               <h3 className="font-medium text-gray-900">{series.name}</h3>
-              <p className="text-sm text-gray-600">{series.chapters} chapters</p>
+              <p className="text-sm text-gray-600">
+                {series.chapters} chapters
+              </p>
             </div>
           </div>
 
@@ -121,7 +120,8 @@ export default function DeleteSeriesModal({
           {/* Help Text */}
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600">
-              <strong>Tip:</strong> Press Enter to confirm deletion or Escape to cancel
+              <strong>Tip:</strong> Press Enter to confirm deletion or Escape to
+              cancel
             </p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function DeleteSeriesModal({
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <InlineLoadingSpinner color="white" />
             ) : (
               <FiTrash2 className="text-sm" />
             )}

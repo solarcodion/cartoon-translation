@@ -1,20 +1,6 @@
-import type { ActivityItem } from "../../types/dashboard";
+import { recentActivities } from "../../data/mockData";
 
 export default function RecentActivity() {
-  // Mock data for recent activities with proper typing
-  const activities: ActivityItem[] = [
-    {
-      id: 1,
-      action: "User 'translator_one' translated Chapter 2 of Solo Leveling.",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: 2,
-      action: "New Series 'Omniscient Reader's Viewpoint' added.",
-      timestamp: "5 hours ago",
-    },
-  ];
-
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -25,7 +11,7 @@ export default function RecentActivity() {
       </p>
 
       <div className="space-y-4">
-        {activities.map((activity) => (
+        {recentActivities.map((activity) => (
           <div key={activity.id} className="flex items-center justify-between">
             <p className="text-gray-900 text-sm font-medium flex-1 pr-4">
               {activity.action}

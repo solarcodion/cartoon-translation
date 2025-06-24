@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { FiPlus, FiTrash2, FiUser } from "react-icons/fi";
-import { BiSolidEdit } from "react-icons/bi";
+import { FiPlus } from "react-icons/fi";
 import { usersApi } from "../services/usersApi";
 import type { DatabaseUser } from "../types/database";
 import EditUserModal from "../components/Modals/EditUserModal";
+import { SectionLoadingSpinner, ErrorState } from "../components/common";
+import { ResponsivePageHeader } from "../components/Header/PageHeader";
+import { UserTable } from "../components/Lists";
 
 export default function Users() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
@@ -108,29 +110,22 @@ export default function Users() {
     return (
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              User Management
-            </h1>
-          </div>
-          <button
-            onClick={handleAddUser}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-          >
-            <FiPlus className="text-sm" />
-            <span className="sm:inline">Add User</span>
-          </button>
-        </div>
+        <ResponsivePageHeader
+          title="User Management"
+          action={
+            <button
+              onClick={handleAddUser}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
+            >
+              <FiPlus className="text-sm" />
+              <span className="sm:inline">Add User</span>
+            </button>
+          }
+        />
 
         {/* Loading State */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading users...</p>
-            </div>
-          </div>
+          <SectionLoadingSpinner text="Loading users..." />
         </div>
       </div>
     );
@@ -139,32 +134,19 @@ export default function Users() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              User Management
-            </h1>
-          </div>
-          <button
-            onClick={handleAddUser}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-          >
-            <FiPlus className="text-sm" />
-            <span className="sm:inline">Add User</span>
-          </button>
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="text-red-500 text-xl mb-2">⚠️</div>
-            <p className="text-red-600 mb-4">{error}</p>
+        <ResponsivePageHeader
+          title="User Management"
+          action={
             <button
-              onClick={fetchUsers}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleAddUser}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
             >
-              Try Again
+              <FiPlus className="text-sm" />
+              <span className="sm:inline">Add User</span>
             </button>
-          </div>
-        </div>
+          }
+        />
+        <ErrorState error={error} onRetry={fetchUsers} />
       </div>
     );
   }
@@ -172,180 +154,26 @@ export default function Users() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            User Management
-          </h1>
-        </div>
-        <button
-          onClick={handleAddUser}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-        >
-          <FiPlus className="text-sm" />
-          <span className="sm:inline">Add User</span>
-        </button>
-      </div>
+      <ResponsivePageHeader
+        title="User Management"
+        action={
+          <button
+            onClick={handleAddUser}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
+          >
+            <FiPlus className="text-sm" />
+            <span className="sm:inline">Add User</span>
+          </button>
+        }
+      />
 
-      {/* Users Table - Desktop */}
-      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-full">
-                        {user.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <FiUser className="text-gray-400" />
-                        )}
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.name}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-600">{user.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
-                        user.role
-                      )}`}
-                    >
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => handleEditUser(user.id)}
-                        className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                        title="Edit user"
-                      >
-                        <BiSolidEdit className="text-lg" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-                        title="Delete user"
-                      >
-                        <FiTrash2 className="text-lg" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Empty state - Desktop */}
-        {users.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-xl mb-2">👥</div>
-            <p className="text-gray-600">No users found</p>
-          </div>
-        )}
-      </div>
-
-      {/* Users List - Mobile */}
-      <div className="md:hidden">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
-          {users.map((user) => (
-            <div
-              key={user.id}
-              className="p-4 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                {/* Left side - User info */}
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      {user.avatar ? (
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <FiUser className="text-gray-400 text-lg" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {user.name}
-                      </p>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
-                          user.role
-                        )}`}
-                      >
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 truncate">
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right side - Actions */}
-                <div className="flex items-center space-x-1 ml-3">
-                  <button
-                    onClick={() => handleEditUser(user.id)}
-                    className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                    title="Edit user"
-                  >
-                    <BiSolidEdit className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-                    title="Delete user"
-                  >
-                    <FiTrash2 className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty state - Mobile */}
-        {users.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <div className="text-gray-400 text-xl mb-2">👥</div>
-            <p className="text-gray-600">No users found</p>
-          </div>
-        )}
-      </div>
+      {/* Users Table */}
+      <UserTable
+        users={users}
+        onEditUser={handleEditUser}
+        onDeleteUser={handleDeleteUser}
+        getRoleBadgeColor={getRoleBadgeColor}
+      />
 
       {/* Edit User Modal */}
       <EditUserModal

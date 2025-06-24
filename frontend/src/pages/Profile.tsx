@@ -1,29 +1,22 @@
 import { FiUser, FiMail, FiShield, FiCalendar, FiClock } from "react-icons/fi";
 import { useUserProfile } from "../hooks/useUserProfile";
+import { LoadingSpinner, ErrorState } from "../components/common";
 
 export default function Profile() {
   const { user, isLoading, error } = useUserProfile();
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
-        </div>
-      </div>
+      <LoadingSpinner
+        text="Loading profile..."
+        className="min-h-[400px]"
+        centered
+      />
     );
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-2">⚠️</div>
-          <p className="text-red-600">{error}</p>
-        </div>
-      </div>
-    );
+    return <ErrorState error={error} />;
   }
 
   if (!user) {
@@ -70,7 +63,9 @@ export default function Profile() {
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-        <p className="text-gray-600">View your account information and details.</p>
+        <p className="text-gray-600">
+          View your account information and details.
+        </p>
       </div>
 
       {/* Profile Card */}
@@ -111,8 +106,10 @@ export default function Profile() {
 
         {/* Profile Details */}
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
-          
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Account Information
+          </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Email */}
             <div className="flex items-start gap-3">
@@ -120,7 +117,9 @@ export default function Profile() {
                 <FiMail className="text-gray-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Email Address</p>
+                <p className="text-sm font-medium text-gray-900">
+                  Email Address
+                </p>
                 <p className="text-sm text-gray-600">{user.email}</p>
               </div>
             </div>
@@ -133,7 +132,9 @@ export default function Profile() {
               <div>
                 <p className="text-sm font-medium text-gray-900">Role</p>
                 <p className="text-sm text-gray-600">
-                  {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Not specified"}
+                  {user.role
+                    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+                    : "Not specified"}
                 </p>
               </div>
             </div>
@@ -144,8 +145,12 @@ export default function Profile() {
                 <FiCalendar className="text-gray-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Account Created</p>
-                <p className="text-sm text-gray-600">{formatDate(user.created_at)}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  Account Created
+                </p>
+                <p className="text-sm text-gray-600">
+                  {formatDate(user.created_at)}
+                </p>
               </div>
             </div>
 
@@ -155,8 +160,12 @@ export default function Profile() {
                 <FiClock className="text-gray-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Last Updated</p>
-                <p className="text-sm text-gray-600">{formatDate(user.updated_at)}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  Last Updated
+                </p>
+                <p className="text-sm text-gray-600">
+                  {formatDate(user.updated_at)}
+                </p>
               </div>
             </div>
           </div>
