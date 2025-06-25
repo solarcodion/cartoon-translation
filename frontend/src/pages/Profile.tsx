@@ -35,7 +35,6 @@ export default function Profile() {
       }
 
       // Get access token from Supabase
-      console.log("🔍 Getting Supabase session...");
       const {
         data: { session },
         error: sessionError,
@@ -52,13 +51,8 @@ export default function Profile() {
         return;
       }
 
-      console.log("✅ Session found, making API call...");
-      console.log("📝 Profile data:", profileData);
-
       await userService.updateMyProfile(profileData, session.access_token);
 
-      console.log("✅ Profile updated successfully!");
-      // Refresh user data from the server
       await refreshUser();
     } catch (error) {
       console.error("❌ Error updating profile:", error);

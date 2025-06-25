@@ -11,18 +11,19 @@ import {
 } from "../components/common";
 
 import { CardPageHeader } from "../components/Header/PageHeader";
+import AddChapterModal from "../components/Modals/AddChapterModal";
+import EditChapterModal from "../components/Modals/EditChapterModal";
+import DeleteChapterModal from "../components/Modals/DeleteChapterModal";
 import type { Chapter, SeriesInfo } from "../types";
-import {
-  getSeriesInfo,
-  getChapters,
-  translationMemoryData,
-  glossaryData,
-} from "../data/mockData";
+import { convertApiChapterToLegacy } from "../types/series";
+import { translationMemoryData, glossaryData } from "../data/mockData";
 import {
   AIGlossaryTabContent,
   ChaptersTabContent,
   TranslationMemoryTabContent,
 } from "../components/Tabs";
+import { chapterService } from "../services/chapterService";
+import { seriesService } from "../services/seriesService";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
@@ -35,6 +36,11 @@ export default function Chapters() {
     "chapters" | "translation" | "glossary"
   >("chapters");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deletingChapter, setDeletingChapter] = useState<Chapter | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -53,19 +59,35 @@ export default function Chapters() {
 
   // Fetch chapters data
   const fetchChapters = useCallback(async () => {
+    if (!seriesId) return;
+
     try {
       setIsLoading(true);
       setError(null);
 
-      // Simulate loading
-      setTimeout(() => {
-        setSeriesInfo(getSeriesInfo(seriesId || "1"));
-        setChapters(getChapters(seriesId || "1"));
-        setIsLoading(false);
-      }, 500);
+      const seriesIdNum = parseInt(seriesId);
+
+      // Fetch series info and chapters from API
+      const [seriesData, chaptersData] = await Promise.all([
+        seriesService.getSeriesById(seriesIdNum),
+        chapterService.getChaptersBySeriesId(seriesIdNum),
+      ]);
+
+      // Convert API data to legacy format for compatibility
+      const legacyChapters = chaptersData.map(convertApiChapterToLegacy);
+
+      setSeriesInfo({
+        id: seriesData.id.toString(),
+        name: seriesData.title,
+        totalChapters: seriesData.total_chapters,
+      });
+      setChapters(legacyChapters);
+      setIsLoading(false);
     } catch (err) {
-      console.error("Unexpected error fetching chapters:", err);
-      setError("An unexpected error occurred.");
+      console.error("Error fetching chapters:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
       setIsLoading(false);
     }
   }, [seriesId]);
@@ -79,18 +101,102 @@ export default function Chapters() {
   }, [seriesId, navigate, fetchChapters]);
 
   const handleAddChapter = () => {
-    // TODO: Implement add chapter functionality
-    console.log("Add chapter clicked");
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
+  };
+
+  const handleConfirmAddChapter = async (chapterNumber: number) => {
+    if (!seriesId) return;
+
+    try {
+      const seriesIdNum = parseInt(seriesId);
+
+      // Create chapter via API
+      const newApiChapter = await chapterService.createChapter(seriesIdNum, {
+        chapter_number: chapterNumber,
+      });
+
+      // Convert to legacy format and add to list
+      const newLegacyChapter = convertApiChapterToLegacy(newApiChapter);
+      setChapters((prevChapters) => [...prevChapters, newLegacyChapter]);
+    } catch (error) {
+      console.error("Error adding chapter:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   const handleEditChapter = (chapterId: string) => {
-    // TODO: Implement edit chapter functionality
-    console.log("Edit chapter:", chapterId);
+    const chapter = chapters.find((c) => c.id === chapterId);
+    if (chapter) {
+      setEditingChapter(chapter);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingChapter(null);
+  };
+
+  const handleSaveChapter = async (
+    chapterId: string,
+    chapterNumber: number
+  ) => {
+    try {
+      const chapterIdNum = parseInt(chapterId);
+
+      // Update chapter via API (only chapter number)
+      const updatedApiChapter = await chapterService.updateChapter(
+        chapterIdNum,
+        {
+          chapter_number: chapterNumber,
+        }
+      );
+
+      // Convert to legacy format and update local state
+      const updatedLegacyChapter = convertApiChapterToLegacy(updatedApiChapter);
+      setChapters((prevChapters) =>
+        prevChapters.map((chapter) =>
+          chapter.id === chapterId ? updatedLegacyChapter : chapter
+        )
+      );
+    } catch (error) {
+      console.error("Error updating chapter:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   const handleDeleteChapter = (chapterId: string) => {
-    // TODO: Implement delete chapter functionality
-    console.log("Delete chapter:", chapterId);
+    const chapter = chapters.find((c) => c.id === chapterId);
+    if (chapter) {
+      setDeletingChapter(chapter);
+      setIsDeleteModalOpen(true);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingChapter(null);
+  };
+
+  const handleConfirmDelete = async (chapterId: string) => {
+    try {
+      const chapterIdNum = parseInt(chapterId);
+
+      // Delete chapter via API
+      await chapterService.deleteChapter(chapterIdNum);
+
+      // Remove the chapter from the local state
+      setChapters((prevChapters) =>
+        prevChapters.filter((chapter) => chapter.id !== chapterId)
+      );
+    } catch (error) {
+      console.error("Error deleting chapter:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   if (isLoading) {
@@ -194,6 +300,29 @@ export default function Chapters() {
 
       {/* AI Glossary Section */}
       <AIGlossaryTabContent activeTab={activeTab} glossaryData={glossaryData} />
+
+      {/* Add Chapter Modal */}
+      <AddChapterModal
+        isOpen={isAddModalOpen}
+        onClose={handleCloseAddModal}
+        onAdd={handleConfirmAddChapter}
+      />
+
+      {/* Edit Chapter Modal */}
+      <EditChapterModal
+        chapter={editingChapter}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveChapter}
+      />
+
+      {/* Delete Chapter Modal */}
+      <DeleteChapterModal
+        chapter={deletingChapter}
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onDelete={handleConfirmDelete}
+      />
     </div>
   );
 }

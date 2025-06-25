@@ -81,6 +81,34 @@ CREATE POLICY "Users can update own record" ON users
 -- Allow service role to do everything (for backend operations)
 CREATE POLICY "Service role can do everything" ON users
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Create series table
+CREATE TABLE series (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  total_chapters INTEGER DEFAULT 0,
+  user_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create chapters table
+CREATE TABLE chapters (
+  id SERIAL PRIMARY KEY,
+  series_id INTEGER NOT NULL REFERENCES series (id) ON DELETE CASCADE,
+  chapter_number INTEGER NOT NULL,
+  status VARCHAR(50) DEFAULT 'draft' CHECK (
+    status IN (
+      'draft',
+      'in_progress',
+      'translated'
+    )
+  ),
+  page_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (series_id, chapter_number)
+);
 ```
 
 6. Run the development server:
@@ -145,6 +173,24 @@ Once the server is running, you can access:
 3. **Admin Operations**: Admins can update any user's information and delete users
 4. **Self-Protection**: Users cannot delete their own account or update their own role
 
+### Series Management
+
+- `POST /api/series/` - Create a new series - **Requires authentication**
+- `GET /api/series/` - Get all series (with pagination) - **Requires authentication**
+- `GET /api/series/{series_id}` - Get series by ID - **Requires authentication**
+- `PUT /api/series/{series_id}` - Update series - **Requires authentication**
+- `DELETE /api/series/{series_id}` - Delete series - **Requires authentication**
+- `GET /api/series/stats` - Get series statistics - **Requires authentication**
+
+### Chapter Management
+
+- `POST /api/chapters/series/{series_id}` - Create a new chapter for a series - **Requires authentication**
+- `GET /api/chapters/series/{series_id}` - Get all chapters for a series (with pagination) - **Requires authentication**
+- `GET /api/chapters/{chapter_id}` - Get chapter by ID - **Requires authentication**
+- `PUT /api/chapters/{chapter_id}` - Update chapter - **Requires authentication**
+- `DELETE /api/chapters/{chapter_id}` - Delete chapter - **Requires authentication**
+- `GET /api/chapters/series/{series_id}/count` - Get chapter count for a series - **Requires authentication**
+
 ### Authentication
 
 All endpoints except the root endpoint require authentication via Supabase JWT token.
@@ -165,10 +211,14 @@ backend/
 │   ├── models.py             # Pydantic models
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   └── users.py          # User management endpoints
+│   │   ├── users.py          # User management endpoints
+│   │   ├── series.py         # Series management endpoints
+│   │   └── chapters.py       # Chapter management endpoints
 │   └── services/
 │       ├── __init__.py
-│       └── user_service.py   # User business logic
+│       ├── user_service.py   # User business logic
+│       ├── series_service.py # Series business logic
+│       └── chapter_service.py # Chapter business logic
 └── README.md                 # This file
 ```
 

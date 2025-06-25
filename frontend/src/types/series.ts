@@ -39,9 +39,32 @@ export interface Chapter {
   id: string;
   number: number;
   title: string;
-  status: "draft" | "translated" | "published";
+  status: "draft" | "in_progress" | "translated";
   created_at: string;
   updated_at: string;
+}
+
+// New API-compatible chapter types
+export interface ChapterApiItem {
+  id: number;
+  series_id: number;
+  chapter_number: number;
+  status: "draft" | "in_progress" | "translated";
+  page_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Helper function to convert API response to legacy format
+export function convertApiChapterToLegacy(apiChapter: ChapterApiItem): Chapter {
+  return {
+    id: apiChapter.id.toString(),
+    number: apiChapter.chapter_number,
+    title: `Chapter ${apiChapter.chapter_number}`, // Generate title from number
+    status: apiChapter.status,
+    created_at: apiChapter.created_at,
+    updated_at: apiChapter.updated_at,
+  };
 }
 
 export interface ChapterInfo {

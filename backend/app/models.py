@@ -125,3 +125,54 @@ class SeriesResponse(SeriesBase):
 class SeriesInDB(SeriesResponse):
     """Series model as stored in database"""
     pass
+
+
+# Chapter Models
+class ChapterStatus(str, Enum):
+    """Chapter status enumeration"""
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    TRANSLATED = "translated"
+
+
+class ChapterBase(BaseModel):
+    """Base chapter model"""
+    chapter_number: int
+    status: ChapterStatus = ChapterStatus.DRAFT
+    page_count: int = 0
+
+
+class ChapterCreate(BaseModel):
+    """Chapter creation model - only requires chapter_number"""
+    chapter_number: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+        # Ensure proper JSON parsing
+        json_encoders = {}
+        # Allow population by field name (Pydantic v2)
+        populate_by_name = True
+
+
+class ChapterUpdate(BaseModel):
+    """Chapter update model"""
+    chapter_number: Optional[int] = None
+    status: Optional[ChapterStatus] = None
+    page_count: Optional[int] = None
+
+
+class ChapterResponse(ChapterBase):
+    """Chapter response model"""
+    id: int
+    series_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChapterInDB(ChapterResponse):
+    """Chapter model as stored in database"""
+    pass

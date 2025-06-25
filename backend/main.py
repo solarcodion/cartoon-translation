@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.config import settings
-from app.routers import users, series
+from app.routers import users, series, chapters
 
 # Create FastAPI instance
 app = FastAPI(
@@ -51,6 +51,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Include routers
 app.include_router(users.router, prefix="/api")
 app.include_router(series.router, prefix="/api")
+app.include_router(chapters.router, prefix="/api")
 
 @app.get("/")
 async def root():
