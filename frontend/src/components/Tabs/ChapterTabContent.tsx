@@ -10,6 +10,7 @@ import {
 import { BiSolidEdit } from "react-icons/bi";
 import { LuBrain, LuTag } from "react-icons/lu";
 import { EmptyState, TabContent } from "../common";
+import DropdownMenu from "../common/DropdownMenu";
 import type {
   Chapter,
   TranslationMemory,
@@ -172,6 +173,10 @@ interface TranslationMemoryTabContentProps {
   translationMemoryData: TranslationMemory[];
   openDropdown: string | null;
   onSetOpenDropdown: (id: string | null) => void;
+  onAddEntry: () => void;
+  onEditEntry: (tmId: string) => void;
+  onDeleteEntry: (tmId: string) => void;
+  isLoading?: boolean;
 }
 
 export function TranslationMemoryTabContent({
@@ -179,6 +184,10 @@ export function TranslationMemoryTabContent({
   translationMemoryData,
   openDropdown,
   onSetOpenDropdown,
+  onAddEntry,
+  onEditEntry,
+  onDeleteEntry,
+  isLoading = false,
 }: TranslationMemoryTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="translation">
@@ -193,14 +202,17 @@ export function TranslationMemoryTabContent({
                 Series-specific terms and translations.
               </p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
+            <button
+              onClick={onAddEntry}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            >
               <FiPlus className="text-sm" />
               Add Entry
             </button>
           </div>
         </div>
 
-        <div className="overflow-hidden mx-6 mb-6 mt-2 border border-gray-200 rounded-lg">
+        <div className="overflow-x-auto mx-6 mb-6 mt-2 border border-gray-200 rounded-lg">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
@@ -222,76 +234,84 @@ export function TranslationMemoryTabContent({
               </tr>
             </thead>
             <tbody className="bg-white">
-              {translationMemoryData.map((entry) => (
-                <tr
-                  key={entry.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900">
-                      {entry.source}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-900">
-                      {entry.target}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-600">
-                      {entry.context}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-900">{entry.usage}</span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="relative dropdown-container inline-block">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSetOpenDropdown(
-                            openDropdown === entry.id ? null : entry.id
-                          );
-                        }}
-                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200 cursor-pointer"
-                      >
-                        <FiMoreHorizontal className="text-lg" />
-                      </button>
-
-                      {openDropdown === entry.id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSetOpenDropdown(null);
-                              // Handle edit action
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer rounded-t-lg"
-                          >
-                            <BiSolidEdit className="text-sm" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSetOpenDropdown(null);
-                              // Handle delete action
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer rounded-b-lg"
-                          >
-                            <FiTrash2 className="text-sm" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mr-3"></div>
+                      <span className="text-gray-600">
+                        Loading translation memory...
+                      </span>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : translationMemoryData.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="text-gray-500">
+                      <p className="text-lg font-medium mb-2">
+                        No translation memory entries
+                      </p>
+                      <p className="text-sm">
+                        Add your first translation to get started.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                translationMemoryData.map((entry) => (
+                  <tr
+                    key={entry.id}
+                    className="border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">
+                        {entry.source}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900">
+                        {entry.target}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-600">
+                        {entry.context}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900">
+                        {entry.usage}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <DropdownMenu
+                        items={[
+                          {
+                            label: "Edit",
+                            icon: <BiSolidEdit className="text-sm" />,
+                            onClick: () => onEditEntry(entry.id),
+                            className: "text-gray-700",
+                          },
+                          {
+                            label: "Delete",
+                            icon: <FiTrash2 className="text-sm" />,
+                            onClick: () => onDeleteEntry(entry.id),
+                            className: "text-red-600 hover:bg-red-50",
+                          },
+                        ]}
+                        isOpen={openDropdown === entry.id}
+                        onToggle={() =>
+                          onSetOpenDropdown(
+                            openDropdown === entry.id ? null : entry.id
+                          )
+                        }
+                        onClose={() => onSetOpenDropdown(null)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

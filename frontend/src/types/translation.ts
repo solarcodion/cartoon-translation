@@ -8,6 +8,31 @@ export interface TranslationMemory {
   usage: number;
 }
 
+// New API-compatible translation memory types
+export interface TranslationMemoryApiItem {
+  id: number;
+  series_id: number;
+  source_text: string;
+  target_text: string;
+  context: string;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Helper function to convert API response to legacy format
+export function convertApiTMToLegacy(
+  apiTM: TranslationMemoryApiItem
+): TranslationMemory {
+  return {
+    id: apiTM.id.toString(),
+    source: apiTM.source_text,
+    target: apiTM.target_text,
+    context: apiTM.context || "",
+    usage: apiTM.usage_count || 0,
+  };
+}
+
 export interface GlossaryCharacter {
   id: string;
   name: string;

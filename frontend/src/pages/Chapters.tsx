@@ -14,9 +14,13 @@ import { CardPageHeader } from "../components/Header/PageHeader";
 import AddChapterModal from "../components/Modals/AddChapterModal";
 import EditChapterModal from "../components/Modals/EditChapterModal";
 import DeleteChapterModal from "../components/Modals/DeleteChapterModal";
-import type { Chapter, SeriesInfo } from "../types";
+import AddTMEntryModal from "../components/Modals/AddTMEntryModal";
+import EditTMEntryModal from "../components/Modals/EditTMEntryModal";
+import DeleteTMEntryModal from "../components/Modals/DeleteTMEntryModal";
+import type { Chapter, SeriesInfo, TranslationMemory } from "../types";
 import { convertApiChapterToLegacy } from "../types/series";
-import { translationMemoryData, glossaryData } from "../data/mockData";
+import { convertApiTMToLegacy } from "../types/translation";
+import { glossaryData } from "../data/mockData";
 import {
   AIGlossaryTabContent,
   ChaptersTabContent,
@@ -24,13 +28,18 @@ import {
 } from "../components/Tabs";
 import { chapterService } from "../services/chapterService";
 import { seriesService } from "../services/seriesService";
+import { translationMemoryService } from "../services/translationMemoryService";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
   const navigate = useNavigate();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<SeriesInfo | null>(null);
+  const [translationMemoryData, setTranslationMemoryData] = useState<
+    TranslationMemory[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTMLoading, setIsTMLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "chapters" | "translation" | "glossary"
@@ -41,6 +50,13 @@ export default function Chapters() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [deletingChapter, setDeletingChapter] = useState<Chapter | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isTMEntryModalOpen, setIsTMEntryModalOpen] = useState(false);
+  const [editingTMEntry, setEditingTMEntry] =
+    useState<TranslationMemory | null>(null);
+  const [isEditTMModalOpen, setIsEditTMModalOpen] = useState(false);
+  const [deletingTMEntry, setDeletingTMEntry] =
+    useState<TranslationMemory | null>(null);
+  const [isDeleteTMModalOpen, setIsDeleteTMModalOpen] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -92,13 +108,37 @@ export default function Chapters() {
     }
   }, [seriesId]);
 
+  // Fetch translation memory data
+  const fetchTranslationMemory = useCallback(async () => {
+    if (!seriesId) return;
+
+    try {
+      setIsTMLoading(true);
+      const seriesIdNum = parseInt(seriesId);
+
+      // Fetch TM data from API
+      const tmData = await translationMemoryService.getTMEntries(seriesIdNum);
+
+      // Convert API data to legacy format for compatibility
+      const legacyTMData = tmData.map(convertApiTMToLegacy);
+
+      setTranslationMemoryData(legacyTMData);
+      setIsTMLoading(false);
+    } catch (err) {
+      console.error("Error fetching translation memory:", err);
+      // Don't set main error state for TM fetch failures
+      setIsTMLoading(false);
+    }
+  }, [seriesId]);
+
   useEffect(() => {
     if (seriesId) {
       fetchChapters();
+      fetchTranslationMemory();
     } else {
       navigate("/series");
     }
-  }, [seriesId, navigate, fetchChapters]);
+  }, [seriesId, navigate, fetchChapters, fetchTranslationMemory]);
 
   const handleAddChapter = () => {
     setIsAddModalOpen(true);
@@ -195,6 +235,120 @@ export default function Chapters() {
       );
     } catch (error) {
       console.error("Error deleting chapter:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
+  };
+
+  // TM Entry Modal Handlers
+  const handleAddTMEntry = () => {
+    setIsTMEntryModalOpen(true);
+  };
+
+  const handleCloseTMEntryModal = () => {
+    setIsTMEntryModalOpen(false);
+  };
+
+  const handleConfirmAddTMEntry = async (entryData: {
+    source: string;
+    target: string;
+    context?: string;
+  }) => {
+    try {
+      const seriesIdNum = seriesId ? parseInt(seriesId) : undefined;
+
+      if (!seriesIdNum) {
+        throw new Error("Series ID is required");
+      }
+
+      // Create TM entry using the service
+      const newEntry = await translationMemoryService.createTMEntry(
+        seriesIdNum,
+        {
+          source_text: entryData.source,
+          target_text: entryData.target,
+          context: entryData.context,
+        }
+      );
+
+      console.log("✅ TM entry added successfully:", newEntry);
+
+      // Refresh translation memory data to show the new entry
+      await fetchTranslationMemory();
+    } catch (error) {
+      console.error("Error adding TM entry:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
+  };
+
+  // TM Entry Edit Handlers
+  const handleEditTMEntry = (tmId: string) => {
+    const tmEntry = translationMemoryData.find((tm) => tm.id === tmId);
+    if (tmEntry) {
+      setEditingTMEntry(tmEntry);
+      setIsEditTMModalOpen(true);
+    }
+  };
+
+  const handleCloseEditTMModal = () => {
+    setIsEditTMModalOpen(false);
+    setEditingTMEntry(null);
+  };
+
+  const handleSaveTMEntry = async (
+    tmId: string,
+    entryData: {
+      source: string;
+      target: string;
+      context?: string;
+    }
+  ) => {
+    try {
+      const tmIdNum = parseInt(tmId);
+
+      // Update TM entry using the service
+      await translationMemoryService.updateTMEntry(tmIdNum, {
+        source_text: entryData.source,
+        target_text: entryData.target,
+        context: entryData.context,
+      });
+
+      console.log("✅ TM entry updated successfully");
+
+      // Refresh translation memory data to show the updated entry
+      await fetchTranslationMemory();
+    } catch (error) {
+      console.error("Error updating TM entry:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
+  };
+
+  // TM Entry Delete Handlers
+  const handleDeleteTMEntry = (tmId: string) => {
+    const tmEntry = translationMemoryData.find((tm) => tm.id === tmId);
+    if (tmEntry) {
+      setDeletingTMEntry(tmEntry);
+      setIsDeleteTMModalOpen(true);
+    }
+  };
+
+  const handleCloseDeleteTMModal = () => {
+    setIsDeleteTMModalOpen(false);
+    setDeletingTMEntry(null);
+  };
+
+  const handleConfirmDeleteTMEntry = async (tmId: string) => {
+    try {
+      const tmIdNum = parseInt(tmId);
+
+      // Delete TM entry using the service
+      await translationMemoryService.deleteTMEntry(tmIdNum);
+
+      console.log("✅ TM entry deleted successfully");
+
+      // Refresh translation memory data to remove the deleted entry
+      await fetchTranslationMemory();
+    } catch (error) {
+      console.error("Error deleting TM entry:", error);
       throw error; // Re-throw to let the modal handle the error
     }
   };
@@ -296,6 +450,10 @@ export default function Chapters() {
         translationMemoryData={translationMemoryData}
         openDropdown={openDropdown}
         onSetOpenDropdown={setOpenDropdown}
+        onAddEntry={handleAddTMEntry}
+        onEditEntry={handleEditTMEntry}
+        onDeleteEntry={handleDeleteTMEntry}
+        isLoading={isTMLoading}
       />
 
       {/* AI Glossary Section */}
@@ -322,6 +480,29 @@ export default function Chapters() {
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
         onDelete={handleConfirmDelete}
+      />
+
+      {/* Add TM Entry Modal */}
+      <AddTMEntryModal
+        isOpen={isTMEntryModalOpen}
+        onClose={handleCloseTMEntryModal}
+        onAdd={handleConfirmAddTMEntry}
+      />
+
+      {/* Edit TM Entry Modal */}
+      <EditTMEntryModal
+        tmEntry={editingTMEntry}
+        isOpen={isEditTMModalOpen}
+        onClose={handleCloseEditTMModal}
+        onSave={handleSaveTMEntry}
+      />
+
+      {/* Delete TM Entry Modal */}
+      <DeleteTMEntryModal
+        tmEntry={deletingTMEntry}
+        isOpen={isDeleteTMModalOpen}
+        onClose={handleCloseDeleteTMModal}
+        onDelete={handleConfirmDeleteTMEntry}
       />
     </div>
   );

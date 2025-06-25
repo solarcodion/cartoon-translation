@@ -176,3 +176,48 @@ class ChapterResponse(ChapterBase):
 class ChapterInDB(ChapterResponse):
     """Chapter model as stored in database"""
     pass
+
+
+# Translation Memory Models
+class TranslationMemoryBase(BaseModel):
+    """Base translation memory model"""
+    series_id: int
+    source_text: str
+    target_text: str
+    context: Optional[str] = None
+    usage_count: int = 0
+
+
+class TranslationMemoryCreate(BaseModel):
+    """Translation memory creation model"""
+    series_id: int
+    source_text: str
+    target_text: str
+    context: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TranslationMemoryUpdate(BaseModel):
+    """Translation memory update model"""
+    source_text: Optional[str] = None
+    target_text: Optional[str] = None
+    context: Optional[str] = None
+    usage_count: Optional[int] = None
+
+
+class TranslationMemoryResponse(TranslationMemoryBase):
+    """Translation memory response model"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TranslationMemoryInDB(TranslationMemoryResponse):
+    """Translation memory model as stored in database"""
+    pass
