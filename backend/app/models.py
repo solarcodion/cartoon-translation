@@ -221,3 +221,51 @@ class TranslationMemoryResponse(TranslationMemoryBase):
 class TranslationMemoryInDB(TranslationMemoryResponse):
     """Translation memory model as stored in database"""
     pass
+
+
+# Page Models
+class PageBase(BaseModel):
+    """Base page model"""
+    chapter_id: int
+    page_number: int
+    file_path: str
+    file_name: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+class PageCreate(BaseModel):
+    """Page creation model"""
+    chapter_id: int
+    page_number: int
+    file_name: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageUpdate(BaseModel):
+    """Page update model"""
+    page_number: Optional[int] = None
+    file_path: Optional[str] = None
+    file_name: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+class PageResponse(PageBase):
+    """Page response model"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PageInDB(PageResponse):
+    """Page model as stored in database"""
+    pass

@@ -13,8 +13,13 @@ import {
   ContextTabContent,
 } from "../components/common";
 import type { Page, ChapterInfo, AIInsights } from "../types";
-import { getChapterInfo, mockPages, mockAiInsights } from "../data/mockData";
+import { getChapterInfo, mockAiInsights } from "../data/mockData";
+import { pageService } from "../services/pageService";
+import { convertApiPageToLegacy } from "../types/pages";
 import AIInsightPanel from "../components/AIInsightPanel";
+import UploadPageModal from "../components/Modals/UploadPageModal";
+import EditPageModal from "../components/Modals/EditPageModal";
+import DeletePageModal from "../components/Modals/DeletePageModal";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -34,6 +39,11 @@ export default function Pages() {
   const [selectedPage, setSelectedPage] = useState<string>("All Pages");
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
   const [hoveredTMBadge, setHoveredTMBadge] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState<Page | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingPage, setDeletingPage] = useState<Page | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -59,16 +69,28 @@ export default function Pages() {
       setIsLoading(true);
       setError(null);
 
-      // Simulate loading
-      setTimeout(() => {
-        setChapterInfo(getChapterInfo(chapterId || "1"));
-        setPages(mockPages);
-        setAiInsights(mockAiInsights);
-        setIsLoading(false);
-      }, 500);
+      // Get chapter info (still using mock for now)
+      const chapterInfo = getChapterInfo(chapterId || "1");
+      setChapterInfo(chapterInfo);
+      setAiInsights(mockAiInsights);
+
+      // Fetch real pages data from API
+      if (chapterId) {
+        const apiPages = await pageService.getPagesByChapter(
+          parseInt(chapterId)
+        );
+        const convertedPages = apiPages.map(convertApiPageToLegacy);
+        setPages(convertedPages);
+      } else {
+        setPages([]);
+      }
+
+      setIsLoading(false);
     } catch (err) {
-      console.error("Unexpected error fetching pages:", err);
-      setError("An unexpected error occurred.");
+      console.error("Error fetching pages:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
       setIsLoading(false);
     }
   }, [chapterId]);
@@ -82,18 +104,108 @@ export default function Pages() {
   }, [seriesId, chapterId, navigate, fetchPages]);
 
   const handleUploadPage = () => {
-    // TODO: Implement upload page functionality
-    console.log("Upload page clicked");
+    setIsUploadModalOpen(true);
+  };
+
+  const handleCloseUploadModal = () => {
+    setIsUploadModalOpen(false);
+  };
+
+  const handleConfirmUpload = async (pageNumber: number, file: File) => {
+    try {
+      if (!chapterId) {
+        throw new Error("Chapter ID is required");
+      }
+
+      console.log("Uploading page:", pageNumber, file.name);
+
+      // Upload to API
+      const apiPage = await pageService.createPage({
+        chapter_id: parseInt(chapterId),
+        page_number: pageNumber,
+        file,
+      });
+
+      // Convert to frontend format and add to list
+      const newPage = convertApiPageToLegacy(apiPage);
+      setPages((prev) =>
+        [...prev, newPage].sort((a, b) => a.number - b.number)
+      );
+    } catch (error) {
+      console.error("Error uploading page:", error);
+      throw error;
+    }
   };
 
   const handleEditPage = (pageId: string) => {
-    // TODO: Implement edit page functionality
-    console.log("Edit page:", pageId);
+    const page = pages.find((p) => p.id === pageId);
+    if (page) {
+      setEditingPage(page);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingPage(null);
+  };
+
+  const handleSavePageEdit = async (
+    pageId: string,
+    pageData: { page_number?: number }
+  ) => {
+    try {
+      console.log("Updating page:", pageId, pageData);
+
+      // Update via API
+      await pageService.updatePage(parseInt(pageId), pageData);
+
+      // Update local state
+      setPages((prev) =>
+        prev.map((page) =>
+          page.id === pageId
+            ? {
+                ...page,
+                number: pageData.page_number ?? page.number,
+              }
+            : page
+        )
+      );
+
+      // Refresh the page list to get updated data
+      await fetchPages();
+    } catch (error) {
+      console.error("Error updating page:", error);
+      throw error;
+    }
   };
 
   const handleDeletePage = (pageId: string) => {
-    // TODO: Implement delete page functionality
-    console.log("Delete page:", pageId);
+    const page = pages.find((p) => p.id === pageId);
+    if (page) {
+      setDeletingPage(page);
+      setIsDeleteModalOpen(true);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingPage(null);
+  };
+
+  const handleConfirmDeletePage = async (pageId: string) => {
+    try {
+      console.log("Deleting page:", pageId);
+
+      // Delete from API
+      await pageService.deletePage(parseInt(pageId));
+
+      // Remove from local state
+      setPages((prev) => prev.filter((page) => page.id !== pageId));
+    } catch (error) {
+      console.error("Error deleting page:", error);
+      throw error;
+    }
   };
 
   if (isLoading) {
@@ -216,6 +328,30 @@ export default function Pages() {
           <ContextTabContent activeTab={activeTab} chapterInfo={chapterInfo} />
         </div>
       </div>
+
+      {/* Upload Page Modal */}
+      <UploadPageModal
+        isOpen={isUploadModalOpen}
+        onClose={handleCloseUploadModal}
+        onUpload={handleConfirmUpload}
+        chapterNumber={chapterInfo?.number}
+      />
+
+      {/* Edit Page Modal */}
+      <EditPageModal
+        page={editingPage}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSavePageEdit}
+      />
+
+      {/* Delete Page Modal */}
+      <DeletePageModal
+        page={deletingPage}
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onDelete={handleConfirmDeletePage}
+      />
     </div>
   );
 }

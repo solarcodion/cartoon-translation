@@ -10,8 +10,9 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import { EmptyState, TabContent } from "../common";
+import { TabContent } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
+import { PagesTable } from "../Lists";
 import type { Page, ChapterInfo } from "../../types";
 
 // Pages Tab Content
@@ -53,90 +54,12 @@ export function PagesTabContent({
 
         {/* Pages Table - Desktop */}
         <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Page No.
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Image Preview
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dimensions
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {pages.map((page) => (
-                  <tr key={page.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900">
-                        {page.number}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center justify-center w-16 h-20 bg-gray-100 rounded border">
-                        <FiImage className="text-gray-400 text-lg" />
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {page.dimensions}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onEditPage(page.id);
-                          }}
-                          className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit page"
-                        >
-                          <BiSolidEdit className="text-lg" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onDeletePage(page.id);
-                          }}
-                          className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-                          title="Delete page"
-                        >
-                          <FiTrash2 className="text-lg" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Empty state - Desktop */}
-          {pages.length === 0 && (
-            <EmptyState
-              icon="📄"
-              title="No pages found"
-              description="Upload pages to begin translation"
-              action={
-                <button
-                  onClick={onUploadPage}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  Upload First Page
-                </button>
-              }
-            />
-          )}
+          <PagesTable
+            pages={pages}
+            onEditPage={onEditPage}
+            onDeletePage={onDeletePage}
+            onUploadPage={onUploadPage}
+          />
         </div>
       </>
     </TabContent>

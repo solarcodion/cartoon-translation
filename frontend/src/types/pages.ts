@@ -14,3 +14,34 @@ export interface AIInsights {
   overall_quality_score: number;
   insights: string[];
 }
+
+// API-compatible page types
+export interface PageApiItem {
+  id: number;
+  chapter_id: number;
+  page_number: number;
+  file_path: string;
+  file_name: string;
+  width?: number;
+  height?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Converter function from API to legacy format
+export function convertApiPageToLegacy(apiPage: PageApiItem): Page {
+  const dimensions =
+    apiPage.width && apiPage.height
+      ? `${apiPage.width}x${apiPage.height}`
+      : "Unknown";
+
+  return {
+    id: apiPage.id.toString(),
+    number: apiPage.page_number,
+    image_url: apiPage.file_path, // This will be the public URL from the API
+    dimensions,
+    file_size: "Unknown", // File size not stored in API, could be calculated
+    created_at: apiPage.created_at,
+    updated_at: apiPage.updated_at,
+  };
+}
