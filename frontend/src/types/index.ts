@@ -14,3 +14,6 @@ export * from "./pages";
 
 // Translation types
 export * from "./translation";
+
+// Text box types
+export * from "./textbox";

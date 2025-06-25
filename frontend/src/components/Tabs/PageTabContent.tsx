@@ -76,6 +76,7 @@ interface TranslationsTabContentProps {
   onSetSelectedPage: (page: string) => void;
   onSetIsPageDropdownOpen: (open: boolean) => void;
   onSetHoveredTMBadge: (id: string | null) => void;
+  onAddTextBox: () => void;
 }
 
 export function TranslationsTabContent({
@@ -87,6 +88,7 @@ export function TranslationsTabContent({
   onSetSelectedPage,
   onSetIsPageDropdownOpen,
   onSetHoveredTMBadge,
+  onAddTextBox,
 }: TranslationsTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="translations">
@@ -96,7 +98,10 @@ export function TranslationsTabContent({
             <h2 className="text-xl font-bold text-gray-900">
               Translations for Chapter {chapterInfo?.number}
             </h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
+            <button
+              onClick={onAddTextBox}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            >
               <FiPlus className="text-sm" />
               Add Text Box
             </button>

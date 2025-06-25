@@ -12,7 +12,7 @@ import {
   TranslationsTabContent,
   ContextTabContent,
 } from "../components/common";
-import type { Page, ChapterInfo, AIInsights } from "../types";
+import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
 import { getChapterInfo, mockAiInsights } from "../data/mockData";
 import { pageService } from "../services/pageService";
 import { convertApiPageToLegacy } from "../types/pages";
@@ -20,6 +20,7 @@ import AIInsightPanel from "../components/AIInsightPanel";
 import UploadPageModal from "../components/Modals/UploadPageModal";
 import EditPageModal from "../components/Modals/EditPageModal";
 import DeletePageModal from "../components/Modals/DeletePageModal";
+import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -44,6 +45,7 @@ export default function Pages() {
   const [editingPage, setEditingPage] = useState<Page | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingPage, setDeletingPage] = useState<Page | null>(null);
+  const [isAddTextBoxModalOpen, setIsAddTextBoxModalOpen] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -193,6 +195,25 @@ export default function Pages() {
     setDeletingPage(null);
   };
 
+  const handleAddTextBox = () => {
+    setIsAddTextBoxModalOpen(true);
+  };
+
+  const handleCloseAddTextBoxModal = () => {
+    setIsAddTextBoxModalOpen(false);
+  };
+
+  const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
+    try {
+      console.log("Adding text box:", textBoxData);
+      // TODO: Implement text box creation API call
+      // For now, just close the modal
+    } catch (error) {
+      console.error("Error adding text box:", error);
+      throw error;
+    }
+  };
+
   const handleConfirmDeletePage = async (pageId: string) => {
     try {
       console.log("Deleting page:", pageId);
@@ -322,6 +343,7 @@ export default function Pages() {
             onSetSelectedPage={setSelectedPage}
             onSetIsPageDropdownOpen={setIsPageDropdownOpen}
             onSetHoveredTMBadge={setHoveredTMBadge}
+            onAddTextBox={handleAddTextBox}
           />
 
           {/* Context Tab Content */}
@@ -351,6 +373,14 @@ export default function Pages() {
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
         onDelete={handleConfirmDeletePage}
+      />
+
+      {/* Add Text Box Modal */}
+      <AddTextBoxModal
+        isOpen={isAddTextBoxModalOpen}
+        onClose={handleCloseAddTextBoxModal}
+        onAdd={handleConfirmAddTextBox}
+        pages={pages}
       />
     </div>
   );

@@ -122,7 +122,10 @@ class PageService:
             # Convert file_path to public URL for each page
             pages_data = []
             for page in response.data:
-                page['file_path'] = self.get_page_url(page['file_path'])
+                original_path = page['file_path']
+                public_url = self.get_page_url(original_path)
+                print(f"🔄 Converting page {page.get('id', 'unknown')} path '{original_path}' to URL: '{public_url}'")
+                page['file_path'] = public_url
                 pages_data.append(page)
 
             pages_list = [PageResponse(**page) for page in pages_data]
@@ -240,25 +243,72 @@ class PageService:
         """Get public URL for a page file"""
         try:
             print(f"🔗 Getting public URL for: {file_path}")
-            response = self.supabase.storage.from_(self.storage_bucket).get_public_url(file_path)
-            print(f"🔗 Raw response: {response}")
-            print(f"🔗 Response type: {type(response)}")
 
-            # The response structure may vary, try different possible keys
-            if isinstance(response, dict):
-                url = response.get('publicURL', response.get('publicUrl', response.get('url', '')))
-                print(f"🔗 Extracted URL from dict: {url}")
-                return url
-            elif hasattr(response, 'publicURL'):
-                print(f"🔗 Using publicURL attribute: {response.publicURL}")
-                return response.publicURL
-            elif hasattr(response, 'publicUrl'):
-                print(f"🔗 Using publicUrl attribute: {response.publicUrl}")
-                return response.publicUrl
-            else:
-                url = str(response)
-                print(f"🔗 Converting to string: {url}")
-                return url
+            # Check if file_path is already a full URL
+            if file_path.startswith('http'):
+                print(f"🔗 File path is already a URL: {file_path}")
+                # Clean up any trailing ? or ?? from already processed URLs
+                if file_path.endswith('??'):
+                    file_path = file_path[:-2]
+                    print(f"🔗 Cleaned already-URL (removed ??): {file_path}")
+                elif file_path.endswith('?'):
+                    file_path = file_path[:-1]
+                    print(f"🔗 Cleaned already-URL (removed ?): {file_path}")
+                return file_path
+
+            # Get the Supabase project URL from environment or construct it
+            supabase_url = os.getenv('SUPABASE_URL', 'https://rmxlhsorxetqhfbzvmtg.supabase.co')
+
+            # Construct the public URL manually for more control
+            public_url = f"{supabase_url}/storage/v1/object/public/{self.storage_bucket}/{file_path}"
+            print(f"🔗 Constructed public URL: {public_url}")
+
+            # Also try the Supabase client method for comparison
+            try:
+                response = self.supabase.storage.from_(self.storage_bucket).get_public_url(file_path)
+                print(f"🔗 Supabase client response: {response}")
+                print(f"🔗 Response type: {type(response)}")
+                print(f"🔗 Response dir: {dir(response) if hasattr(response, '__dict__') else 'No __dict__'}")
+
+                # Handle different response formats from Supabase
+                client_url = ""
+                if isinstance(response, dict):
+                    # Try different possible keys
+                    client_url = response.get('publicURL') or response.get('publicUrl') or response.get('url') or response.get('signedURL') or ""
+                    print(f"🔗 Extracted URL from dict: {client_url}")
+                elif hasattr(response, 'publicURL'):
+                    client_url = response.publicURL
+                    print(f"🔗 Using publicURL attribute: {client_url}")
+                elif hasattr(response, 'publicUrl'):
+                    client_url = response.publicUrl
+                    print(f"🔗 Using publicUrl attribute: {client_url}")
+                elif hasattr(response, 'url'):
+                    client_url = response.url
+                    print(f"🔗 Using url attribute: {client_url}")
+                else:
+                    client_url = str(response)
+                    print(f"🔗 Converting to string: {client_url}")
+
+                # Clean up any malformed URLs (remove trailing ? or ??)
+                if client_url.endswith('??'):
+                    client_url = client_url[:-2]
+                    print(f"🔗 Cleaned client URL (removed ??): {client_url}")
+                elif client_url.endswith('?'):
+                    client_url = client_url[:-1]
+                    print(f"🔗 Cleaned client URL (removed ?): {client_url}")
+
+                # Use client URL if it looks valid
+                if client_url and client_url.startswith('http'):
+                    print(f"🔗 Using cleaned client URL: {client_url}")
+                    return client_url
+
+            except Exception as client_error:
+                print(f"⚠️ Supabase client method failed: {client_error}")
+
+            # Fallback to constructed URL
+            print(f"🔗 Using constructed URL: {public_url}")
+            return public_url
+
         except Exception as e:
             print(f"❌ Error getting page URL: {str(e)}")
             return ""
