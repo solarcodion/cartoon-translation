@@ -1,19 +1,22 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiPlus } from "react-icons/fi";
+import AddSeriesModal from "../components/Modals/AddSeriesModal";
 import EditSeriesModal from "../components/Modals/EditSeriesModal";
 import DeleteSeriesModal from "../components/Modals/DeleteSeriesModal";
 import { SectionLoadingSpinner, ErrorState } from "../components/common";
 import { SeriesTable } from "../components/Lists";
 import { SimplePageHeader } from "../components/Header/PageHeader";
 import type { SeriesItem } from "../types";
-import { mockSeries } from "../data/mockData";
+import { seriesService } from "../services/seriesService";
+import { convertApiSeriesToLegacy } from "../types/series";
 
 export default function Series() {
   const navigate = useNavigate();
   const [series, setSeries] = useState<SeriesItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<SeriesItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingSeries, setDeletingSeries] = useState<SeriesItem | null>(null);
@@ -25,14 +28,18 @@ export default function Series() {
       setIsLoading(true);
       setError(null);
 
-      // Simulate loading
-      setTimeout(() => {
-        setSeries(mockSeries);
-        setIsLoading(false);
-      }, 500);
+      // Fetch from API
+      const apiSeries = await seriesService.getAllSeries();
+
+      // Convert API response to legacy format for compatibility
+      const legacySeries = apiSeries.map(convertApiSeriesToLegacy);
+      setSeries(legacySeries);
+      setIsLoading(false);
     } catch (err) {
-      console.error("Unexpected error fetching series:", err);
-      setError("An unexpected error occurred.");
+      console.error("Error fetching series:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
       setIsLoading(false);
     }
   };
@@ -42,8 +49,27 @@ export default function Series() {
   }, []);
 
   const handleAddSeries = () => {
-    // TODO: Implement add series functionality
-    console.log("Add series clicked");
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
+  };
+
+  const handleConfirmAddSeries = async (seriesName: string) => {
+    try {
+      // Create series via API
+      const newApiSeries = await seriesService.createSeries({
+        title: seriesName,
+      });
+
+      // Convert to legacy format and add to list
+      const newLegacySeries = convertApiSeriesToLegacy(newApiSeries);
+      setSeries((prevSeries) => [...prevSeries, newLegacySeries]);
+    } catch (error) {
+      console.error("Error adding series:", error);
+      throw error; // Re-throw to let the modal handle the error
+    }
   };
 
   const handleEditSeries = (seriesId: string) => {
@@ -64,45 +90,40 @@ export default function Series() {
 
   const handleSaveSeriesName = async (seriesId: string, newName: string) => {
     try {
-      // TODO: Replace with actual API call
-      console.log("Updating series:", seriesId, "to:", newName);
+      // Update series via API
+      const updatedApiSeries = await seriesService.updateSeries(
+        parseInt(seriesId),
+        {
+          title: newName,
+        }
+      );
 
       // Update the series in the local state
       setSeries((prevSeries) =>
         prevSeries.map((seriesItem) =>
           seriesItem.id === seriesId
-            ? {
-                ...seriesItem,
-                name: newName,
-                updated_at: new Date().toISOString(),
-              }
+            ? convertApiSeriesToLegacy(updatedApiSeries)
             : seriesItem
         )
       );
-
-      console.log("Series name updated successfully");
-      // TODO: Show success toast/notification
     } catch (error) {
-      console.error("Unexpected error updating series name:", error);
-      // TODO: Show error toast/notification
+      console.error("Error updating series name:", error);
+      throw error; // Re-throw to let the modal handle the error
     }
   };
 
   const handleConfirmDelete = async (seriesId: string) => {
     try {
-      // TODO: Replace with actual API call
-      console.log("Deleting series:", seriesId);
+      // Delete series via API
+      await seriesService.deleteSeries(parseInt(seriesId));
 
       // Remove the series from the local state
       setSeries((prevSeries) =>
         prevSeries.filter((seriesItem) => seriesItem.id !== seriesId)
       );
-
-      console.log("Series deleted successfully");
-      // TODO: Show success toast/notification
     } catch (error) {
-      console.error("Unexpected error deleting series:", error);
-      // TODO: Show error toast/notification
+      console.error("Error deleting series:", error);
+      throw error; // Re-throw to let the modal handle the error
     }
   };
 
@@ -187,6 +208,13 @@ export default function Series() {
         onSeriesClick={handleSeriesClick}
         onEditSeries={handleEditSeries}
         onDeleteSeries={handleDeleteSeries}
+      />
+
+      {/* Add Series Modal */}
+      <AddSeriesModal
+        isOpen={isAddModalOpen}
+        onClose={handleCloseAddModal}
+        onAdd={handleConfirmAddSeries}
       />
 
       {/* Edit Series Modal */}

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { FiX, FiSave, FiFileText } from "react-icons/fi";
 import type { SeriesItem } from "../../types";
-import { InlineLoadingSpinner } from "../common/LoadingSpinner";
 
 interface EditSeriesModalProps {
   series: SeriesItem | null;
@@ -74,7 +73,7 @@ export default function EditSeriesModal({
           <button
             onClick={handleClose}
             disabled={isLoading}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <FiX className="text-lg" />
           </button>
@@ -130,21 +129,26 @@ export default function EditSeriesModal({
           <button
             onClick={handleClose}
             disabled={isLoading}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 min-w-[140px] text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isLoading || !hasChanges || !isValidName}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-4 py-2 min-w-[140px] bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? (
-              <InlineLoadingSpinner color="white" />
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Saving...</span>
+              </>
             ) : (
-              <FiSave className="text-sm" />
+              <>
+                <FiSave className="text-sm" />
+                <span>Save Changes</span>
+              </>
             )}
-            {isLoading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

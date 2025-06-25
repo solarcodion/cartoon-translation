@@ -11,6 +11,14 @@ class UserRole(str, Enum):
     TRANSLATOR = "translator"
 
 
+class SeriesStatus(str, Enum):
+    """Series status enumeration"""
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    ON_HOLD = "on_hold"
+    DROPPED = "dropped"
+
+
 class UserBase(BaseModel):
     """Base user model with common fields"""
     email: EmailStr
@@ -78,3 +86,42 @@ class ErrorResponse(BaseModel):
     success: bool = False
     message: str
     error_code: Optional[str] = None
+
+
+# Series Models
+class SeriesBase(BaseModel):
+    """Base series model"""
+    title: str
+    total_chapters: int = 0
+
+
+class SeriesCreate(BaseModel):
+    """Series creation model - only requires title"""
+    title: str
+
+    class Config:
+        # Ensure proper JSON parsing
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class SeriesUpdate(BaseModel):
+    """Series update model"""
+    title: Optional[str] = None
+    total_chapters: Optional[int] = None
+
+
+class SeriesResponse(SeriesBase):
+    """Series response model"""
+    id: int
+    user_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SeriesInDB(SeriesResponse):
+    """Series model as stored in database"""
+    pass
