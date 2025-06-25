@@ -269,3 +269,24 @@ class PageResponse(PageBase):
 class PageInDB(PageResponse):
     """Page model as stored in database"""
     pass
+
+
+# OCR Models
+class OCRRequest(BaseModel):
+    """OCR request model"""
+    image_data: str  # Base64 encoded image data
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class OCRResponse(BaseModel):
+    """OCR response model"""
+    success: bool
+    text: str
+    confidence: Optional[float] = None
+    processing_time: Optional[float] = None
+
+    class Config:
+        from_attributes = True

@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { MdGTranslate } from "react-icons/md";
 import type { Page, TextBoxCreate, BoundingBox } from "../../types";
+import { ocrService } from "../../services/ocrService";
 
 interface AddTextBoxModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export default function AddTextBoxModal({
   const [correctionReason, setCorrectionReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [zoom, setZoom] = useState(79);
 
   // Custom dropdown state
@@ -251,6 +253,8 @@ export default function AddTextBoxModal({
     }
 
     try {
+      setIsProcessingOCR(true);
+
       // Create a canvas to crop the image
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -284,7 +288,7 @@ export default function AddTextBoxModal({
         boundingBox.height // destination height
       );
 
-      // Convert canvas to blob URL
+      // Convert canvas to data URL
       const croppedDataUrl = canvas.toDataURL("image/png");
       setIsCropped(true);
 
@@ -295,8 +299,28 @@ export default function AddTextBoxModal({
         `${boundingBox.width}x${boundingBox.height}px`
       );
       console.log("Bounding Box Coordinates:", boundingBox);
+
+      // Process with OCR
+      try {
+        console.log("🔍 Starting OCR processing...");
+        const ocrResult = await ocrService.extractText(croppedDataUrl);
+
+        if (ocrResult.success && ocrResult.text.trim()) {
+          setOcrText(ocrResult.text.trim());
+          console.log("✅ OCR completed successfully:", ocrResult.text);
+        } else {
+          console.log("⚠️ OCR completed but no text was detected");
+          // Don't clear existing text, just log the result
+        }
+      } catch (ocrError) {
+        console.error("❌ OCR processing failed:", ocrError);
+        // Don't show error to user, just log it
+        // The crop functionality still works even if OCR fails
+      }
     } catch (error) {
       console.error("Error cropping image:", error);
+    } finally {
+      setIsProcessingOCR(false);
     }
   }, [selectedPage, boundingBox]);
 
@@ -1072,16 +1096,28 @@ export default function AddTextBoxModal({
                     }`}
                     disabled={
                       isLoading ||
+                      isProcessingOCR ||
                       (boundingBox.width === 0 && boundingBox.height === 0)
                     }
                     title={
-                      isCropped
-                        ? "Re-crop image to selected area"
-                        : "Crop image to selected area"
+                      isProcessingOCR
+                        ? "Processing OCR..."
+                        : isCropped
+                        ? "Re-crop image and extract text"
+                        : "Crop image and extract text"
                     }
                   >
-                    <FiCrop className="w-4 h-4" />
-                    {isCropped ? "Re-crop Area" : "Crop Area"}
+                    {isProcessingOCR ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" />
+                        Processing OCR...
+                      </>
+                    ) : (
+                      <>
+                        <FiCrop className="w-4 h-4" />
+                        {isCropped ? "Re-crop & OCR" : "Crop & OCR"}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
