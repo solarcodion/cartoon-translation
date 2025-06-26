@@ -566,10 +566,15 @@ interface ContextTabContentProps {
 export function ContextTabContent({
   activeTab,
   chapterInfo,
-  contextNotes = "This chapter introduces the main character and the system. Emphasize the MC's initial weakness and desperation.",
+  contextNotes = "",
   onSaveNotes,
 }: ContextTabContentProps) {
   const [notes, setNotes] = useState(contextNotes);
+
+  // Update notes when contextNotes prop changes
+  useEffect(() => {
+    setNotes(contextNotes);
+  }, [contextNotes]);
 
   const handleSave = () => {
     if (onSaveNotes) {
@@ -604,7 +609,7 @@ export function ContextTabContent({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="Enter context notes for this chapter..."
+              placeholder="Add context notes for this chapter. This can include character motivations, plot points, specific terminology, or tone guidelines for translators and editors..."
             />
           </div>
 

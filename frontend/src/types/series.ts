@@ -40,6 +40,7 @@ export interface Chapter {
   number: number;
   title: string;
   status: "draft" | "in_progress" | "translated";
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +52,7 @@ export interface ChapterApiItem {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,7 @@ export function convertApiChapterToLegacy(apiChapter: ChapterApiItem): Chapter {
     number: apiChapter.chapter_number,
     title: `Chapter ${apiChapter.chapter_number}`, // Generate title from number
     status: apiChapter.status,
+    context: apiChapter.context,
     created_at: apiChapter.created_at,
     updated_at: apiChapter.updated_at,
   };
@@ -73,4 +76,5 @@ export interface ChapterInfo {
   title: string;
   series_name: string;
   total_pages: number;
+  context?: string;
 }

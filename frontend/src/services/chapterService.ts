@@ -10,6 +10,7 @@ export interface ChapterUpdateRequest {
   chapter_number?: number;
   status?: "draft" | "in_progress" | "translated";
   page_count?: number;
+  context?: string;
 }
 
 export interface ChapterApiResponse {
@@ -18,6 +19,7 @@ export interface ChapterApiResponse {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +58,50 @@ class ChapterService {
       );
       throw new Error(
         `Failed to fetch chapters: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async getChapterById(chapterId: string): Promise<ChapterApiResponse> {
+    try {
+      const token = await this.getAuthToken();
+
+      const response = await apiClient.get<ChapterApiResponse>(
+        `/chapters/${chapterId}`,
+        token || undefined
+      );
+
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching chapter ${chapterId}:`, error);
+      throw new Error(
+        `Failed to fetch chapter: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async updateChapter(
+    chapterId: string,
+    updateData: ChapterUpdateRequest
+  ): Promise<ChapterApiResponse> {
+    try {
+      const token = await this.getAuthToken();
+
+      const response = await apiClient.put<ChapterApiResponse>(
+        `/chapters/${chapterId}`,
+        updateData,
+        token || undefined
+      );
+
+      return response;
+    } catch (error) {
+      console.error(`❌ Error updating chapter ${chapterId}:`, error);
+      throw new Error(
+        `Failed to update chapter: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

@@ -25,6 +25,7 @@ class ChapterService:
                 "chapter_number": chapter_data.chapter_number,
                 "status": ChapterStatus.DRAFT.value,  # Default to draft
                 "page_count": 0,  # Default to 0
+                "context": None,  # Default to None
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }

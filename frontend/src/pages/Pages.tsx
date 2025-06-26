@@ -13,9 +13,10 @@ import {
   ContextTabContent,
 } from "../components/common";
 import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
-import { getChapterInfo, mockAiInsights } from "../data/mockData";
+import { mockAiInsights } from "../data/mockData";
 import { pageService } from "../services/pageService";
 import { textBoxService } from "../services/textBoxService";
+import { chapterService } from "../services/chapterService";
 import { convertApiPageToLegacy } from "../types/pages";
 import { convertLegacyTextBoxToApi } from "../types/textbox";
 import AIInsightPanel from "../components/AIInsightPanel";
@@ -74,19 +75,32 @@ export default function Pages() {
       setIsLoading(true);
       setError(null);
 
-      // Get chapter info (still using mock for now)
-      const chapterInfo = getChapterInfo(chapterId || "1");
+      if (!chapterId || !seriesId) {
+        setError("Chapter ID or Series ID is missing");
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch real chapter data from API
+      const chapterData = await chapterService.getChapterById(chapterId);
+
+      // Convert to ChapterInfo format
+      const chapterInfo: ChapterInfo = {
+        id: chapterData.id,
+        number: chapterData.chapter_number,
+        title: `Chapter ${chapterData.chapter_number}`,
+        series_name: "Loading...", // We'll need to fetch series name separately if needed
+        total_pages: chapterData.page_count,
+        context: chapterData.context,
+      };
+
       setChapterInfo(chapterInfo);
       setAiInsights(mockAiInsights);
 
       // Fetch real pages data from API
-      if (chapterId) {
-        const apiPages = await pageService.getPagesByChapter(chapterId);
-        const convertedPages = apiPages.map(convertApiPageToLegacy);
-        setPages(convertedPages);
-      } else {
-        setPages([]);
-      }
+      const apiPages = await pageService.getPagesByChapter(chapterId);
+      const convertedPages = apiPages.map(convertApiPageToLegacy);
+      setPages(convertedPages);
 
       setIsLoading(false);
     } catch (err) {
@@ -96,7 +110,7 @@ export default function Pages() {
       );
       setIsLoading(false);
     }
-  }, [chapterId]);
+  }, [chapterId, seriesId]);
 
   useEffect(() => {
     if (seriesId && chapterId) {
@@ -208,6 +222,26 @@ export default function Pages() {
 
   const handleAddTextBox = () => {
     setIsAddTextBoxModalOpen(true);
+  };
+
+  // Handle saving chapter context
+  const handleSaveContext = async (context: string) => {
+    try {
+      if (!chapterId) {
+        console.error("Chapter ID is missing");
+        return;
+      }
+
+      await chapterService.updateChapter(chapterId, { context });
+
+      // Update local state
+      setChapterInfo((prev) => (prev ? { ...prev, context } : null));
+
+      console.log("Chapter context saved successfully");
+    } catch (err) {
+      console.error("Error saving chapter context:", err);
+      // You might want to show a toast notification here
+    }
   };
 
   const handleCloseAddTextBoxModal = () => {
@@ -381,7 +415,12 @@ export default function Pages() {
           />
 
           {/* Context Tab Content */}
-          <ContextTabContent activeTab={activeTab} chapterInfo={chapterInfo} />
+          <ContextTabContent
+            activeTab={activeTab}
+            chapterInfo={chapterInfo}
+            contextNotes={chapterInfo?.context || ""}
+            onSaveNotes={handleSaveContext}
+          />
         </div>
       </div>
 
