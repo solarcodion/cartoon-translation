@@ -63,14 +63,14 @@ async def update_chapter_status_and_count(chapter_id: str):
         print(f"❌ Error updating chapter status and count for {chapter_id}: {str(e)}")
 
 
-async def trigger_chapter_analysis_background(
+async def trigger_chapter_analysis_sync(
     chapter_id: str,
     page_service: PageService,
     analysis_service: ChapterAnalysisService
 ):
-    """Background task to analyze chapter after page changes"""
+    """Synchronous task to analyze chapter after page changes - allows other API calls during analysis"""
     try:
-        print(f"🔄 Starting background chapter analysis for chapter {chapter_id}")
+        print(f"🔄 Starting synchronous chapter analysis for chapter {chapter_id}")
 
         # First update chapter status and page count
         await update_chapter_status_and_count(chapter_id)
@@ -126,12 +126,12 @@ async def trigger_chapter_analysis_background(
             )
             await chapter_service.update_chapter(chapter_id, chapter_update)
 
-            print(f"✅ Background chapter analysis completed for chapter {chapter_id}")
+            print(f"✅ Synchronous chapter analysis completed for chapter {chapter_id}")
             print(f"📊 Generated context: {len(result.chapter_context)} characters")
             print(f"⏱️ Processing time: {result.processing_time:.2f}s")
             print(f"🎯 Chapter status set to TRANSLATED")
         else:
-            print(f"❌ Background chapter analysis failed for chapter {chapter_id}")
+            print(f"❌ Synchronous chapter analysis failed for chapter {chapter_id}")
             # Set status back to IN_PROGRESS on failure
             await chapter_service.update_chapter(
                 chapter_id,
@@ -139,7 +139,7 @@ async def trigger_chapter_analysis_background(
             )
 
     except Exception as e:
-        print(f"❌ Error in background chapter analysis for chapter {chapter_id}: {str(e)}")
+        print(f"❌ Error in synchronous chapter analysis for chapter {chapter_id}: {str(e)}")
         # Set status back to IN_PROGRESS on error
         try:
             from app.services.chapter_service import ChapterService
@@ -153,12 +153,21 @@ async def trigger_chapter_analysis_background(
                 ChapterUpdate(status=ChapterStatus.IN_PROGRESS)
             )
         except:
-            pass  # Don't raise exception in background task
+            pass  # Don't raise exception in sync task
+
+
+# Keep the background version for compatibility
+async def trigger_chapter_analysis_background(
+    chapter_id: str,
+    page_service: PageService,
+    analysis_service: ChapterAnalysisService
+):
+    """Background task wrapper for synchronous analysis"""
+    await trigger_chapter_analysis_sync(chapter_id, page_service, analysis_service)
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
 async def create_page(
-    background_tasks: BackgroundTasks,
     chapter_id: str = Form(...),
     page_number: int = Form(...),
     file: UploadFile = File(...),
@@ -166,8 +175,7 @@ async def create_page(
     height: int = Form(None),
     context: str = Form(None),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
     Create a new page with file upload
@@ -210,15 +218,6 @@ async def create_page(
         
         # Create page
         page = await page_service.create_page(page_data, file_content, file_extension)
-
-        # Trigger background chapter analysis
-        print(f"🔄 Triggering background chapter analysis for chapter {chapter_id}")
-        background_tasks.add_task(
-            trigger_chapter_analysis_background,
-            chapter_id,
-            page_service,
-            analysis_service
-        )
 
         return page
         
@@ -301,12 +300,10 @@ async def get_page(
 
 @router.put("/{page_id}", response_model=PageResponse)
 async def update_page(
-    background_tasks: BackgroundTasks,
     page_id: str = Path(..., description="Page ID"),
     page_data: PageUpdate = ...,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
     Update a page
@@ -326,15 +323,6 @@ async def update_page(
         # Add public URL
         page.file_path = page_service.get_page_url(page.file_path)
 
-        # Trigger background chapter analysis
-        print(f"🔄 Triggering background chapter analysis for chapter {page.chapter_id}")
-        background_tasks.add_task(
-            trigger_chapter_analysis_background,
-            page.chapter_id,
-            page_service,
-            analysis_service
-        )
-
         return page
         
     except HTTPException:
@@ -349,11 +337,9 @@ async def update_page(
 
 @router.delete("/{page_id}", response_model=ApiResponse)
 async def delete_page(
-    background_tasks: BackgroundTasks,
     page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
     Delete a page
@@ -361,16 +347,6 @@ async def delete_page(
     - **page_id**: ID of the page to delete
     """
     try:
-        # Get page info before deletion to get chapter_id
-        page = await page_service.get_page_by_id(page_id)
-        if not page:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Page not found"
-            )
-
-        chapter_id = page.chapter_id
-
         # Delete the page
         success = await page_service.delete_page(page_id)
 
@@ -379,15 +355,6 @@ async def delete_page(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete page"
             )
-
-        # Trigger background chapter analysis
-        print(f"🔄 Triggering background chapter analysis for chapter {chapter_id} after page deletion")
-        background_tasks.add_task(
-            trigger_chapter_analysis_background,
-            chapter_id,
-            page_service,
-            analysis_service
-        )
 
         return ApiResponse(
             success=True,

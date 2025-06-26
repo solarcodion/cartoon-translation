@@ -137,17 +137,6 @@ export default function Chapters() {
     }
   }, [seriesId, navigate, fetchChapters, fetchTranslationMemory]);
 
-  // Auto-refresh chapters every 30 seconds to catch status updates
-  useEffect(() => {
-    if (!seriesId) return;
-
-    const interval = setInterval(() => {
-      fetchChapters();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [seriesId, fetchChapters]);
-
   const handleAddChapter = () => {
     setIsAddModalOpen(true);
   };

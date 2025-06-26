@@ -158,6 +158,31 @@ export default function Pages() {
       setPages((prev) =>
         [...prev, newPage].sort((a, b) => a.number - b.number)
       );
+
+      // After modal closes, trigger chapter analysis
+      setTimeout(async () => {
+        try {
+          console.log("🔄 Starting chapter analysis after page upload...");
+          await chapterService.analyzeChapter(chapterId, {
+            pages: [...pages, newPage]
+              .sort((a, b) => a.number - b.number)
+              .map((page) => ({
+                page_number: page.number,
+                image_url: page.image_url,
+                ocr_context: page.context,
+              })),
+            translation_info: [
+              "Maintain natural Vietnamese flow and readability",
+              "Preserve character names and proper nouns",
+              "Adapt cultural references appropriately",
+            ],
+            existing_context: chapterInfo?.context,
+          });
+          console.log("✅ Chapter analysis completed");
+        } catch (error) {
+          console.error("❌ Chapter analysis failed:", error);
+        }
+      }, 1500); // Wait for modal to close
     } catch (error) {
       console.error("Error uploading page:", error);
       throw error;
@@ -201,6 +226,44 @@ export default function Pages() {
 
       // Refresh the page list to get updated data
       await fetchPages();
+
+      // After modal closes, trigger chapter analysis
+      setTimeout(async () => {
+        try {
+          if (!chapterId) return;
+
+          console.log("🔄 Starting chapter analysis after page update...");
+
+          // Get updated pages list
+          const updatedPages = pages.map((page) =>
+            page.id === pageId
+              ? {
+                  ...page,
+                  number: pageData.page_number ?? page.number,
+                }
+              : page
+          );
+
+          await chapterService.analyzeChapter(chapterId, {
+            pages: updatedPages
+              .sort((a, b) => a.number - b.number)
+              .map((page) => ({
+                page_number: page.number,
+                image_url: page.image_url,
+                ocr_context: page.context,
+              })),
+            translation_info: [
+              "Maintain natural Vietnamese flow and readability",
+              "Preserve character names and proper nouns",
+              "Adapt cultural references appropriately",
+            ],
+            existing_context: chapterInfo?.context,
+          });
+          console.log("✅ Chapter analysis completed");
+        } catch (error) {
+          console.error("❌ Chapter analysis failed:", error);
+        }
+      }, 1500); // Wait for modal to close
     } catch (error) {
       console.error("Error updating page:", error);
       throw error;
