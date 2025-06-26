@@ -561,7 +561,7 @@ interface ContextTabContentProps {
   activeTab: string;
   chapterInfo: ChapterInfo | null;
   contextNotes?: string;
-  onSaveNotes?: (notes: string) => void;
+  onSaveNotes?: (notes: string) => Promise<void> | void;
   pages?: Page[];
   chapterId?: string;
   onContextUpdate?: (context: string) => void;
@@ -579,17 +579,35 @@ export function ContextTabContent({
   const [notes, setNotes] = useState(contextNotes);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveComplete, setSaveComplete] = useState(false);
 
   // Update notes when contextNotes prop changes
   useEffect(() => {
     setNotes(contextNotes);
   }, [contextNotes]);
 
-  const handleSave = () => {
-    if (onSaveNotes) {
-      onSaveNotes(notes);
-    } else {
+  const handleSave = async () => {
+    if (!onSaveNotes) {
       console.log("Save notes:", notes);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Call the save function and await if it's a promise
+      await Promise.resolve(onSaveNotes(notes));
+
+      // Show success feedback
+      setSaveComplete(true);
+      setTimeout(() => setSaveComplete(false), 2000); // Hide after 2 seconds
+
+      console.log("✅ Context notes saved successfully");
+    } catch (error) {
+      console.error("❌ Failed to save context notes:", error);
+      // You might want to show an error toast here
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -726,11 +744,18 @@ export function ContextTabContent({
               <label className="block text-sm font-medium text-gray-700">
                 Notes
               </label>
-              {analysisComplete && (
-                <span className="text-sm text-green-600 font-medium">
-                  ✅ Updated with analysis result
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {saveComplete && (
+                  <span className="text-sm text-green-600 font-medium">
+                    ✅ Saved
+                  </span>
+                )}
+                {analysisComplete && (
+                  <span className="text-sm text-blue-600 font-medium">
+                    🔄 Updated with analysis
+                  </span>
+                )}
+              </div>
             </div>
             <textarea
               value={notes}
@@ -743,10 +768,21 @@ export function ContextTabContent({
           <div className="flex justify-between items-center">
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              disabled={isSaving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                saveComplete
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-900 hover:bg-gray-800 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+              }`}
             >
-              <FiSave className="text-sm" />
-              Save Notes
+              {isSaving ? (
+                <FiRefreshCw className="text-sm animate-spin" />
+              ) : saveComplete ? (
+                <FiSave className="text-sm" />
+              ) : (
+                <FiSave className="text-sm" />
+              )}
+              {isSaving ? "Saving..." : saveComplete ? "Saved!" : "Save Notes"}
             </button>
 
             <button
