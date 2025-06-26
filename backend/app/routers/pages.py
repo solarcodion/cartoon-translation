@@ -29,6 +29,40 @@ def get_chapter_analysis_service() -> ChapterAnalysisService:
     return ChapterAnalysisService()
 
 
+async def update_chapter_status_and_count(chapter_id: str):
+    """Update chapter status and page count"""
+    try:
+        from app.services.chapter_service import ChapterService
+        from app.database import get_supabase
+        from app.models import ChapterUpdate, ChapterStatus
+
+        supabase = get_supabase()
+        chapter_service = ChapterService(supabase)
+        page_service = PageService(supabase)
+
+        # Get current page count
+        pages = await page_service.get_pages_by_chapter(chapter_id)
+        page_count = len(pages)
+
+        # Determine status based on page count
+        if page_count == 0:
+            status = ChapterStatus.DRAFT
+        else:
+            status = ChapterStatus.IN_PROGRESS  # Will be updated to TRANSLATED after analysis
+
+        # Update chapter
+        chapter_update = ChapterUpdate(
+            page_count=page_count,
+            status=status
+        )
+        await chapter_service.update_chapter(chapter_id, chapter_update)
+
+        print(f"✅ Updated chapter {chapter_id}: page_count={page_count}, status={status.value}")
+
+    except Exception as e:
+        print(f"❌ Error updating chapter status and count for {chapter_id}: {str(e)}")
+
+
 async def trigger_chapter_analysis_background(
     chapter_id: str,
     page_service: PageService,
@@ -38,12 +72,29 @@ async def trigger_chapter_analysis_background(
     try:
         print(f"🔄 Starting background chapter analysis for chapter {chapter_id}")
 
+        # First update chapter status and page count
+        await update_chapter_status_and_count(chapter_id)
+
         # Get all pages for the chapter
         pages = await page_service.get_pages_by_chapter(chapter_id)
 
         if not pages:
             print(f"⚠️ No pages found for chapter {chapter_id}, skipping analysis")
             return
+
+        # Set status to IN_PROGRESS before analysis
+        from app.services.chapter_service import ChapterService
+        from app.database import get_supabase
+        from app.models import ChapterUpdate, ChapterStatus
+
+        supabase = get_supabase()
+        chapter_service = ChapterService(supabase)
+
+        print(f"📊 Setting chapter {chapter_id} status to IN_PROGRESS")
+        await chapter_service.update_chapter(
+            chapter_id,
+            ChapterUpdate(status=ChapterStatus.IN_PROGRESS)
+        )
 
         # Prepare analysis request
         analysis_request = ChapterAnalysisRequest(
@@ -68,26 +119,41 @@ async def trigger_chapter_analysis_background(
         result = await analysis_service.analyze_chapter(analysis_request)
 
         if result.success:
-            # Update chapter context
-            from app.services.chapter_service import ChapterService
-            from app.database import get_supabase
-            from app.models import ChapterUpdate
-
-            supabase = get_supabase()
-            chapter_service = ChapterService(supabase)
-
-            chapter_update = ChapterUpdate(context=result.chapter_context)
+            # Update chapter context and set status to TRANSLATED
+            chapter_update = ChapterUpdate(
+                context=result.chapter_context,
+                status=ChapterStatus.TRANSLATED
+            )
             await chapter_service.update_chapter(chapter_id, chapter_update)
 
             print(f"✅ Background chapter analysis completed for chapter {chapter_id}")
             print(f"📊 Generated context: {len(result.chapter_context)} characters")
             print(f"⏱️ Processing time: {result.processing_time:.2f}s")
+            print(f"🎯 Chapter status set to TRANSLATED")
         else:
             print(f"❌ Background chapter analysis failed for chapter {chapter_id}")
+            # Set status back to IN_PROGRESS on failure
+            await chapter_service.update_chapter(
+                chapter_id,
+                ChapterUpdate(status=ChapterStatus.IN_PROGRESS)
+            )
 
     except Exception as e:
         print(f"❌ Error in background chapter analysis for chapter {chapter_id}: {str(e)}")
-        # Don't raise the exception as this is a background task
+        # Set status back to IN_PROGRESS on error
+        try:
+            from app.services.chapter_service import ChapterService
+            from app.database import get_supabase
+            from app.models import ChapterUpdate, ChapterStatus
+
+            supabase = get_supabase()
+            chapter_service = ChapterService(supabase)
+            await chapter_service.update_chapter(
+                chapter_id,
+                ChapterUpdate(status=ChapterStatus.IN_PROGRESS)
+            )
+        except:
+            pass  # Don't raise exception in background task
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)

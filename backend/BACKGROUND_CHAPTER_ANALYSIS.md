@@ -11,23 +11,49 @@ The Background Chapter Analysis feature automatically triggers AI-powered chapte
 The system automatically triggers chapter analysis in the following scenarios:
 
 1. **Page Creation** (`POST /api/pages/`)
+
    - When a new page is uploaded to a chapter
+   - Page operation completes immediately
    - Analysis runs in the background after successful page creation
 
 2. **Page Update** (`PUT /api/pages/{page_id}`)
+
    - When page metadata or context is updated
+   - Page operation completes immediately
    - Analysis runs in the background after successful page update
 
 3. **Page Deletion** (`DELETE /api/pages/{page_id}`)
    - When a page is removed from a chapter
+   - Page operation completes immediately
    - Analysis runs in the background after successful page deletion
+
+### Chapter Status Workflow
+
+The system automatically manages chapter status based on page count and analysis state:
+
+1. **DRAFT** (`draft`)
+
+   - When page count is 0
+   - No pages in the chapter
+
+2. **IN_PROGRESS** (`in_progress`)
+
+   - When page count > 0 and analysis is running
+   - Set immediately when pages are added/updated
+   - Maintained during analysis process
+
+3. **TRANSLATED** (`translated`)
+   - When analysis completes successfully
+   - Chapter context has been generated
+   - Ready for translation work
 
 ### Background Processing
 
-- **Non-blocking**: Analysis runs as a FastAPI background task
-- **Asynchronous**: Page operations complete immediately, analysis happens in background
-- **Error-tolerant**: Analysis failures don't affect page operations
-- **Automatic context update**: Chapter context is automatically updated after successful analysis
+- **Non-blocking**: Page operations complete immediately (1-2 seconds)
+- **Asynchronous**: Analysis happens in background (10-30 seconds)
+- **Status tracking**: Chapter status reflects current analysis state
+- **Error-tolerant**: Page operations succeed even if analysis fails
+- **Automatic updates**: Chapter context and status updated automatically
 
 ## Implementation Details
 
@@ -43,11 +69,14 @@ async def trigger_chapter_analysis_background(
 ```
 
 **Process:**
-1. Fetches all pages for the chapter
-2. Sorts pages by page number (1, 2, 3, ...)
-3. Prepares analysis request with page data and OCR contexts
-4. Performs AI analysis using OpenAI GPT-4o-mini
-5. Updates chapter context in database
+
+1. Updates chapter page count and sets status to IN_PROGRESS
+2. Fetches all pages for the chapter
+3. Sorts pages by page number (1, 2, 3, ...)
+4. Prepares analysis request with page data and OCR contexts
+5. Performs AI analysis using OpenAI GPT-4o-mini
+6. Updates chapter context and sets status to TRANSLATED
+7. On error: keeps status as IN_PROGRESS
 
 ### Default Translation Guidelines
 
@@ -56,7 +85,7 @@ The background analysis uses these default translation guidelines:
 ```python
 translation_info = [
     "Maintain natural Vietnamese flow and readability",
-    "Preserve character names and proper nouns", 
+    "Preserve character names and proper nouns",
     "Adapt cultural references appropriately",
     "Use appropriate Vietnamese honorifics and speech patterns"
 ]
@@ -71,11 +100,14 @@ translation_info = [
 ## Benefits
 
 ### For Users
+
 - **Always up-to-date context**: Chapter context reflects current page content
 - **Seamless experience**: No manual analysis required
 - **Immediate feedback**: Page operations complete instantly
+- **Status visibility**: Chapter status shows analysis progress (draft/in_progress/translated)
 
 ### For Translators
+
 - **Comprehensive context**: AI-generated context explains chapter story and themes
 - **Consistent analysis**: Same analysis quality for all chapters
 - **Translation guidance**: Context provides valuable information for translation work
@@ -83,11 +115,13 @@ translation_info = [
 ## Performance Considerations
 
 ### Background Processing
+
 - **Non-blocking**: Page uploads/updates complete in ~1-2 seconds
 - **Analysis time**: Background analysis takes 10-30 seconds depending on chapter length
 - **Resource usage**: Analysis runs separately from main API operations
 
 ### Optimization Features
+
 - **Smart triggering**: Only analyzes when pages actually change
 - **Efficient data fetching**: Fetches only necessary page data
 - **Caching**: Analysis results are stored in database for future reference
@@ -97,12 +131,14 @@ translation_info = [
 ### Log Messages
 
 **Analysis Start:**
+
 ```
 🔄 Triggering background chapter analysis for chapter {chapter_id}
 🔄 Starting background chapter analysis for chapter {chapter_id}
 ```
 
 **Analysis Progress:**
+
 ```
 🔄 Analyzing chapter with {page_count} pages...
 📝 Translation info: {rule_count} rules
@@ -110,13 +146,23 @@ translation_info = [
 ```
 
 **Analysis Completion:**
+
 ```
 ✅ Background chapter analysis completed for chapter {chapter_id}
 📊 Generated context: {character_count} characters
 ⏱️ Processing time: {time}s
+🎯 Chapter status set to TRANSLATED
+```
+
+**Status Updates:**
+
+```
+✅ Updated chapter {chapter_id}: page_count={count}, status={status}
+📊 Setting chapter {chapter_id} status to IN_PROGRESS
 ```
 
 **Error Handling:**
+
 ```
 ❌ Error in background chapter analysis for chapter {chapter_id}: {error}
 ```
@@ -157,6 +203,7 @@ translation_info = [
 ## API Response Changes
 
 ### Page Creation Response
+
 ```json
 {
   "id": "page-uuid",
@@ -186,11 +233,13 @@ After background analysis completes, the chapter's context field is automaticall
 ## Best Practices
 
 ### For Developers
+
 1. **Monitor logs**: Watch for analysis errors and performance issues
 2. **Handle gracefully**: Don't depend on immediate context updates
 3. **Test thoroughly**: Verify background tasks work in your environment
 
 ### For Users
+
 1. **Wait for analysis**: Allow 10-30 seconds for context to update after page changes
 2. **Check context**: Refresh chapter data to see updated analysis results
 3. **Report issues**: Monitor for analysis failures and report problems
@@ -200,16 +249,19 @@ After background analysis completes, the chapter's context field is automaticall
 ### Common Issues
 
 **Analysis not triggering:**
+
 - Check OpenAI API key configuration
 - Verify background task system is working
 - Check server logs for errors
 
 **Analysis failing:**
+
 - Verify OpenAI API quota and rate limits
 - Check page data integrity (valid URLs, OCR contexts)
 - Monitor network connectivity to OpenAI
 
 **Context not updating:**
+
 - Verify database write permissions
 - Check chapter service functionality
 - Monitor for service errors in logs
@@ -217,6 +269,7 @@ After background analysis completes, the chapter's context field is automaticall
 ### Debug Commands
 
 Test background analysis manually:
+
 ```python
 from app.routers.pages import trigger_chapter_analysis_background
 await trigger_chapter_analysis_background(chapter_id, page_service, analysis_service)

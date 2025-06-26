@@ -23,14 +23,27 @@ export default function ChapterItemRow({
 }: ChapterItemProps) {
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "completed":
+      case "translated":
         return "bg-green-100 text-green-800 border-green-200";
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "pending":
+      case "in_progress":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "draft":
         return "bg-gray-100 text-gray-800 border-gray-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "translated":
+        return "Translated";
+      case "in_progress":
+        return "In Progress";
+      case "draft":
+        return "Draft";
+      default:
+        return "Draft";
     }
   };
 
@@ -50,7 +63,7 @@ export default function ChapterItemRow({
             chapter.status
           )}`}
         >
-          {chapter.status.charAt(0).toUpperCase() + chapter.status.slice(1)}
+          {getStatusText(chapter.status)}
         </span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right">

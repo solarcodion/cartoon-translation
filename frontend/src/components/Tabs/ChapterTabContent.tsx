@@ -39,10 +39,12 @@ export function ChaptersTabContent({
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "published":
-        return "bg-green-100 text-green-800";
       case "translated":
+        return "bg-green-100 text-green-800";
+      case "in_progress":
         return "bg-blue-100 text-blue-800";
+      case "draft":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -50,10 +52,12 @@ export function ChaptersTabContent({
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "published":
-        return "Translated";
       case "translated":
-        return "In progress";
+        return "Translated";
+      case "in_progress":
+        return "In Progress";
+      case "draft":
+        return "Draft";
       default:
         return "Draft";
     }
