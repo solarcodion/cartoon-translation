@@ -328,3 +328,64 @@ class EnhancedTranslationRequest(BaseModel):
     class Config:
         str_strip_whitespace = True
         validate_assignment = True
+
+
+# Text Box Models
+class TextBoxBase(BaseModel):
+    """Base text box model"""
+    page_id: int
+    image: Optional[str] = None  # Base64 encoded cropped image
+    x: int
+    y: int
+    w: int
+    h: int
+    ocr: Optional[str] = None
+    corrected: Optional[str] = None
+    tm: Optional[float] = None  # Translation memory score
+    reason: Optional[str] = None
+
+
+class TextBoxCreate(BaseModel):
+    """Text box creation model"""
+    page_id: int
+    image: Optional[str] = None
+    x: int
+    y: int
+    w: int
+    h: int
+    ocr: Optional[str] = None
+    corrected: Optional[str] = None
+    tm: Optional[float] = None
+    reason: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TextBoxUpdate(BaseModel):
+    """Text box update model"""
+    image: Optional[str] = None
+    x: Optional[int] = None
+    y: Optional[int] = None
+    w: Optional[int] = None
+    h: Optional[int] = None
+    ocr: Optional[str] = None
+    corrected: Optional[str] = None
+    tm: Optional[float] = None
+    reason: Optional[str] = None
+
+
+class TextBoxResponse(TextBoxBase):
+    """Text box response model"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TextBoxInDB(TextBoxResponse):
+    """Text box model as stored in database"""
+    pass

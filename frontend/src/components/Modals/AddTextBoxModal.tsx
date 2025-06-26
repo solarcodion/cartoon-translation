@@ -19,7 +19,7 @@ import { translationService } from "../../services/translationService";
 interface AddTextBoxModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (textBoxData: TextBoxCreate) => Promise<void>;
+  onAdd: (textBoxData: TextBoxCreate, croppedImage?: string) => Promise<void>;
   pages: Page[];
   selectedPageId?: string;
 }
@@ -64,6 +64,7 @@ export default function AddTextBoxModal({
 
   // Cropped image state
   const [isCropped, setIsCropped] = useState(false);
+  const [croppedImageData, setCroppedImageData] = useState<string>("");
   // Pan and drag state
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -245,6 +246,7 @@ export default function AddTextBoxModal({
     setBoundingBox({ x: 0, y: 0, width: 0, height: 0 });
     setIsDragSelectionMode(false);
     setIsCropped(false);
+    setCroppedImageData("");
   }, []);
 
   // Handle crop image
@@ -297,6 +299,7 @@ export default function AddTextBoxModal({
       // Convert canvas to data URL
       const croppedDataUrl = canvas.toDataURL("image/png");
       setIsCropped(true);
+      setCroppedImageData(croppedDataUrl);
 
       // Log the cropped image data URL to console
       console.log("Cropped Image Data URL:", croppedDataUrl);
@@ -677,6 +680,8 @@ export default function AddTextBoxModal({
       setCorrectionReason("");
       setZoom(1);
       setPan({ x: 0, y: 0 });
+      setIsCropped(false);
+      setCroppedImageData("");
     }
   }, [isOpen]);
 
@@ -693,15 +698,18 @@ export default function AddTextBoxModal({
 
     try {
       setIsLoading(true);
-      await onAdd({
-        pageId: selectedPage.id,
-        pageNumber: selectedPage.number,
-        boundingBox,
-        ocrText: ocrText.trim(),
-        aiTranslatedText: aiTranslatedText.trim() || undefined,
-        correctedText: correctedText.trim() || undefined,
-        correctionReason: correctionReason.trim() || undefined,
-      });
+      await onAdd(
+        {
+          pageId: selectedPage.id,
+          pageNumber: selectedPage.number,
+          boundingBox,
+          ocrText: ocrText.trim(),
+          aiTranslatedText: aiTranslatedText.trim() || undefined,
+          correctedText: correctedText.trim() || undefined,
+          correctionReason: correctionReason.trim() || undefined,
+        },
+        croppedImageData || undefined
+      );
       onClose();
     } catch (error) {
       console.error("Error adding text box:", error);

@@ -1,6 +1,6 @@
 // Page Tab Content Components
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiPlus,
   FiTrash2,
@@ -8,12 +8,21 @@ import {
   FiZap,
   FiSave,
   FiChevronDown,
+  FiRefreshCw,
+  FiX,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import { TabContent } from "../common";
+import { TabContent, SectionLoadingSpinner } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import { PagesTable } from "../Lists";
+import EditTextBoxModal from "../Modals/EditTextBoxModal";
+import DeleteTextBoxModal from "../Modals/DeleteTextBoxModal";
 import type { Page, ChapterInfo } from "../../types";
+import {
+  textBoxService,
+  type TextBoxApiItem,
+} from "../../services/textBoxService";
+import type { TextBoxApiUpdate } from "../../types/textbox";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -70,6 +79,7 @@ export function PagesTabContent({
 interface TranslationsTabContentProps {
   activeTab: string;
   chapterInfo: ChapterInfo | null;
+  chapterId: string;
   selectedPage: string;
   isPageDropdownOpen: boolean;
   hoveredTMBadge: string | null;
@@ -77,11 +87,13 @@ interface TranslationsTabContentProps {
   onSetIsPageDropdownOpen: (open: boolean) => void;
   onSetHoveredTMBadge: (id: string | null) => void;
   onAddTextBox: () => void;
+  refreshTrigger?: number; // Add refresh trigger prop
 }
 
 export function TranslationsTabContent({
   activeTab,
   chapterInfo,
+  chapterId,
   selectedPage,
   isPageDropdownOpen,
   hoveredTMBadge,
@@ -89,7 +101,154 @@ export function TranslationsTabContent({
   onSetIsPageDropdownOpen,
   onSetHoveredTMBadge,
   onAddTextBox,
+  refreshTrigger,
 }: TranslationsTabContentProps) {
+  const [textBoxes, setTextBoxes] = useState<TextBoxApiItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Quick edit state
+  const [editingTextBoxId, setEditingTextBoxId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+
+  // Modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedTextBox, setSelectedTextBox] = useState<TextBoxApiItem | null>(
+    null
+  );
+
+  // Fetch text boxes for the chapter
+  useEffect(() => {
+    const fetchTextBoxes = async () => {
+      if (!chapterId) return;
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
+          parseInt(chapterId)
+        );
+        setTextBoxes(fetchedTextBoxes);
+      } catch (err) {
+        console.error("Error fetching text boxes:", err);
+        setError("Failed to load text boxes");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTextBoxes();
+  }, [chapterId, refreshTrigger]); // Add refreshTrigger to dependencies
+
+  // Filter text boxes by selected page
+  const filteredTextBoxes =
+    selectedPage === "All Pages"
+      ? textBoxes
+      : textBoxes.filter((tb) => `Page ${tb.page_id}` === selectedPage);
+
+  const handleStartQuickEdit = (textBox: TextBoxApiItem) => {
+    setEditingTextBoxId(textBox.id);
+    setEditingText(textBox.corrected || "");
+  };
+
+  const handleCancelQuickEdit = () => {
+    setEditingTextBoxId(null);
+    setEditingText("");
+  };
+
+  const handleSaveQuickEdit = async (textBoxId: number) => {
+    try {
+      await textBoxService.updateTextBox(textBoxId, {
+        corrected: editingText.trim() || undefined,
+      });
+
+      // Update the local state
+      setTextBoxes((prev) =>
+        prev.map((tb) =>
+          tb.id === textBoxId
+            ? { ...tb, corrected: editingText.trim() || undefined }
+            : tb
+        )
+      );
+
+      // Exit edit mode
+      setEditingTextBoxId(null);
+      setEditingText("");
+    } catch (err) {
+      console.error("Error updating text box:", err);
+    }
+  };
+
+  // Modal handlers
+  const handleOpenEditModal = (textBox: TextBoxApiItem) => {
+    setSelectedTextBox(textBox);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedTextBox(null);
+  };
+
+  const handleSaveTextBoxEdit = async (
+    textBoxId: number,
+    updateData: TextBoxApiUpdate
+  ) => {
+    try {
+      const updatedTextBox = await textBoxService.updateTextBox(
+        textBoxId,
+        updateData
+      );
+
+      // Update the local state
+      setTextBoxes((prev) =>
+        prev.map((tb) => (tb.id === textBoxId ? updatedTextBox : tb))
+      );
+    } catch (err) {
+      console.error("Error updating text box:", err);
+      throw err; // Re-throw to let the modal handle the error
+    }
+  };
+
+  const handleOpenDeleteModal = (textBox: TextBoxApiItem) => {
+    setSelectedTextBox(textBox);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedTextBox(null);
+  };
+
+  const handleConfirmDeleteTextBox = async (textBoxId: number) => {
+    try {
+      await textBoxService.deleteTextBox(textBoxId);
+      setTextBoxes((prev) => prev.filter((tb) => tb.id !== textBoxId));
+    } catch (err) {
+      console.error("Error deleting text box:", err);
+      throw err; // Re-throw to let the modal handle the error
+    }
+  };
+
+  // Function to manually refresh text boxes
+  const refreshTextBoxes = async () => {
+    if (!chapterId) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
+        parseInt(chapterId)
+      );
+      setTextBoxes(fetchedTextBoxes);
+    } catch (err) {
+      console.error("Error refreshing text boxes:", err);
+      setError("Failed to refresh text boxes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <TabContent activeTab={activeTab} tabId="translations">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -98,13 +257,26 @@ export function TranslationsTabContent({
             <h2 className="text-xl font-bold text-gray-900">
               Translations for Chapter {chapterInfo?.number}
             </h2>
-            <button
-              onClick={onAddTextBox}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              Add Text Box
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={refreshTextBoxes}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh text boxes"
+              >
+                <FiRefreshCw
+                  className={`text-sm ${isLoading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </button>
+              <button
+                onClick={onAddTextBox}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <FiPlus className="text-sm" />
+                Add Text Box
+              </button>
+            </div>
           </div>
         </div>
 
@@ -187,63 +359,198 @@ export function TranslationsTabContent({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {/* Sample translation rows */}
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-medium text-gray-900">P.1</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center justify-center w-12 h-16 bg-gray-100 rounded border">
-                    <FiImage className="text-gray-400 text-sm" />
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-900">100,200,300,50</span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-sm text-gray-900">
-                    What is this place, Sung Jinw...
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-sm text-gray-900">
-                    Đây là đâu vậy, Sung Jinwoo?
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className="relative inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium border border-blue-500 text-blue-700 bg-blue-50 w-12 cursor-help"
-                    onMouseEnter={() => onSetHoveredTMBadge("tm-1")}
-                    onMouseLeave={() => onSetHoveredTMBadge(null)}
-                  >
-                    85%
-                    {hoveredTMBadge === "tm-1" && (
-                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
-                        Translation Memory Match
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <SectionLoadingSpinner />
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <div className="text-red-600">{error}</div>
+                  </td>
+                </tr>
+              ) : filteredTextBoxes.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <div className="text-gray-500">
+                      {selectedPage === "All Pages"
+                        ? "No text boxes found for this chapter"
+                        : `No text boxes found for ${selectedPage}`}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredTextBoxes.map((textBox) => (
+                  <tr key={textBox.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">
+                        P.{textBox.page_id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {textBox.image ? (
+                        <img
+                          src={textBox.image}
+                          alt="Cropped text area"
+                          className="w-12 h-16 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-12 h-16 bg-gray-100 rounded border">
+                          <FiImage className="text-gray-400 text-sm" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-900">
+                        {textBox.x},{textBox.y},{textBox.w},{textBox.h}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900">
+                        {textBox.ocr ? (
+                          textBox.ocr.length > 30 ? (
+                            `${textBox.ocr.substring(0, 30)}...`
+                          ) : (
+                            textBox.ocr
+                          )
+                        ) : (
+                          <span className="text-gray-400 italic">
+                            No OCR text
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingTextBoxId === textBox.id ? (
+                        <div className="flex items-center gap-2">
+                          <textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                            rows={2}
+                            autoFocus
+                            placeholder="Enter corrected text..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.ctrlKey) {
+                                handleSaveQuickEdit(textBox.id);
+                              } else if (e.key === "Escape") {
+                                handleCancelQuickEdit();
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={handleCancelQuickEdit}
+                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-all duration-200 cursor-pointer"
+                            title="Cancel (Esc)"
+                          >
+                            <FiX className="text-sm" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-900">
+                          {textBox.corrected ? (
+                            textBox.corrected.length > 30 ? (
+                              `${textBox.corrected.substring(0, 30)}...`
+                            ) : (
+                              textBox.corrected
+                            )
+                          ) : (
+                            <span className="text-gray-400 italic">
+                              No correction
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {textBox.tm ? (
+                        <span
+                          className="relative inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium border border-blue-500 text-blue-700 bg-blue-50 w-12 cursor-help"
+                          onMouseEnter={() =>
+                            onSetHoveredTMBadge(`tm-${textBox.id}`)
+                          }
+                          onMouseLeave={() => onSetHoveredTMBadge(null)}
+                        >
+                          {Math.round(textBox.tm * 100)}%
+                          {hoveredTMBadge === `tm-${textBox.id}` && (
+                            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
+                              Translation Memory Match
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                            </div>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          onClick={() => {
+                            if (editingTextBoxId === textBox.id) {
+                              handleSaveQuickEdit(textBox.id);
+                            } else {
+                              handleStartQuickEdit(textBox);
+                            }
+                          }}
+                          className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
+                            editingTextBoxId === textBox.id
+                              ? "text-green-600 hover:text-green-800 hover:bg-green-100"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                          }`}
+                          title={
+                            editingTextBoxId === textBox.id
+                              ? "Save Changes"
+                              : "Quick Edit"
+                          }
+                        >
+                          {editingTextBoxId === textBox.id ? (
+                            <FiSave className="text-base" />
+                          ) : (
+                            <FiZap className="text-base" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditModal(textBox)}
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-all duration-200 cursor-pointer"
+                          title="Edit"
+                        >
+                          <BiSolidEdit className="text-base" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenDeleteModal(textBox)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-all duration-200 cursor-pointer"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="text-base" />
+                        </button>
                       </div>
-                    )}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <div className="flex flex-col items-end gap-1">
-                    <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200 cursor-pointer">
-                      <FiZap className="text-base" />
-                    </button>
-                    <button className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-all duration-200 cursor-pointer">
-                      <BiSolidEdit className="text-base" />
-                    </button>
-                    <button className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-all duration-200 cursor-pointer">
-                      <FiTrash2 className="text-base" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              {/* Additional sample rows would go here */}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Edit Text Box Modal */}
+      <EditTextBoxModal
+        textBox={selectedTextBox}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveTextBoxEdit}
+      />
+
+      {/* Delete Text Box Modal */}
+      <DeleteTextBoxModal
+        textBox={selectedTextBox}
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onDelete={handleConfirmDeleteTextBox}
+      />
     </TabContent>
   );
 }

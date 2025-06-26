@@ -7,6 +7,7 @@ export interface BoundingBox {
   height: number;
 }
 
+// Legacy types for compatibility with existing components
 export interface TextBox {
   id: string;
   pageId: string;
@@ -36,4 +37,84 @@ export interface TextBoxUpdate {
   aiTranslatedText?: string;
   correctedText?: string;
   correctionReason?: string;
+}
+
+// API-compatible types that match the database schema
+export interface TextBoxApiItem {
+  id: number;
+  page_id: number;
+  image?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TextBoxApiCreate {
+  page_id: number;
+  image?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+}
+
+export interface TextBoxApiUpdate {
+  image?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+}
+
+// Helper functions to convert between legacy and API formats
+export function convertApiTextBoxToLegacy(apiTextBox: TextBoxApiItem): TextBox {
+  return {
+    id: apiTextBox.id.toString(),
+    pageId: apiTextBox.page_id.toString(),
+    pageNumber: 0, // This would need to be fetched separately or included in the API response
+    boundingBox: {
+      x: apiTextBox.x,
+      y: apiTextBox.y,
+      width: apiTextBox.w,
+      height: apiTextBox.h,
+    },
+    ocrText: apiTextBox.ocr || "",
+    aiTranslatedText: apiTextBox.corrected,
+    correctedText: apiTextBox.corrected,
+    correctionReason: apiTextBox.reason,
+    created_at: apiTextBox.created_at,
+    updated_at: apiTextBox.updated_at,
+  };
+}
+
+export function convertLegacyTextBoxToApi(
+  legacyTextBox: TextBoxCreate,
+  croppedImage?: string
+): TextBoxApiCreate {
+  return {
+    page_id: parseInt(legacyTextBox.pageId),
+    image: croppedImage,
+    x: legacyTextBox.boundingBox.x,
+    y: legacyTextBox.boundingBox.y,
+    w: legacyTextBox.boundingBox.width,
+    h: legacyTextBox.boundingBox.height,
+    ocr: legacyTextBox.ocrText,
+    corrected: legacyTextBox.correctedText,
+    reason: legacyTextBox.correctionReason,
+  };
 }

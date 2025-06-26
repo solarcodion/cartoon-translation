@@ -6,7 +6,7 @@ The Translation API provides AI-powered text translation using OpenAI's GPT mode
 
 ## Features
 
-- **AI Translation**: Uses OpenAI GPT-3.5-turbo for high-quality translations
+- **AI Translation**: Uses OpenAI GPT-4o-mini for high-quality translations
 - **Context-Aware**: Supports series-specific context and character name preservation
 - **Multiple Languages**: Supports 15+ target languages
 - **Quick Translation**: Simple endpoint for fast translations
@@ -26,11 +26,13 @@ TRANSLATION_TARGET_LANGUAGE=Vietnamese
 ## API Endpoints
 
 ### 1. Quick Translate
+
 **POST** `/api/translation/quick-translate`
 
 Simple translation endpoint for basic text translation.
 
 **Request:**
+
 ```json
 {
   "text": "Hello world"
@@ -38,6 +40,7 @@ Simple translation endpoint for basic text translation.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -52,11 +55,13 @@ Simple translation endpoint for basic text translation.
 ```
 
 ### 2. Standard Translate
+
 **POST** `/api/translation/translate`
 
 Standard translation with optional context and target language.
 
 **Request:**
+
 ```json
 {
   "source_text": "The hero defeated the dragon",
@@ -66,6 +71,7 @@ Standard translation with optional context and target language.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -76,18 +82,20 @@ Standard translation with optional context and target language.
     "translated_text": "Anh hùng đã đánh bại con rồng",
     "target_language": "Vietnamese",
     "processing_time": 1.45,
-    "model": "gpt-3.5-turbo",
+    "model": "gpt-4o-mini",
     "tokens_used": 25
   }
 }
 ```
 
 ### 3. Enhanced Translate
+
 **POST** `/api/translation/translate-enhanced`
 
 Advanced translation with series context and character name preservation.
 
 **Request:**
+
 ```json
 {
   "source_text": "Naruto used his jutsu",
@@ -98,6 +106,7 @@ Advanced translation with series context and character name preservation.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -108,18 +117,20 @@ Advanced translation with series context and character name preservation.
     "translated_text": "Naruto đã sử dụng jutsu của mình",
     "target_language": "Vietnamese",
     "processing_time": 1.67,
-    "model": "gpt-3.5-turbo",
+    "model": "gpt-4o-mini",
     "tokens_used": 35
   }
 }
 ```
 
 ### 4. Get Supported Languages
+
 **GET** `/api/translation/languages`
 
 Returns list of supported target languages.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -148,11 +159,13 @@ Returns list of supported target languages.
 ```
 
 ### 5. Health Check
+
 **GET** `/api/translation/health`
 
 Check translation service status.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -169,32 +182,36 @@ Check translation service status.
 ## Frontend Integration
 
 ### Import the Service
+
 ```typescript
 import { translationService } from "../services/translationService";
 ```
 
 ### Quick Translation
+
 ```typescript
 const result = await translationService.quickTranslate("Hello world");
 console.log(result.translated_text); // "Xin chào thế giới"
 ```
 
 ### Standard Translation
+
 ```typescript
 const result = await translationService.translateText({
   source_text: "The hero defeated the dragon",
   target_language: "Vietnamese",
-  context: "Fantasy manga dialogue"
+  context: "Fantasy manga dialogue",
 });
 ```
 
 ### Enhanced Translation
+
 ```typescript
 const result = await translationService.translateTextEnhanced({
   source_text: "Naruto used his jutsu",
   target_language: "Vietnamese",
   series_context: "Ninja manga with special techniques",
-  character_names: ["Naruto", "Sasuke", "Sakura"]
+  character_names: ["Naruto", "Sasuke", "Sakura"],
 });
 ```
 
@@ -220,7 +237,7 @@ The translation functionality is integrated into the AddTextBoxModal component:
 ## Performance
 
 - **Average Response Time**: 1-3 seconds
-- **Model**: GPT-3.5-turbo (fast and cost-effective)
+- **Model**: GPT-4o-mini (fast and cost-effective)
 - **Token Usage**: Optimized prompts to minimize costs
 - **Caching**: Consider implementing caching for repeated translations
 

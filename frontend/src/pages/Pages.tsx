@@ -15,7 +15,9 @@ import {
 import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
 import { getChapterInfo, mockAiInsights } from "../data/mockData";
 import { pageService } from "../services/pageService";
+import { textBoxService } from "../services/textBoxService";
 import { convertApiPageToLegacy } from "../types/pages";
+import { convertLegacyTextBoxToApi } from "../types/textbox";
 import AIInsightPanel from "../components/AIInsightPanel";
 import UploadPageModal from "../components/Modals/UploadPageModal";
 import EditPageModal from "../components/Modals/EditPageModal";
@@ -46,6 +48,7 @@ export default function Pages() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingPage, setDeletingPage] = useState<Page | null>(null);
   const [isAddTextBoxModalOpen, setIsAddTextBoxModalOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -203,13 +206,34 @@ export default function Pages() {
     setIsAddTextBoxModalOpen(false);
   };
 
-  const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
+  const handleConfirmAddTextBox = async (
+    textBoxData: TextBoxCreate,
+    croppedImage?: string
+  ) => {
     try {
       console.log("Adding text box:", textBoxData);
-      // TODO: Implement text box creation API call
-      // For now, just close the modal
+
+      // Convert legacy format to API format
+      const apiTextBoxData = convertLegacyTextBoxToApi(
+        textBoxData,
+        croppedImage
+      );
+
+      // Create the text box via API
+      const createdTextBox = await textBoxService.createTextBox(apiTextBoxData);
+
+      console.log("✅ Text box created successfully:", createdTextBox);
+
+      // Close the modal
+      setIsAddTextBoxModalOpen(false);
+
+      // Switch to translations tab to show the new text box
+      setActiveTab("translations");
+
+      // Trigger refresh of text boxes list
+      setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
-      console.error("Error adding text box:", error);
+      console.error("❌ Error adding text box:", error);
       throw error;
     }
   };
@@ -337,6 +361,7 @@ export default function Pages() {
           <TranslationsTabContent
             activeTab={activeTab}
             chapterInfo={chapterInfo}
+            chapterId={chapterId || ""}
             selectedPage={selectedPage}
             isPageDropdownOpen={isPageDropdownOpen}
             hoveredTMBadge={hoveredTMBadge}
@@ -344,6 +369,7 @@ export default function Pages() {
             onSetIsPageDropdownOpen={setIsPageDropdownOpen}
             onSetHoveredTMBadge={setHoveredTMBadge}
             onAddTextBox={handleAddTextBox}
+            refreshTrigger={refreshTrigger}
           />
 
           {/* Context Tab Content */}

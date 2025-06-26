@@ -1,0 +1,220 @@
+import { supabase } from "../lib/supabase";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+// API-compatible text box types
+export interface TextBoxApiItem {
+  id: number;
+  page_id: number;
+  image?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTextBoxData {
+  page_id: number;
+  image?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+}
+
+export interface UpdateTextBoxData {
+  image?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  ocr?: string;
+  corrected?: string;
+  tm?: number;
+  reason?: string;
+}
+
+class TextBoxService {
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      throw new Error("No authentication token available");
+    }
+
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.access_token}`,
+    };
+  }
+
+  async createTextBox(textBoxData: CreateTextBoxData): Promise<TextBoxApiItem> {
+    try {
+      console.log("📝 Creating text box:", textBoxData);
+      
+      const headers = await this.getAuthHeaders();
+      
+      const response = await fetch(`${API_BASE_URL}/text-boxes/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(textBoxData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ Text box created successfully:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Error creating text box:", error);
+      throw error;
+    }
+  }
+
+  async getTextBoxesByPage(pageId: number, skip = 0, limit = 100): Promise<TextBoxApiItem[]> {
+    try {
+      console.log(`📋 Fetching text boxes for page ${pageId}`);
+      
+      const headers = await this.getAuthHeaders();
+      
+      const url = new URL(`${API_BASE_URL}/text-boxes/page/${pageId}`);
+      url.searchParams.append("skip", skip.toString());
+      url.searchParams.append("limit", limit.toString());
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Found ${result.length} text boxes for page ${pageId}`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching text boxes:", error);
+      throw error;
+    }
+  }
+
+  async getTextBoxesByChapter(chapterId: number, skip = 0, limit = 1000): Promise<TextBoxApiItem[]> {
+    try {
+      console.log(`📋 Fetching text boxes for chapter ${chapterId}`);
+      
+      const headers = await this.getAuthHeaders();
+      
+      const url = new URL(`${API_BASE_URL}/text-boxes/chapter/${chapterId}`);
+      url.searchParams.append("skip", skip.toString());
+      url.searchParams.append("limit", limit.toString());
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Found ${result.length} text boxes for chapter ${chapterId}`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching text boxes:", error);
+      throw error;
+    }
+  }
+
+  async getTextBoxById(textBoxId: number): Promise<TextBoxApiItem> {
+    try {
+      console.log(`🔍 Fetching text box ${textBoxId}`);
+      
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ Text box found:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching text box:", error);
+      throw error;
+    }
+  }
+
+  async updateTextBox(textBoxId: number, textBoxData: UpdateTextBoxData): Promise<TextBoxApiItem> {
+    try {
+      console.log(`📝 Updating text box ${textBoxId}:`, textBoxData);
+      
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(textBoxData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ Text box updated successfully:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Error updating text box:", error);
+      throw error;
+    }
+  }
+
+  async deleteTextBox(textBoxId: number): Promise<void> {
+    try {
+      console.log(`🗑️ Deleting text box ${textBoxId}`);
+      
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log("✅ Text box deleted successfully");
+    } catch (error) {
+      console.error("❌ Error deleting text box:", error);
+      throw error;
+    }
+  }
+}
+
+export const textBoxService = new TextBoxService();

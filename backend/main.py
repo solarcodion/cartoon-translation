@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.config import settings
-from app.routers import users, series, chapters, translation_memory, pages, ocr, translation
+from app.routers import users, series, chapters, translation_memory, pages, ocr, translation, text_boxes
 
 # Create FastAPI instance
 app = FastAPI(
@@ -56,6 +56,7 @@ app.include_router(translation_memory.router, prefix="/api")
 app.include_router(pages.router, prefix="/api")
 app.include_router(ocr.router, prefix="/api")
 app.include_router(translation.router, prefix="/api")
+app.include_router(text_boxes.router, prefix="/api")
 
 @app.get("/")
 async def root():
