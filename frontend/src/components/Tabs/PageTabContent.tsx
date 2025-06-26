@@ -23,6 +23,7 @@ import {
   type TextBoxApiItem,
 } from "../../services/textBoxService";
 import type { TextBoxApiUpdate } from "../../types/textbox";
+import { chapterService } from "../../services/chapterService";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -561,6 +562,9 @@ interface ContextTabContentProps {
   chapterInfo: ChapterInfo | null;
   contextNotes?: string;
   onSaveNotes?: (notes: string) => void;
+  pages?: Page[];
+  chapterId?: string;
+  onContextUpdate?: (context: string) => void;
 }
 
 export function ContextTabContent({
@@ -568,8 +572,13 @@ export function ContextTabContent({
   chapterInfo,
   contextNotes = "",
   onSaveNotes,
+  pages = [],
+  chapterId,
+  onContextUpdate,
 }: ContextTabContentProps) {
   const [notes, setNotes] = useState(contextNotes);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   // Update notes when contextNotes prop changes
   useEffect(() => {
@@ -581,6 +590,117 @@ export function ContextTabContent({
       onSaveNotes(notes);
     } else {
       console.log("Save notes:", notes);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!chapterId || !pages.length) {
+      console.error("Chapter ID or pages missing for analysis");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      console.log("🔄 Starting chapter analysis...");
+      console.log("📊 Pages data:", pages);
+      console.log("📊 Chapter info:", chapterInfo);
+
+      const analysisRequest = {
+        pages: pages
+          .filter((page) => {
+            // Filter out invalid pages before processing
+            const isValid =
+              page &&
+              typeof page.number === "number" &&
+              page.number > 0 &&
+              typeof page.image_url === "string" &&
+              page.image_url.trim().length > 0;
+
+            if (!isValid) {
+              console.warn("❌ Filtering out invalid page:", page);
+            }
+
+            return isValid;
+          })
+          .sort((a, b) => a.number - b.number)
+          .map((page) => ({
+            page_number: page.number,
+            image_url: page.image_url.trim(),
+            ocr_context:
+              page.context && page.context.trim()
+                ? page.context.trim()
+                : undefined,
+          })),
+        translation_info: [
+          "Maintain natural Vietnamese flow and readability",
+          "Preserve character names and proper nouns",
+          "Adapt cultural references appropriately",
+        ],
+        existing_context:
+          chapterInfo?.context && chapterInfo.context.trim()
+            ? chapterInfo.context.trim()
+            : undefined,
+      };
+
+      console.log("📊 Analysis request:", analysisRequest);
+
+      // Validate request before sending
+      if (!analysisRequest.pages.length) {
+        throw new Error("No valid pages found for analysis");
+      }
+
+      // Validate each page has required fields
+      for (const page of analysisRequest.pages) {
+        if (!page.page_number || !page.image_url) {
+          throw new Error(
+            `Invalid page data: page_number=${page.page_number}, image_url=${page.image_url}`
+          );
+        }
+      }
+
+      const result = await chapterService.analyzeChapter(
+        chapterId,
+        analysisRequest
+      );
+
+      console.log("✅ Chapter analysis completed");
+      console.log("📊 Analysis result:", result);
+
+      // Update the notes with the new context from the analysis
+      setNotes(result.chapter_context);
+
+      // Call the context update callback to update parent state
+      if (onContextUpdate) {
+        onContextUpdate(result.chapter_context);
+      }
+
+      // Automatically save the updated context to the backend
+      if (onSaveNotes) {
+        onSaveNotes(result.chapter_context);
+      }
+
+      // Show success feedback
+      setAnalysisComplete(true);
+      setTimeout(() => setAnalysisComplete(false), 3000); // Hide after 3 seconds
+
+      console.log("✅ Context area updated with analysis result");
+    } catch (error) {
+      console.error("❌ Chapter analysis failed:", error);
+
+      // Log detailed error information
+      if (error instanceof Error) {
+        console.error("❌ Error message:", error.message);
+        console.error("❌ Error stack:", error.stack);
+      }
+
+      // If it's a network error, log the response
+      if (error && typeof error === "object" && "response" in error) {
+        console.error("❌ Response error:", error);
+      }
+
+      // You might want to show a toast notification here
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -602,9 +722,16 @@ export function ContextTabContent({
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Notes
+              </label>
+              {analysisComplete && (
+                <span className="text-sm text-green-600 font-medium">
+                  ✅ Updated with analysis result
+                </span>
+              )}
+            </div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -613,13 +740,36 @@ export function ContextTabContent({
             />
           </div>
 
-          <div className="flex justify-start">
+          <div className="flex justify-between items-center">
             <button
               onClick={handleSave}
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
             >
               <FiSave className="text-sm" />
               Save Notes
+            </button>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || !chapterId || !pages.length}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                analysisComplete
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+              }`}
+            >
+              {isAnalyzing ? (
+                <FiRefreshCw className="text-sm animate-spin" />
+              ) : analysisComplete ? (
+                <FiSave className="text-sm" />
+              ) : (
+                <FiZap className="text-sm" />
+              )}
+              {isAnalyzing
+                ? "Analyzing..."
+                : analysisComplete
+                ? "Analysis Complete!"
+                : "Analyze Chapter"}
             </button>
           </div>
         </div>

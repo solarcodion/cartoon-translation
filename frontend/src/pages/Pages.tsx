@@ -159,30 +159,7 @@ export default function Pages() {
         [...prev, newPage].sort((a, b) => a.number - b.number)
       );
 
-      // After modal closes, trigger chapter analysis
-      setTimeout(async () => {
-        try {
-          console.log("🔄 Starting chapter analysis after page upload...");
-          await chapterService.analyzeChapter(chapterId, {
-            pages: [...pages, newPage]
-              .sort((a, b) => a.number - b.number)
-              .map((page) => ({
-                page_number: page.number,
-                image_url: page.image_url,
-                ocr_context: page.context,
-              })),
-            translation_info: [
-              "Maintain natural Vietnamese flow and readability",
-              "Preserve character names and proper nouns",
-              "Adapt cultural references appropriately",
-            ],
-            existing_context: chapterInfo?.context,
-          });
-          console.log("✅ Chapter analysis completed");
-        } catch (error) {
-          console.error("❌ Chapter analysis failed:", error);
-        }
-      }, 1500); // Wait for modal to close
+      // Chapter analysis is now manual via the Analyze button in Context tab
     } catch (error) {
       console.error("Error uploading page:", error);
       throw error;
@@ -227,43 +204,7 @@ export default function Pages() {
       // Refresh the page list to get updated data
       await fetchPages();
 
-      // After modal closes, trigger chapter analysis
-      setTimeout(async () => {
-        try {
-          if (!chapterId) return;
-
-          console.log("🔄 Starting chapter analysis after page update...");
-
-          // Get updated pages list
-          const updatedPages = pages.map((page) =>
-            page.id === pageId
-              ? {
-                  ...page,
-                  number: pageData.page_number ?? page.number,
-                }
-              : page
-          );
-
-          await chapterService.analyzeChapter(chapterId, {
-            pages: updatedPages
-              .sort((a, b) => a.number - b.number)
-              .map((page) => ({
-                page_number: page.number,
-                image_url: page.image_url,
-                ocr_context: page.context,
-              })),
-            translation_info: [
-              "Maintain natural Vietnamese flow and readability",
-              "Preserve character names and proper nouns",
-              "Adapt cultural references appropriately",
-            ],
-            existing_context: chapterInfo?.context,
-          });
-          console.log("✅ Chapter analysis completed");
-        } catch (error) {
-          console.error("❌ Chapter analysis failed:", error);
-        }
-      }, 1500); // Wait for modal to close
+      // Chapter analysis is now manual via the Analyze button in Context tab
     } catch (error) {
       console.error("Error updating page:", error);
       throw error;
@@ -483,6 +424,31 @@ export default function Pages() {
             chapterInfo={chapterInfo}
             contextNotes={chapterInfo?.context || ""}
             onSaveNotes={handleSaveContext}
+            pages={pages}
+            chapterId={chapterId}
+            onContextUpdate={async (context) => {
+              // Update local chapter info state immediately
+              setChapterInfo((prev) => (prev ? { ...prev, context } : null));
+
+              // Refresh chapter info from backend to ensure we have the latest data
+              try {
+                if (chapterId) {
+                  const updatedChapterData =
+                    await chapterService.getChapterById(chapterId);
+                  if (updatedChapterData) {
+                    // Update only the context from the API response
+                    setChapterInfo((prev) =>
+                      prev
+                        ? { ...prev, context: updatedChapterData.context }
+                        : null
+                    );
+                    console.log("✅ Chapter context refreshed after analysis");
+                  }
+                }
+              } catch (error) {
+                console.error("❌ Failed to refresh chapter context:", error);
+              }
+            }}
           />
         </div>
       </div>

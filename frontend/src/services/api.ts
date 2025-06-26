@@ -28,7 +28,6 @@ class ApiClient {
 
     const config: RequestInit = {
       headers: {
-        "Content-Type": "application/json",
         ...options.headers,
       },
       ...options,
@@ -39,8 +38,27 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+
+        // Log detailed error information for debugging
+        console.error(`❌ API Error ${response.status}:`, {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          requestBody: config.body,
+        });
+
+        // For 422 validation errors, include more details
+        if (response.status === 422 && errorData.detail) {
+          throw new Error(
+            `Validation error: ${JSON.stringify(errorData.detail)}`
+          );
+        }
+
         throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+          errorData.message ||
+            errorData.detail ||
+            `HTTP error! status: ${response.status}`
         );
       }
 
@@ -61,14 +79,19 @@ class ApiClient {
   async get<T>(endpoint: string, token?: string): Promise<T> {
     return this.request<T>(endpoint, {
       method: "GET",
-      headers: this.getAuthHeaders(token),
+      headers: {
+        ...this.getAuthHeaders(token),
+      },
     });
   }
 
   async post<T>(endpoint: string, data?: unknown, token?: string): Promise<T> {
     return this.request<T>(endpoint, {
       method: "POST",
-      headers: this.getAuthHeaders(token),
+      headers: {
+        "Content-Type": "application/json",
+        ...this.getAuthHeaders(token),
+      },
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -76,7 +99,10 @@ class ApiClient {
   async put<T>(endpoint: string, data?: unknown, token?: string): Promise<T> {
     return this.request<T>(endpoint, {
       method: "PUT",
-      headers: this.getAuthHeaders(token),
+      headers: {
+        "Content-Type": "application/json",
+        ...this.getAuthHeaders(token),
+      },
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -84,7 +110,9 @@ class ApiClient {
   async delete<T>(endpoint: string, token?: string): Promise<T> {
     return this.request<T>(endpoint, {
       method: "DELETE",
-      headers: this.getAuthHeaders(token),
+      headers: {
+        ...this.getAuthHeaders(token),
+      },
     });
   }
 }
