@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, UploadFile, File, Form, BackgroundTasks
 from typing import List, Dict, Any
 from supabase import Client
 import json
@@ -6,10 +6,13 @@ import json
 from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.page_service import PageService
+from app.services.chapter_analysis_service import ChapterAnalysisService
 from app.models import (
     PageResponse,
     PageCreate,
     PageUpdate,
+    ChapterAnalysisRequest,
+    PageAnalysisData,
     ApiResponse
 )
 
@@ -21,8 +24,75 @@ def get_page_service(supabase: Client = Depends(get_supabase)) -> PageService:
     return PageService(supabase)
 
 
+def get_chapter_analysis_service() -> ChapterAnalysisService:
+    """Dependency to get chapter analysis service"""
+    return ChapterAnalysisService()
+
+
+async def trigger_chapter_analysis_background(
+    chapter_id: str,
+    page_service: PageService,
+    analysis_service: ChapterAnalysisService
+):
+    """Background task to analyze chapter after page changes"""
+    try:
+        print(f"🔄 Starting background chapter analysis for chapter {chapter_id}")
+
+        # Get all pages for the chapter
+        pages = await page_service.get_pages_by_chapter(chapter_id)
+
+        if not pages:
+            print(f"⚠️ No pages found for chapter {chapter_id}, skipping analysis")
+            return
+
+        # Prepare analysis request
+        analysis_request = ChapterAnalysisRequest(
+            pages=[
+                PageAnalysisData(
+                    page_number=page.page_number,
+                    image_url=page.file_path,
+                    ocr_context=page.context
+                )
+                for page in sorted(pages, key=lambda x: x.page_number)
+            ],
+            translation_info=[
+                "Maintain natural Vietnamese flow and readability",
+                "Preserve character names and proper nouns",
+                "Adapt cultural references appropriately",
+                "Use appropriate Vietnamese honorifics and speech patterns"
+            ],
+            existing_context=None  # Will be fetched from chapter if needed
+        )
+
+        # Perform analysis
+        result = await analysis_service.analyze_chapter(analysis_request)
+
+        if result.success:
+            # Update chapter context
+            from app.services.chapter_service import ChapterService
+            from app.database import get_supabase
+            from app.models import ChapterUpdate
+
+            supabase = get_supabase()
+            chapter_service = ChapterService(supabase)
+
+            chapter_update = ChapterUpdate(context=result.chapter_context)
+            await chapter_service.update_chapter(chapter_id, chapter_update)
+
+            print(f"✅ Background chapter analysis completed for chapter {chapter_id}")
+            print(f"📊 Generated context: {len(result.chapter_context)} characters")
+            print(f"⏱️ Processing time: {result.processing_time:.2f}s")
+        else:
+            print(f"❌ Background chapter analysis failed for chapter {chapter_id}")
+
+    except Exception as e:
+        print(f"❌ Error in background chapter analysis for chapter {chapter_id}: {str(e)}")
+        # Don't raise the exception as this is a background task
+
+
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
 async def create_page(
+    background_tasks: BackgroundTasks,
     chapter_id: str = Form(...),
     page_number: int = Form(...),
     file: UploadFile = File(...),
@@ -30,7 +100,8 @@ async def create_page(
     height: int = Form(None),
     context: str = Form(None),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
 ):
     """
     Create a new page with file upload
@@ -73,7 +144,16 @@ async def create_page(
         
         # Create page
         page = await page_service.create_page(page_data, file_content, file_extension)
-        
+
+        # Trigger background chapter analysis
+        print(f"🔄 Triggering background chapter analysis for chapter {chapter_id}")
+        background_tasks.add_task(
+            trigger_chapter_analysis_background,
+            chapter_id,
+            page_service,
+            analysis_service
+        )
+
         return page
         
     except HTTPException:
@@ -155,10 +235,12 @@ async def get_page(
 
 @router.put("/{page_id}", response_model=PageResponse)
 async def update_page(
+    background_tasks: BackgroundTasks,
     page_id: str = Path(..., description="Page ID"),
     page_data: PageUpdate = ...,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
 ):
     """
     Update a page
@@ -177,7 +259,16 @@ async def update_page(
         
         # Add public URL
         page.file_path = page_service.get_page_url(page.file_path)
-        
+
+        # Trigger background chapter analysis
+        print(f"🔄 Triggering background chapter analysis for chapter {page.chapter_id}")
+        background_tasks.add_task(
+            trigger_chapter_analysis_background,
+            page.chapter_id,
+            page_service,
+            analysis_service
+        )
+
         return page
         
     except HTTPException:
@@ -192,9 +283,11 @@ async def update_page(
 
 @router.delete("/{page_id}", response_model=ApiResponse)
 async def delete_page(
+    background_tasks: BackgroundTasks,
     page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
 ):
     """
     Delete a page
@@ -202,14 +295,34 @@ async def delete_page(
     - **page_id**: ID of the page to delete
     """
     try:
-        success = await page_service.delete_page(page_id)
-        
-        if not success:
+        # Get page info before deletion to get chapter_id
+        page = await page_service.get_page_by_id(page_id)
+        if not page:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Page not found"
             )
-        
+
+        chapter_id = page.chapter_id
+
+        # Delete the page
+        success = await page_service.delete_page(page_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete page"
+            )
+
+        # Trigger background chapter analysis
+        print(f"🔄 Triggering background chapter analysis for chapter {chapter_id} after page deletion")
+        background_tasks.add_task(
+            trigger_chapter_analysis_background,
+            chapter_id,
+            page_service,
+            analysis_service
+        )
+
         return ApiResponse(
             success=True,
             message="Page deleted successfully"

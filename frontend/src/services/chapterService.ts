@@ -24,6 +24,28 @@ export interface ChapterApiResponse {
   updated_at: string;
 }
 
+// Chapter Analysis types
+export interface PageAnalysisData {
+  page_number: number;
+  image_url: string;
+  ocr_context?: string;
+}
+
+export interface ChapterAnalysisRequest {
+  pages: PageAnalysisData[];
+  translation_info: string[];
+  existing_context?: string;
+}
+
+export interface ChapterAnalysisResponse {
+  success: boolean;
+  chapter_context: string;
+  analysis_summary: string;
+  processing_time?: number;
+  model?: string;
+  tokens_used?: number;
+}
+
 class ChapterService {
   private async getAuthToken(): Promise<string | null> {
     try {
@@ -108,26 +130,6 @@ class ChapterService {
     }
   }
 
-  async getChapterById(id: string): Promise<ChapterApiResponse> {
-    try {
-      const token = await this.getAuthToken();
-
-      const response = await apiClient.get<ChapterApiResponse>(
-        `/chapters/${id}`,
-        token || undefined
-      );
-
-      return response;
-    } catch (error) {
-      console.error(`❌ Error fetching chapter ${id}:`, error);
-      throw new Error(
-        `Failed to fetch chapter: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
-
   async createChapter(
     seriesId: string,
     chapterData: ChapterCreateRequest
@@ -150,34 +152,6 @@ class ChapterService {
       console.error("❌ Error creating chapter:", error);
       throw new Error(
         `Failed to create chapter: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
-
-  async updateChapter(
-    id: string,
-    chapterData: ChapterUpdateRequest
-  ): Promise<ChapterApiResponse> {
-    try {
-      const token = await this.getAuthToken();
-
-      if (!token) {
-        throw new Error("Authentication required");
-      }
-
-      const response = await apiClient.put<ChapterApiResponse>(
-        `/chapters/${id}`,
-        chapterData,
-        token
-      );
-
-      return response;
-    } catch (error) {
-      console.error(`❌ Error updating chapter ${id}:`, error);
-      throw new Error(
-        `Failed to update chapter: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -220,6 +194,47 @@ class ChapterService {
       );
       throw new Error(
         `Failed to fetch chapter count: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async analyzeChapter(
+    chapterId: string,
+    analysisRequest: ChapterAnalysisRequest
+  ): Promise<ChapterAnalysisResponse> {
+    try {
+      const token = await this.getAuthToken();
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      console.log(`🔄 Analyzing chapter ${chapterId}...`);
+      console.log(`📊 Request contains ${analysisRequest.pages.length} pages`);
+
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        data: ChapterAnalysisResponse;
+      }>(`/chapters/${chapterId}/analyze`, analysisRequest, token);
+
+      if (!response.success) {
+        throw new Error(response.message || "Chapter analysis failed");
+      }
+
+      console.log(`✅ Chapter analysis completed successfully`);
+      console.log(
+        `⏱️ Processing time: ${response.data.processing_time?.toFixed(2)}s`
+      );
+      console.log(`🎯 Tokens used: ${response.data.tokens_used}`);
+
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error analyzing chapter ${chapterId}:`, error);
+      throw new Error(
+        `Failed to analyze chapter: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

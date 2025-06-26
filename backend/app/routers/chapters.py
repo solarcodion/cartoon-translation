@@ -6,10 +6,12 @@ import json
 from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.chapter_service import ChapterService
+from app.services.chapter_analysis_service import ChapterAnalysisService
 from app.models import (
     ChapterResponse,
     ChapterCreate,
     ChapterUpdate,
+    ChapterAnalysisRequest,
     ApiResponse
 )
 
@@ -19,6 +21,11 @@ router = APIRouter(prefix="/chapters", tags=["chapters"])
 def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterService:
     """Dependency to get chapter service"""
     return ChapterService(supabase)
+
+
+def get_chapter_analysis_service() -> ChapterAnalysisService:
+    """Dependency to get chapter analysis service"""
+    return ChapterAnalysisService()
 
 
 
@@ -236,10 +243,87 @@ async def get_chapter_count(
         
         print(f"✅ Chapter count for series {series_id}: {count}")
         return {"count": count}
-        
+
     except Exception as e:
         print(f"❌ Error in get_chapter_count endpoint: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get chapter count: {str(e)}"
+        )
+
+
+@router.post("/{chapter_id}/analyze", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+async def analyze_chapter(
+    chapter_id: str = Path(..., description="ID of the chapter to analyze"),
+    request: ChapterAnalysisRequest = Body(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    chapter_service: ChapterService = Depends(get_chapter_service),
+    analysis_service: ChapterAnalysisService = Depends(get_chapter_analysis_service)
+):
+    """
+    Analyze a chapter using AI to generate comprehensive context and analysis.
+
+    This endpoint analyzes all pages of a chapter in order, considering both visual content
+    and OCR-extracted text contexts, to provide detailed story analysis and context.
+
+    - **chapter_id**: The ID of the chapter to analyze
+    - **pages**: Array of page data sorted by page number (1, 2, 3, ...)
+    - **translation_info**: Array of translation guidelines to follow
+    - **existing_context**: Existing context to maintain consistency with
+    """
+    try:
+        print(f"🔍 Analyzing chapter {chapter_id} by user {current_user.get('user_id')}")
+        print(f"📊 Request contains {len(request.pages)} pages")
+
+        # Validate that the chapter exists
+        chapter = await chapter_service.get_chapter_by_id(chapter_id)
+        if not chapter:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Chapter with ID {chapter_id} not found"
+            )
+
+        # Validate pages data
+        if not request.pages:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pages array cannot be empty"
+            )
+
+        # Perform chapter analysis
+        analysis_result = await analysis_service.analyze_chapter(request)
+
+        if not analysis_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Chapter analysis failed"
+            )
+
+        # Update chapter context with the analysis result
+        from app.models import ChapterUpdate
+        chapter_update = ChapterUpdate(context=analysis_result.chapter_context)
+        updated_chapter = await chapter_service.update_chapter(chapter_id, chapter_update)
+
+        if not updated_chapter:
+            print(f"⚠️ Warning: Failed to update chapter context for {chapter_id}")
+        else:
+            print(f"✅ Chapter context updated successfully for {chapter_id}")
+
+        print(f"✅ Chapter analysis completed for {chapter_id}")
+        print(f"⏱️ Processing time: {analysis_result.processing_time:.2f}s")
+        print(f"🎯 Tokens used: {analysis_result.tokens_used}")
+
+        return ApiResponse(
+            success=True,
+            message="Chapter analysis completed successfully",
+            data=analysis_result.model_dump()
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in analyze_chapter endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze chapter: {str(e)}"
         )

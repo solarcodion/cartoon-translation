@@ -335,6 +335,42 @@ class EnhancedTranslationRequest(BaseModel):
         validate_assignment = True
 
 
+# Chapter Analysis Models
+class PageAnalysisData(BaseModel):
+    """Data for a single page in chapter analysis"""
+    page_number: int
+    image_url: str
+    ocr_context: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class ChapterAnalysisRequest(BaseModel):
+    """Chapter analysis request model"""
+    pages: list[PageAnalysisData]  # Sorted page images and OCR contexts by page number
+    translation_info: list[str]  # Translation information/rules to follow
+    existing_context: Optional[str] = None  # Existing context to follow for consistency
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class ChapterAnalysisResponse(BaseModel):
+    """Chapter analysis response model"""
+    success: bool
+    chapter_context: str
+    analysis_summary: str
+    processing_time: Optional[float] = None
+    model: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Text Box Models
 class TextBoxBase(BaseModel):
     """Base text box model"""
