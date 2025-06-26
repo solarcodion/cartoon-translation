@@ -52,7 +52,7 @@ class TextBoxService:
             print(f"❌ Error creating text box: {str(e)}")
             raise Exception(f"Failed to create text box: {str(e)}")
     
-    async def get_text_boxes_by_page(self, page_id: int, skip: int = 0, limit: int = 100) -> List[TextBoxResponse]:
+    async def get_text_boxes_by_page(self, page_id: str, skip: int = 0, limit: int = 100) -> List[TextBoxResponse]:
         """Get all text boxes for a specific page with pagination"""
         try:
             print(f"📋 Fetching text boxes for page {page_id} (skip: {skip}, limit: {limit})")
@@ -82,7 +82,7 @@ class TextBoxService:
             print(f"❌ Error fetching text boxes for page {page_id}: {str(e)}")
             raise Exception(f"Failed to fetch text boxes: {str(e)}")
     
-    async def get_text_box_by_id(self, text_box_id: int) -> Optional[TextBoxResponse]:
+    async def get_text_box_by_id(self, text_box_id: str) -> Optional[TextBoxResponse]:
         """Get a specific text box by ID"""
         try:
             print(f"🔍 Fetching text box with ID: {text_box_id}")
@@ -107,7 +107,7 @@ class TextBoxService:
             print(f"❌ Error fetching text box {text_box_id}: {str(e)}")
             raise Exception(f"Failed to fetch text box: {str(e)}")
     
-    async def update_text_box(self, text_box_id: int, text_box_data: TextBoxUpdate) -> Optional[TextBoxResponse]:
+    async def update_text_box(self, text_box_id: str, text_box_data: TextBoxUpdate) -> Optional[TextBoxResponse]:
         """Update a text box"""
         try:
             print(f"📝 Updating text box {text_box_id} with data: {text_box_data.model_dump(exclude_unset=True)}")
@@ -138,7 +138,7 @@ class TextBoxService:
             print(f"❌ Error updating text box {text_box_id}: {str(e)}")
             raise Exception(f"Failed to update text box: {str(e)}")
     
-    async def delete_text_box(self, text_box_id: int) -> bool:
+    async def delete_text_box(self, text_box_id: str) -> bool:
         """Delete a text box"""
         try:
             print(f"🗑️ Deleting text box with ID: {text_box_id}")
@@ -162,7 +162,7 @@ class TextBoxService:
             print(f"❌ Error deleting text box {text_box_id}: {str(e)}")
             raise Exception(f"Failed to delete text box: {str(e)}")
     
-    async def get_text_boxes_by_chapter(self, chapter_id: int, skip: int = 0, limit: int = 1000) -> List[TextBoxResponse]:
+    async def get_text_boxes_by_chapter(self, chapter_id: str, skip: int = 0, limit: int = 1000) -> List[TextBoxResponse]:
         """Get all text boxes for a specific chapter (across all pages)"""
         try:
             print(f"📋 Fetching text boxes for chapter {chapter_id}")

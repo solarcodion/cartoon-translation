@@ -113,7 +113,7 @@ class SeriesUpdate(BaseModel):
 
 class SeriesResponse(SeriesBase):
     """Series response model"""
-    id: int
+    id: str
     user_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -164,8 +164,8 @@ class ChapterUpdate(BaseModel):
 
 class ChapterResponse(ChapterBase):
     """Chapter response model"""
-    id: int
-    series_id: int
+    id: str
+    series_id: str
     created_at: datetime
     updated_at: datetime
 
@@ -181,7 +181,7 @@ class ChapterInDB(ChapterResponse):
 # Translation Memory Models
 class TranslationMemoryBase(BaseModel):
     """Base translation memory model"""
-    series_id: int
+    series_id: str
     source_text: str
     target_text: str
     context: Optional[str] = None
@@ -190,7 +190,7 @@ class TranslationMemoryBase(BaseModel):
 
 class TranslationMemoryCreate(BaseModel):
     """Translation memory creation model"""
-    series_id: int
+    series_id: str
     source_text: str
     target_text: str
     context: Optional[str] = None
@@ -210,7 +210,7 @@ class TranslationMemoryUpdate(BaseModel):
 
 class TranslationMemoryResponse(TranslationMemoryBase):
     """Translation memory response model"""
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -226,7 +226,7 @@ class TranslationMemoryInDB(TranslationMemoryResponse):
 # Page Models
 class PageBase(BaseModel):
     """Base page model"""
-    chapter_id: int
+    chapter_id: str
     page_number: int
     file_path: str
     file_name: str
@@ -237,7 +237,7 @@ class PageBase(BaseModel):
 
 class PageCreate(BaseModel):
     """Page creation model"""
-    chapter_id: int
+    chapter_id: str
     page_number: int
     file_name: str
     width: Optional[int] = None
@@ -261,7 +261,7 @@ class PageUpdate(BaseModel):
 
 class PageResponse(PageBase):
     """Page response model"""
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 
@@ -336,7 +336,7 @@ class EnhancedTranslationRequest(BaseModel):
 # Text Box Models
 class TextBoxBase(BaseModel):
     """Base text box model"""
-    page_id: int
+    page_id: str
     image: Optional[str] = None  # Base64 encoded cropped image
     x: int
     y: int
@@ -350,7 +350,7 @@ class TextBoxBase(BaseModel):
 
 class TextBoxCreate(BaseModel):
     """Text box creation model"""
-    page_id: int
+    page_id: str
     image: Optional[str] = None
     x: int
     y: int
@@ -381,7 +381,7 @@ class TextBoxUpdate(BaseModel):
 
 class TextBoxResponse(TextBoxBase):
     """Text box response model"""
-    id: int
+    id: str
     created_at: datetime
     updated_at: datetime
 

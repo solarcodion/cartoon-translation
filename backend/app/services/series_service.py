@@ -67,32 +67,32 @@ class SeriesService:
             print(f"❌ Error fetching series list: {str(e)}")
             raise Exception(f"Failed to fetch series list: {str(e)}")
     
-    async def get_series_by_id(self, series_id: int) -> Optional[SeriesResponse]:
+    async def get_series_by_id(self, series_id: str) -> Optional[SeriesResponse]:
         """Get a specific series by ID"""
         try:
             print(f"🔍 Fetching series with ID: {series_id}")
-            
+
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
                 .eq("id", series_id)
                 .execute()
             )
-            
+
             if not response.data:
                 print(f"❌ Series with ID {series_id} not found")
                 return None
-            
+
             series_data = response.data[0]
             print(f"✅ Series found: {series_data}")
-            
+
             return SeriesResponse(**series_data)
-            
+
         except Exception as e:
             print(f"❌ Error fetching series {series_id}: {str(e)}")
             raise Exception(f"Failed to fetch series: {str(e)}")
-    
-    async def update_series(self, series_id: int, series_data: SeriesUpdate, updated_by: str) -> Optional[SeriesResponse]:
+
+    async def update_series(self, series_id: str, series_data: SeriesUpdate, updated_by: str) -> Optional[SeriesResponse]:
         """Update an existing series"""
         try:
             print(f"📝 Updating series {series_id} with data: {series_data.dict(exclude_unset=True)}")
@@ -133,7 +133,7 @@ class SeriesService:
             print(f"❌ Error updating series {series_id}: {str(e)}")
             raise Exception(f"Failed to update series: {str(e)}")
     
-    async def delete_series(self, series_id: int) -> bool:
+    async def delete_series(self, series_id: str) -> bool:
         """Delete a series"""
         try:
             print(f"🗑️ Deleting series with ID: {series_id}")

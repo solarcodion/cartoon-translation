@@ -54,7 +54,7 @@ async def create_text_box(
 
 @router.get("/page/{page_id}", response_model=List[TextBoxResponse])
 async def get_text_boxes_by_page(
-    page_id: int = Path(..., description="Page ID"),
+    page_id: str = Path(..., description="Page ID"),
     skip: int = Query(0, ge=0, description="Number of text boxes to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of text boxes to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -81,7 +81,7 @@ async def get_text_boxes_by_page(
 
 @router.get("/chapter/{chapter_id}", response_model=List[TextBoxResponse])
 async def get_text_boxes_by_chapter(
-    chapter_id: int = Path(..., description="Chapter ID"),
+    chapter_id: str = Path(..., description="Chapter ID"),
     skip: int = Query(0, ge=0, description="Number of text boxes to skip"),
     limit: int = Query(1000, ge=1, le=10000, description="Number of text boxes to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -108,7 +108,7 @@ async def get_text_boxes_by_chapter(
 
 @router.get("/{text_box_id}", response_model=TextBoxResponse)
 async def get_text_box(
-    text_box_id: int = Path(..., description="Text box ID"),
+    text_box_id: str = Path(..., description="Text box ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     text_box_service: TextBoxService = Depends(get_text_box_service)
 ):
@@ -140,7 +140,7 @@ async def get_text_box(
 
 @router.put("/{text_box_id}", response_model=TextBoxResponse)
 async def update_text_box(
-    text_box_id: int = Path(..., description="Text box ID"),
+    text_box_id: str = Path(..., description="Text box ID"),
     text_box_data: TextBoxUpdate = ...,
     current_user: Dict[str, Any] = Depends(get_current_user),
     text_box_service: TextBoxService = Depends(get_text_box_service)
@@ -182,7 +182,7 @@ async def update_text_box(
 
 @router.delete("/{text_box_id}", response_model=ApiResponse)
 async def delete_text_box(
-    text_box_id: int = Path(..., description="Text box ID"),
+    text_box_id: str = Path(..., description="Text box ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     text_box_service: TextBoxService = Depends(get_text_box_service)
 ):

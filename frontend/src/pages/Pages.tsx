@@ -81,9 +81,7 @@ export default function Pages() {
 
       // Fetch real pages data from API
       if (chapterId) {
-        const apiPages = await pageService.getPagesByChapter(
-          parseInt(chapterId)
-        );
+        const apiPages = await pageService.getPagesByChapter(chapterId);
         const convertedPages = apiPages.map(convertApiPageToLegacy);
         setPages(convertedPages);
       } else {
@@ -135,7 +133,7 @@ export default function Pages() {
 
       // Upload to API
       const apiPage = await pageService.createPage({
-        chapter_id: parseInt(chapterId),
+        chapter_id: chapterId,
         page_number: pageNumber,
         file,
         context,
@@ -173,7 +171,7 @@ export default function Pages() {
       console.log("Updating page:", pageId, pageData);
 
       // Update via API
-      await pageService.updatePage(parseInt(pageId), pageData);
+      await pageService.updatePage(pageId, pageData);
 
       // Update local state
       setPages((prev) =>
@@ -252,8 +250,8 @@ export default function Pages() {
     try {
       console.log("Deleting page:", pageId);
 
-      // Delete from API
-      await pageService.deletePage(parseInt(pageId));
+      // Delete from API (pageId is already a UUID string)
+      await pageService.deletePage(pageId);
 
       // Remove from local state
       setPages((prev) => prev.filter((page) => page.id !== pageId));

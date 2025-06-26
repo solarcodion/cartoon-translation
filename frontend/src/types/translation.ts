@@ -10,8 +10,8 @@ export interface TranslationMemory {
 
 // New API-compatible translation memory types
 export interface TranslationMemoryApiItem {
-  id: number;
-  series_id: number;
+  id: string;
+  series_id: string;
   source_text: string;
   target_text: string;
   context: string;
@@ -25,7 +25,7 @@ export function convertApiTMToLegacy(
   apiTM: TranslationMemoryApiItem
 ): TranslationMemory {
   return {
-    id: apiTM.id.toString(),
+    id: apiTM.id,
     source: apiTM.source_text,
     target: apiTM.target_text,
     context: apiTM.context || "",

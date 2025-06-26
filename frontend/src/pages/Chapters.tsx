@@ -81,19 +81,17 @@ export default function Chapters() {
       setIsLoading(true);
       setError(null);
 
-      const seriesIdNum = parseInt(seriesId);
-
       // Fetch series info and chapters from API
       const [seriesData, chaptersData] = await Promise.all([
-        seriesService.getSeriesById(seriesIdNum),
-        chapterService.getChaptersBySeriesId(seriesIdNum),
+        seriesService.getSeriesById(seriesId),
+        chapterService.getChaptersBySeriesId(seriesId),
       ]);
 
       // Convert API data to legacy format for compatibility
       const legacyChapters = chaptersData.map(convertApiChapterToLegacy);
 
       setSeriesInfo({
-        id: seriesData.id.toString(),
+        id: seriesData.id,
         name: seriesData.title,
         totalChapters: seriesData.total_chapters,
       });
@@ -114,10 +112,9 @@ export default function Chapters() {
 
     try {
       setIsTMLoading(true);
-      const seriesIdNum = parseInt(seriesId);
 
       // Fetch TM data from API
-      const tmData = await translationMemoryService.getTMEntries(seriesIdNum);
+      const tmData = await translationMemoryService.getTMEntries(seriesId);
 
       // Convert API data to legacy format for compatibility
       const legacyTMData = tmData.map(convertApiTMToLegacy);
@@ -152,10 +149,8 @@ export default function Chapters() {
     if (!seriesId) return;
 
     try {
-      const seriesIdNum = parseInt(seriesId);
-
       // Create chapter via API
-      const newApiChapter = await chapterService.createChapter(seriesIdNum, {
+      const newApiChapter = await chapterService.createChapter(seriesId, {
         chapter_number: chapterNumber,
       });
 
@@ -186,15 +181,10 @@ export default function Chapters() {
     chapterNumber: number
   ) => {
     try {
-      const chapterIdNum = parseInt(chapterId);
-
       // Update chapter via API (only chapter number)
-      const updatedApiChapter = await chapterService.updateChapter(
-        chapterIdNum,
-        {
-          chapter_number: chapterNumber,
-        }
-      );
+      const updatedApiChapter = await chapterService.updateChapter(chapterId, {
+        chapter_number: chapterNumber,
+      });
 
       // Convert to legacy format and update local state
       const updatedLegacyChapter = convertApiChapterToLegacy(updatedApiChapter);
@@ -224,10 +214,8 @@ export default function Chapters() {
 
   const handleConfirmDelete = async (chapterId: string) => {
     try {
-      const chapterIdNum = parseInt(chapterId);
-
       // Delete chapter via API
-      await chapterService.deleteChapter(chapterIdNum);
+      await chapterService.deleteChapter(chapterId);
 
       // Remove the chapter from the local state
       setChapters((prevChapters) =>
@@ -254,21 +242,16 @@ export default function Chapters() {
     context?: string;
   }) => {
     try {
-      const seriesIdNum = seriesId ? parseInt(seriesId) : undefined;
-
-      if (!seriesIdNum) {
+      if (!seriesId) {
         throw new Error("Series ID is required");
       }
 
       // Create TM entry using the service
-      const newEntry = await translationMemoryService.createTMEntry(
-        seriesIdNum,
-        {
-          source_text: entryData.source,
-          target_text: entryData.target,
-          context: entryData.context,
-        }
-      );
+      const newEntry = await translationMemoryService.createTMEntry(seriesId, {
+        source_text: entryData.source,
+        target_text: entryData.target,
+        context: entryData.context,
+      });
 
       console.log("✅ TM entry added successfully:", newEntry);
 
@@ -303,10 +286,8 @@ export default function Chapters() {
     }
   ) => {
     try {
-      const tmIdNum = parseInt(tmId);
-
-      // Update TM entry using the service
-      await translationMemoryService.updateTMEntry(tmIdNum, {
+      // Update TM entry using the service (tmId is already a UUID string)
+      await translationMemoryService.updateTMEntry(tmId, {
         source_text: entryData.source,
         target_text: entryData.target,
         context: entryData.context,
@@ -338,10 +319,8 @@ export default function Chapters() {
 
   const handleConfirmDeleteTMEntry = async (tmId: string) => {
     try {
-      const tmIdNum = parseInt(tmId);
-
-      // Delete TM entry using the service
-      await translationMemoryService.deleteTMEntry(tmIdNum);
+      // Delete TM entry using the service (tmId is already a UUID string)
+      await translationMemoryService.deleteTMEntry(tmId);
 
       console.log("✅ TM entry deleted successfully");
 

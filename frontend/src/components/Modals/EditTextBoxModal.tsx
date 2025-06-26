@@ -8,7 +8,7 @@ interface EditTextBoxModalProps {
   textBox: TextBoxApiItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (textBoxId: number, textBoxData: TextBoxApiUpdate) => Promise<void>;
+  onSave: (textBoxId: string, textBoxData: TextBoxApiUpdate) => Promise<void>;
 }
 
 export default function EditTextBoxModal({

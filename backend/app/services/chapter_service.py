@@ -16,7 +16,7 @@ class ChapterService:
         self.supabase = supabase
         self.table_name = "chapters"
     
-    async def create_chapter(self, chapter_data: ChapterCreate, series_id: int) -> ChapterResponse:
+    async def create_chapter(self, chapter_data: ChapterCreate, series_id: str) -> ChapterResponse:
         """Create a new chapter"""
         try:
             # Prepare data for insertion with defaults
@@ -46,7 +46,7 @@ class ChapterService:
             print(f"❌ Error creating chapter: {str(e)}")
             raise Exception(f"Failed to create chapter: {str(e)}")
     
-    async def get_chapters_by_series(self, series_id: int, skip: int = 0, limit: int = 100) -> List[ChapterResponse]:
+    async def get_chapters_by_series(self, series_id: str, skip: int = 0, limit: int = 100) -> List[ChapterResponse]:
         """Get all chapters for a specific series with pagination"""
         try:
             print(f"📋 Fetching chapters for series {series_id} (skip: {skip}, limit: {limit})")
@@ -74,7 +74,7 @@ class ChapterService:
             print(f"❌ Error fetching chapters for series {series_id}: {str(e)}")
             raise Exception(f"Failed to fetch chapters: {str(e)}")
     
-    async def get_chapter_by_id(self, chapter_id: int) -> Optional[ChapterResponse]:
+    async def get_chapter_by_id(self, chapter_id: str) -> Optional[ChapterResponse]:
         """Get a specific chapter by ID"""
         try:
             print(f"🔍 Fetching chapter with ID: {chapter_id}")
@@ -99,7 +99,7 @@ class ChapterService:
             print(f"❌ Error fetching chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch chapter: {str(e)}")
     
-    async def update_chapter(self, chapter_id: int, chapter_data: ChapterUpdate) -> Optional[ChapterResponse]:
+    async def update_chapter(self, chapter_id: str, chapter_data: ChapterUpdate) -> Optional[ChapterResponse]:
         """Update a chapter"""
         try:
             print(f"📝 Updating chapter {chapter_id} with data: {chapter_data.model_dump(exclude_unset=True)}")
@@ -136,7 +136,7 @@ class ChapterService:
             print(f"❌ Error updating chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to update chapter: {str(e)}")
     
-    async def delete_chapter(self, chapter_id: int) -> bool:
+    async def delete_chapter(self, chapter_id: str) -> bool:
         """Delete a chapter"""
         try:
             print(f"🗑️ Deleting chapter with ID: {chapter_id}")
@@ -159,7 +159,7 @@ class ChapterService:
             print(f"❌ Error deleting chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to delete chapter: {str(e)}")
     
-    async def get_chapter_count_by_series(self, series_id: int) -> int:
+    async def get_chapter_count_by_series(self, series_id: str) -> int:
         """Get the total count of chapters for a series"""
         try:
             print(f"📊 Getting chapter count for series {series_id}")

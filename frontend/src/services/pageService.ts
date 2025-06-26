@@ -3,8 +3,8 @@ import { supabase } from "../lib/supabase";
 const API_BASE_URL = "http://localhost:8000/api";
 
 export interface PageApiItem {
-  id: number;
-  chapter_id: number;
+  id: string;
+  chapter_id: string;
   page_number: number;
   file_path: string;
   file_name: string;
@@ -16,7 +16,7 @@ export interface PageApiItem {
 }
 
 export interface CreatePageData {
-  chapter_id: number;
+  chapter_id: string;
   page_number: number;
   file: File;
   width?: number;
@@ -51,7 +51,7 @@ class PageService {
 
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append("chapter_id", pageData.chapter_id.toString());
+      formData.append("chapter_id", pageData.chapter_id);
       formData.append("page_number", pageData.page_number.toString());
       formData.append("file", pageData.file);
 
@@ -86,7 +86,7 @@ class PageService {
   }
 
   async getPagesByChapter(
-    chapterId: number,
+    chapterId: string,
     skip = 0,
     limit = 100
   ): Promise<PageApiItem[]> {
@@ -116,7 +116,7 @@ class PageService {
     }
   }
 
-  async getPageById(pageId: number): Promise<PageApiItem> {
+  async getPageById(pageId: string): Promise<PageApiItem> {
     try {
       const headers = await this.getAuthHeaders();
 
@@ -140,7 +140,7 @@ class PageService {
   }
 
   async updatePage(
-    pageId: number,
+    pageId: string,
     pageData: UpdatePageData
   ): Promise<PageApiItem> {
     try {
@@ -169,7 +169,7 @@ class PageService {
     }
   }
 
-  async deletePage(pageId: number): Promise<void> {
+  async deletePage(pageId: string): Promise<void> {
     try {
       const headers = await this.getAuthHeaders();
 
@@ -190,7 +190,7 @@ class PageService {
     }
   }
 
-  async getPageUrl(pageId: number): Promise<string> {
+  async getPageUrl(pageId: string): Promise<string> {
     try {
       const headers = await this.getAuthHeaders();
 

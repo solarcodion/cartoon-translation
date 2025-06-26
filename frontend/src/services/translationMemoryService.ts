@@ -31,7 +31,7 @@ class TranslationMemoryService {
   }
 
   async createTMEntry(
-    seriesId: number,
+    seriesId: string,
     entryData: TMEntryCreateRequest
   ): Promise<TMEntryResponse> {
     try {
@@ -59,7 +59,7 @@ class TranslationMemoryService {
     }
   }
 
-  async getTMEntries(seriesId: number): Promise<TMEntryResponse[]> {
+  async getTMEntries(seriesId: string): Promise<TMEntryResponse[]> {
     try {
       const token = await this.getAuthToken();
 
@@ -85,7 +85,7 @@ class TranslationMemoryService {
   }
 
   async updateTMEntry(
-    id: number,
+    id: string,
     entryData: TMEntryUpdateRequest
   ): Promise<TMEntryResponse> {
     try {
@@ -113,7 +113,7 @@ class TranslationMemoryService {
     }
   }
 
-  async deleteTMEntry(id: number): Promise<void> {
+  async deleteTMEntry(id: string): Promise<void> {
     try {
       const token = await this.getAuthToken();
 
@@ -135,7 +135,7 @@ class TranslationMemoryService {
   }
 
   async searchTMEntries(
-    seriesId: number,
+    seriesId: string,
     searchText: string
   ): Promise<TMEntryResponse[]> {
     try {
@@ -164,7 +164,7 @@ class TranslationMemoryService {
     }
   }
 
-  async incrementUsageCount(id: number): Promise<TMEntryResponse> {
+  async incrementUsageCount(id: string): Promise<TMEntryResponse> {
     try {
       const token = await this.getAuthToken();
 

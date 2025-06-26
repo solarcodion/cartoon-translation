@@ -41,8 +41,8 @@ export interface TextBoxUpdate {
 
 // API-compatible types that match the database schema
 export interface TextBoxApiItem {
-  id: number;
-  page_id: number;
+  id: string;
+  page_id: string;
   image?: string;
   x: number;
   y: number;
@@ -57,7 +57,7 @@ export interface TextBoxApiItem {
 }
 
 export interface TextBoxApiCreate {
-  page_id: number;
+  page_id: string;
   image?: string;
   x: number;
   y: number;
@@ -84,8 +84,8 @@ export interface TextBoxApiUpdate {
 // Helper functions to convert between legacy and API formats
 export function convertApiTextBoxToLegacy(apiTextBox: TextBoxApiItem): TextBox {
   return {
-    id: apiTextBox.id.toString(),
-    pageId: apiTextBox.page_id.toString(),
+    id: apiTextBox.id,
+    pageId: apiTextBox.page_id,
     pageNumber: 0, // This would need to be fetched separately or included in the API response
     boundingBox: {
       x: apiTextBox.x,
@@ -107,7 +107,7 @@ export function convertLegacyTextBoxToApi(
   croppedImage?: string
 ): TextBoxApiCreate {
   return {
-    page_id: parseInt(legacyTextBox.pageId),
+    page_id: legacyTextBox.pageId,
     image: croppedImage,
     x: legacyTextBox.boundingBox.x,
     y: legacyTextBox.boundingBox.y,

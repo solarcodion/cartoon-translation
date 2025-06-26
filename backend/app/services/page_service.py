@@ -101,7 +101,7 @@ class PageService:
             print(f"❌ Error creating page: {str(e)}")
             raise Exception(f"Failed to create page: {str(e)}")
     
-    async def get_pages_by_chapter(self, chapter_id: int, skip: int = 0, limit: int = 100) -> List[PageResponse]:
+    async def get_pages_by_chapter(self, chapter_id: str, skip: int = 0, limit: int = 100) -> List[PageResponse]:
         """Get all pages for a specific chapter with pagination"""
         try:
             print(f"📋 Fetching pages for chapter {chapter_id} (skip: {skip}, limit: {limit})")
@@ -138,7 +138,7 @@ class PageService:
             print(f"❌ Error fetching pages for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch pages: {str(e)}")
     
-    async def get_page_by_id(self, page_id: int) -> Optional[PageResponse]:
+    async def get_page_by_id(self, page_id: str) -> Optional[PageResponse]:
         """Get a specific page by ID"""
         try:
             print(f"🔍 Fetching page with ID: {page_id}")
@@ -166,7 +166,7 @@ class PageService:
             print(f"❌ Error fetching page {page_id}: {str(e)}")
             raise Exception(f"Failed to fetch page: {str(e)}")
     
-    async def update_page(self, page_id: int, page_data: PageUpdate) -> Optional[PageResponse]:
+    async def update_page(self, page_id: str, page_data: PageUpdate) -> Optional[PageResponse]:
         """Update an existing page"""
         try:
             print(f"📝 Updating page {page_id} with data: {page_data.model_dump(exclude_unset=True)}")
@@ -202,7 +202,7 @@ class PageService:
             print(f"❌ Error updating page {page_id}: {str(e)}")
             raise Exception(f"Failed to update page: {str(e)}")
     
-    async def delete_page(self, page_id: int) -> bool:
+    async def delete_page(self, page_id: str) -> bool:
         """Delete a page and its associated file"""
         try:
             print(f"🗑️ Deleting page with ID: {page_id}")

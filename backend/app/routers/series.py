@@ -55,7 +55,7 @@ async def get_series_stats(
 
 @router.get("/{series_id}", response_model=SeriesResponse)
 async def get_series_by_id(
-    series_id: int,
+    series_id: str,
     series_service: SeriesService = Depends(get_series_service)
 ):
     """Get a specific series by ID"""
@@ -145,7 +145,7 @@ async def create_series(
 
 @router.put("/{series_id}", response_model=SeriesResponse)
 async def update_series(
-    series_id: int,
+    series_id: str,
     request: Request,
     current_user: Dict[str, Any] = Depends(get_current_user),
     series_service: SeriesService = Depends(get_series_service)
@@ -217,7 +217,7 @@ async def update_series(
 
 @router.delete("/{series_id}", response_model=ApiResponse)
 async def delete_series(
-    series_id: int,
+    series_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
     series_service: SeriesService = Depends(get_series_service)
 ):

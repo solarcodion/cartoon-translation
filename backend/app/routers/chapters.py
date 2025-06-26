@@ -25,7 +25,7 @@ def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterServ
 @router.post("/series/{series_id}", response_model=ChapterResponse, status_code=status.HTTP_201_CREATED)
 async def create_chapter(
     request: Request,
-    series_id: int = Path(..., description="ID of the series to add chapter to"),
+    series_id: str = Path(..., description="ID of the series to add chapter to"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     chapter_service: ChapterService = Depends(get_chapter_service)
 ):
@@ -69,7 +69,7 @@ async def create_chapter(
 
 @router.get("/series/{series_id}", response_model=List[ChapterResponse])
 async def get_chapters_by_series(
-    series_id: int = Path(..., description="ID of the series to get chapters for"),
+    series_id: str = Path(..., description="ID of the series to get chapters for"),
     skip: int = Query(0, ge=0, description="Number of chapters to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of chapters to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -100,7 +100,7 @@ async def get_chapters_by_series(
 
 @router.get("/{chapter_id}", response_model=ChapterResponse)
 async def get_chapter_by_id(
-    chapter_id: int = Path(..., description="ID of the chapter to retrieve"),
+    chapter_id: str = Path(..., description="ID of the chapter to retrieve"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     chapter_service: ChapterService = Depends(get_chapter_service)
 ):
@@ -136,7 +136,7 @@ async def get_chapter_by_id(
 @router.put("/{chapter_id}", response_model=ChapterResponse)
 async def update_chapter(
     request: Request,
-    chapter_id: int = Path(..., description="ID of the chapter to update"),
+    chapter_id: str = Path(..., description="ID of the chapter to update"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     chapter_service: ChapterService = Depends(get_chapter_service)
 ):
@@ -182,7 +182,7 @@ async def update_chapter(
 
 @router.delete("/{chapter_id}", response_model=ApiResponse)
 async def delete_chapter(
-    chapter_id: int = Path(..., description="ID of the chapter to delete"),
+    chapter_id: str = Path(..., description="ID of the chapter to delete"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     chapter_service: ChapterService = Depends(get_chapter_service)
 ):
@@ -220,7 +220,7 @@ async def delete_chapter(
 
 @router.get("/series/{series_id}/count", response_model=Dict[str, int])
 async def get_chapter_count(
-    series_id: int = Path(..., description="ID of the series to get chapter count for"),
+    series_id: str = Path(..., description="ID of the series to get chapter count for"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     chapter_service: ChapterService = Depends(get_chapter_service)
 ):

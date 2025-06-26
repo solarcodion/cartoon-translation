@@ -91,12 +91,9 @@ export default function Series() {
   const handleSaveSeriesName = async (seriesId: string, newName: string) => {
     try {
       // Update series via API
-      const updatedApiSeries = await seriesService.updateSeries(
-        parseInt(seriesId),
-        {
-          title: newName,
-        }
-      );
+      const updatedApiSeries = await seriesService.updateSeries(seriesId, {
+        title: newName,
+      });
 
       // Update the series in the local state
       setSeries((prevSeries) =>
@@ -115,7 +112,7 @@ export default function Series() {
   const handleConfirmDelete = async (seriesId: string) => {
     try {
       // Delete series via API
-      await seriesService.deleteSeries(parseInt(seriesId));
+      await seriesService.deleteSeries(seriesId);
 
       // Remove the series from the local state
       setSeries((prevSeries) =>

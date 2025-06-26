@@ -23,7 +23,7 @@ def get_page_service(supabase: Client = Depends(get_supabase)) -> PageService:
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
 async def create_page(
-    chapter_id: int = Form(...),
+    chapter_id: str = Form(...),
     page_number: int = Form(...),
     file: UploadFile = File(...),
     width: int = Form(None),
@@ -88,7 +88,7 @@ async def create_page(
 
 @router.get("/chapter/{chapter_id}", response_model=List[PageResponse])
 async def get_pages_by_chapter(
-    chapter_id: int = Path(..., description="Chapter ID"),
+    chapter_id: str = Path(..., description="Chapter ID"),
     skip: int = Query(0, ge=0, description="Number of pages to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of pages to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -120,7 +120,7 @@ async def get_pages_by_chapter(
 
 @router.get("/{page_id}", response_model=PageResponse)
 async def get_page(
-    page_id: int = Path(..., description="Page ID"),
+    page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
 ):
@@ -155,7 +155,7 @@ async def get_page(
 
 @router.put("/{page_id}", response_model=PageResponse)
 async def update_page(
-    page_id: int = Path(..., description="Page ID"),
+    page_id: str = Path(..., description="Page ID"),
     page_data: PageUpdate = ...,
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
@@ -192,7 +192,7 @@ async def update_page(
 
 @router.delete("/{page_id}", response_model=ApiResponse)
 async def delete_page(
-    page_id: int = Path(..., description="Page ID"),
+    page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
 ):

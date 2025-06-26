@@ -12,7 +12,7 @@ export interface SeriesUpdateRequest {
 }
 
 export interface SeriesApiResponse {
-  id: number;
+  id: string;
   title: string;
   total_chapters: number;
   user_id?: string;
@@ -66,7 +66,7 @@ class SeriesService {
     }
   }
 
-  async getSeriesById(id: number): Promise<SeriesApiResponse> {
+  async getSeriesById(id: string): Promise<SeriesApiResponse> {
     try {
       const token = await this.getAuthToken();
 
@@ -114,7 +114,7 @@ class SeriesService {
   }
 
   async updateSeries(
-    id: number,
+    id: string,
     seriesData: SeriesUpdateRequest
   ): Promise<SeriesApiResponse> {
     try {
@@ -141,7 +141,7 @@ class SeriesService {
     }
   }
 
-  async deleteSeries(id: number): Promise<void> {
+  async deleteSeries(id: string): Promise<void> {
     try {
       const token = await this.getAuthToken();
 

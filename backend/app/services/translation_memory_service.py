@@ -46,7 +46,7 @@ class TranslationMemoryService:
             print(f"❌ Error creating TM entry: {str(e)}")
             raise Exception(f"Failed to create TM entry: {str(e)}")
     
-    async def get_tm_entries_by_series(self, series_id: int, skip: int = 0, limit: int = 100) -> List[TranslationMemoryResponse]:
+    async def get_tm_entries_by_series(self, series_id: str, skip: int = 0, limit: int = 100) -> List[TranslationMemoryResponse]:
         """Get all translation memory entries for a specific series with pagination"""
         try:
             print(f"📋 Fetching TM entries for series {series_id} (skip: {skip}, limit: {limit})")
@@ -74,7 +74,7 @@ class TranslationMemoryService:
             print(f"❌ Error fetching TM entries for series {series_id}: {str(e)}")
             raise Exception(f"Failed to fetch TM entries: {str(e)}")
     
-    async def get_tm_entry_by_id(self, tm_id: int) -> Optional[TranslationMemoryResponse]:
+    async def get_tm_entry_by_id(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
         """Get a specific translation memory entry by ID"""
         try:
             print(f"🔍 Fetching TM entry with ID: {tm_id}")
@@ -99,7 +99,7 @@ class TranslationMemoryService:
             print(f"❌ Error fetching TM entry {tm_id}: {str(e)}")
             raise Exception(f"Failed to fetch TM entry: {str(e)}")
     
-    async def update_tm_entry(self, tm_id: int, tm_data: TranslationMemoryUpdate) -> Optional[TranslationMemoryResponse]:
+    async def update_tm_entry(self, tm_id: str, tm_data: TranslationMemoryUpdate) -> Optional[TranslationMemoryResponse]:
         """Update an existing translation memory entry"""
         try:
             print(f"📝 Updating TM entry {tm_id} with data: {tm_data.model_dump(exclude_unset=True)}")
@@ -132,7 +132,7 @@ class TranslationMemoryService:
             print(f"❌ Error updating TM entry {tm_id}: {str(e)}")
             raise Exception(f"Failed to update TM entry: {str(e)}")
     
-    async def delete_tm_entry(self, tm_id: int) -> bool:
+    async def delete_tm_entry(self, tm_id: str) -> bool:
         """Delete a translation memory entry"""
         try:
             print(f"🗑️ Deleting TM entry with ID: {tm_id}")
@@ -158,7 +158,7 @@ class TranslationMemoryService:
             print(f"❌ Error deleting TM entry {tm_id}: {str(e)}")
             raise Exception(f"Failed to delete TM entry: {str(e)}")
     
-    async def increment_usage_count(self, tm_id: int) -> Optional[TranslationMemoryResponse]:
+    async def increment_usage_count(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
         """Increment the usage count for a translation memory entry"""
         try:
             print(f"📈 Incrementing usage count for TM entry {tm_id}")

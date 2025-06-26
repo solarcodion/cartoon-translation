@@ -6,7 +6,7 @@ interface DeleteTextBoxModalProps {
   textBox: TextBoxApiItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onDelete: (textBoxId: number) => Promise<void>;
+  onDelete: (textBoxId: string) => Promise<void>;
 }
 
 export default function DeleteTextBoxModal({

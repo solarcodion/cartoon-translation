@@ -1,11 +1,12 @@
 import { supabase } from "../lib/supabase";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 // API-compatible text box types
 export interface TextBoxApiItem {
-  id: number;
-  page_id: number;
+  id: string;
+  page_id: string;
   image?: string;
   x: number;
   y: number;
@@ -20,7 +21,7 @@ export interface TextBoxApiItem {
 }
 
 export interface CreateTextBoxData {
-  page_id: number;
+  page_id: string;
   image?: string;
   x: number;
   y: number;
@@ -46,24 +47,26 @@ export interface UpdateTextBoxData {
 
 class TextBoxService {
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session?.access_token) {
       throw new Error("No authentication token available");
     }
 
     return {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${session.access_token}`,
     };
   }
 
   async createTextBox(textBoxData: CreateTextBoxData): Promise<TextBoxApiItem> {
     try {
       console.log("📝 Creating text box:", textBoxData);
-      
+
       const headers = await this.getAuthHeaders();
-      
+
       const response = await fetch(`${API_BASE_URL}/text-boxes/`, {
         method: "POST",
         headers,
@@ -72,7 +75,9 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -84,12 +89,16 @@ class TextBoxService {
     }
   }
 
-  async getTextBoxesByPage(pageId: number, skip = 0, limit = 100): Promise<TextBoxApiItem[]> {
+  async getTextBoxesByPage(
+    pageId: string,
+    skip = 0,
+    limit = 100
+  ): Promise<TextBoxApiItem[]> {
     try {
       console.log(`📋 Fetching text boxes for page ${pageId}`);
-      
+
       const headers = await this.getAuthHeaders();
-      
+
       const url = new URL(`${API_BASE_URL}/text-boxes/page/${pageId}`);
       url.searchParams.append("skip", skip.toString());
       url.searchParams.append("limit", limit.toString());
@@ -101,7 +110,9 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -113,12 +124,16 @@ class TextBoxService {
     }
   }
 
-  async getTextBoxesByChapter(chapterId: number, skip = 0, limit = 1000): Promise<TextBoxApiItem[]> {
+  async getTextBoxesByChapter(
+    chapterId: string,
+    skip = 0,
+    limit = 1000
+  ): Promise<TextBoxApiItem[]> {
     try {
       console.log(`📋 Fetching text boxes for chapter ${chapterId}`);
-      
+
       const headers = await this.getAuthHeaders();
-      
+
       const url = new URL(`${API_BASE_URL}/text-boxes/chapter/${chapterId}`);
       url.searchParams.append("skip", skip.toString());
       url.searchParams.append("limit", limit.toString());
@@ -130,11 +145,15 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const result = await response.json();
-      console.log(`✅ Found ${result.length} text boxes for chapter ${chapterId}`);
+      console.log(
+        `✅ Found ${result.length} text boxes for chapter ${chapterId}`
+      );
       return result;
     } catch (error) {
       console.error("❌ Error fetching text boxes:", error);
@@ -142,10 +161,10 @@ class TextBoxService {
     }
   }
 
-  async getTextBoxById(textBoxId: number): Promise<TextBoxApiItem> {
+  async getTextBoxById(textBoxId: string): Promise<TextBoxApiItem> {
     try {
       console.log(`🔍 Fetching text box ${textBoxId}`);
-      
+
       const headers = await this.getAuthHeaders();
 
       const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
@@ -155,7 +174,9 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -167,10 +188,13 @@ class TextBoxService {
     }
   }
 
-  async updateTextBox(textBoxId: number, textBoxData: UpdateTextBoxData): Promise<TextBoxApiItem> {
+  async updateTextBox(
+    textBoxId: string,
+    textBoxData: UpdateTextBoxData
+  ): Promise<TextBoxApiItem> {
     try {
       console.log(`📝 Updating text box ${textBoxId}:`, textBoxData);
-      
+
       const headers = await this.getAuthHeaders();
 
       const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
@@ -181,7 +205,9 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -193,10 +219,10 @@ class TextBoxService {
     }
   }
 
-  async deleteTextBox(textBoxId: number): Promise<void> {
+  async deleteTextBox(textBoxId: string): Promise<void> {
     try {
       console.log(`🗑️ Deleting text box ${textBoxId}`);
-      
+
       const headers = await this.getAuthHeaders();
 
       const response = await fetch(`${API_BASE_URL}/text-boxes/${textBoxId}`, {
@@ -206,7 +232,9 @@ class TextBoxService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       console.log("✅ Text box deleted successfully");

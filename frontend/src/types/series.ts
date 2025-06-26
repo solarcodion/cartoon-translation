@@ -10,7 +10,7 @@ export interface SeriesItem {
 
 // New API-compatible series types
 export interface SeriesApiItem {
-  id: number;
+  id: string;
   title: string;
   total_chapters: number;
   user_id?: string;
@@ -21,7 +21,7 @@ export interface SeriesApiItem {
 // Helper function to convert API response to legacy format
 export function convertApiSeriesToLegacy(apiSeries: SeriesApiItem): SeriesItem {
   return {
-    id: apiSeries.id.toString(),
+    id: apiSeries.id,
     name: apiSeries.title,
     chapters: apiSeries.total_chapters || 0,
     created_at: apiSeries.created_at,
@@ -46,8 +46,8 @@ export interface Chapter {
 
 // New API-compatible chapter types
 export interface ChapterApiItem {
-  id: number;
-  series_id: number;
+  id: string;
+  series_id: string;
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
@@ -58,7 +58,7 @@ export interface ChapterApiItem {
 // Helper function to convert API response to legacy format
 export function convertApiChapterToLegacy(apiChapter: ChapterApiItem): Chapter {
   return {
-    id: apiChapter.id.toString(),
+    id: apiChapter.id,
     number: apiChapter.chapter_number,
     title: `Chapter ${apiChapter.chapter_number}`, // Generate title from number
     status: apiChapter.status,

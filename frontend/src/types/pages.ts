@@ -18,8 +18,8 @@ export interface AIInsights {
 
 // API-compatible page types
 export interface PageApiItem {
-  id: number;
-  chapter_id: number;
+  id: string;
+  chapter_id: string;
   page_number: number;
   file_path: string;
   file_name: string;
@@ -38,7 +38,7 @@ export function convertApiPageToLegacy(apiPage: PageApiItem): Page {
       : "Unknown";
 
   return {
-    id: apiPage.id.toString(),
+    id: apiPage.id,
     number: apiPage.page_number,
     image_url: apiPage.file_path, // This will be the public URL from the API
     dimensions,

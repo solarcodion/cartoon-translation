@@ -23,7 +23,7 @@ def get_tm_service(supabase: Client = Depends(get_supabase)) -> TranslationMemor
 
 @router.post("/series/{series_id}", response_model=TranslationMemoryResponse)
 async def create_tm_entry(
-    series_id: int = Path(..., description="The ID of the series"),
+    series_id: str = Path(..., description="The ID of the series"),
     request: Request = None,
     current_user: Dict[str, Any] = Depends(get_current_user),
     tm_service: TranslationMemoryService = Depends(get_tm_service)
@@ -82,7 +82,7 @@ async def create_tm_entry(
 
 @router.get("/series/{series_id}", response_model=List[TranslationMemoryResponse])
 async def get_tm_entries_by_series(
-    series_id: int = Path(..., description="The ID of the series"),
+    series_id: str = Path(..., description="The ID of the series"),
     skip: int = Query(0, ge=0, description="Number of entries to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of entries to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -113,7 +113,7 @@ async def get_tm_entries_by_series(
 
 @router.get("/{tm_id}", response_model=TranslationMemoryResponse)
 async def get_tm_entry(
-    tm_id: int = Path(..., description="The ID of the translation memory entry"),
+    tm_id: str = Path(..., description="The ID of the translation memory entry"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     tm_service: TranslationMemoryService = Depends(get_tm_service)
 ):
@@ -147,7 +147,7 @@ async def get_tm_entry(
 
 @router.put("/{tm_id}", response_model=TranslationMemoryResponse)
 async def update_tm_entry(
-    tm_id: int = Path(..., description="The ID of the translation memory entry"),
+    tm_id: str = Path(..., description="The ID of the translation memory entry"),
     request: Request = None,
     current_user: Dict[str, Any] = Depends(get_current_user),
     tm_service: TranslationMemoryService = Depends(get_tm_service)
@@ -211,7 +211,7 @@ async def update_tm_entry(
 
 @router.delete("/{tm_id}", response_model=ApiResponse)
 async def delete_tm_entry(
-    tm_id: int = Path(..., description="The ID of the translation memory entry"),
+    tm_id: str = Path(..., description="The ID of the translation memory entry"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     tm_service: TranslationMemoryService = Depends(get_tm_service)
 ):
@@ -248,7 +248,7 @@ async def delete_tm_entry(
 
 @router.post("/{tm_id}/increment-usage", response_model=TranslationMemoryResponse)
 async def increment_tm_usage(
-    tm_id: int = Path(..., description="The ID of the translation memory entry"),
+    tm_id: str = Path(..., description="The ID of the translation memory entry"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     tm_service: TranslationMemoryService = Depends(get_tm_service)
 ):

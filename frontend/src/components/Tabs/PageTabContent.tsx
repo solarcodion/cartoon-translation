@@ -108,7 +108,7 @@ export function TranslationsTabContent({
   const [error, setError] = useState<string | null>(null);
 
   // Quick edit state
-  const [editingTextBoxId, setEditingTextBoxId] = useState<number | null>(null);
+  const [editingTextBoxId, setEditingTextBoxId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
 
   // Modal state
@@ -127,7 +127,7 @@ export function TranslationsTabContent({
         setIsLoading(true);
         setError(null);
         const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
-          parseInt(chapterId)
+          chapterId
         );
         setTextBoxes(fetchedTextBoxes);
       } catch (err) {
@@ -157,7 +157,7 @@ export function TranslationsTabContent({
     setEditingText("");
   };
 
-  const handleSaveQuickEdit = async (textBoxId: number) => {
+  const handleSaveQuickEdit = async (textBoxId: string) => {
     try {
       await textBoxService.updateTextBox(textBoxId, {
         corrected: editingText.trim() || undefined,
@@ -192,7 +192,7 @@ export function TranslationsTabContent({
   };
 
   const handleSaveTextBoxEdit = async (
-    textBoxId: number,
+    textBoxId: string,
     updateData: TextBoxApiUpdate
   ) => {
     try {
@@ -221,7 +221,7 @@ export function TranslationsTabContent({
     setSelectedTextBox(null);
   };
 
-  const handleConfirmDeleteTextBox = async (textBoxId: number) => {
+  const handleConfirmDeleteTextBox = async (textBoxId: string) => {
     try {
       await textBoxService.deleteTextBox(textBoxId);
       setTextBoxes((prev) => prev.filter((tb) => tb.id !== textBoxId));
@@ -239,7 +239,7 @@ export function TranslationsTabContent({
       setIsLoading(true);
       setError(null);
       const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
-        parseInt(chapterId)
+        chapterId
       );
       setTextBoxes(fetchedTextBoxes);
     } catch (err) {

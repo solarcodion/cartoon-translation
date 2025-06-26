@@ -13,8 +13,8 @@ export interface ChapterUpdateRequest {
 }
 
 export interface ChapterApiResponse {
-  id: number;
-  series_id: number;
+  id: string;
+  series_id: string;
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
@@ -36,7 +36,7 @@ class ChapterService {
   }
 
   async getChaptersBySeriesId(
-    seriesId: number,
+    seriesId: string,
     skip: number = 0,
     limit: number = 100
   ): Promise<ChapterApiResponse[]> {
@@ -62,7 +62,7 @@ class ChapterService {
     }
   }
 
-  async getChapterById(id: number): Promise<ChapterApiResponse> {
+  async getChapterById(id: string): Promise<ChapterApiResponse> {
     try {
       const token = await this.getAuthToken();
 
@@ -83,7 +83,7 @@ class ChapterService {
   }
 
   async createChapter(
-    seriesId: number,
+    seriesId: string,
     chapterData: ChapterCreateRequest
   ): Promise<ChapterApiResponse> {
     try {
@@ -111,7 +111,7 @@ class ChapterService {
   }
 
   async updateChapter(
-    id: number,
+    id: string,
     chapterData: ChapterUpdateRequest
   ): Promise<ChapterApiResponse> {
     try {
@@ -138,7 +138,7 @@ class ChapterService {
     }
   }
 
-  async deleteChapter(id: number): Promise<void> {
+  async deleteChapter(id: string): Promise<void> {
     try {
       const token = await this.getAuthToken();
 
@@ -157,7 +157,7 @@ class ChapterService {
     }
   }
 
-  async getChapterCount(seriesId: number): Promise<number> {
+  async getChapterCount(seriesId: string): Promise<number> {
     try {
       const token = await this.getAuthToken();
 
@@ -182,7 +182,7 @@ class ChapterService {
 
   // Helper method to update chapter status
   async updateChapterStatus(
-    id: number,
+    id: string,
     status: "draft" | "in_progress" | "translated"
   ): Promise<ChapterApiResponse> {
     return this.updateChapter(id, { status });
@@ -190,7 +190,7 @@ class ChapterService {
 
   // Helper method to update page count
   async updatePageCount(
-    id: number,
+    id: string,
     pageCount: number
   ): Promise<ChapterApiResponse> {
     return this.updateChapter(id, {
