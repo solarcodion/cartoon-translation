@@ -40,7 +40,7 @@ export interface Chapter {
   number: number;
   title: string;
   status: "draft" | "in_progress" | "translated";
-  context?: string;
+  context: string;
   created_at: string;
   updated_at: string;
 }
@@ -52,7 +52,7 @@ export interface ChapterApiItem {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
-  context?: string;
+  context: string;
   created_at: string;
   updated_at: string;
 }
@@ -76,5 +76,5 @@ export interface ChapterInfo {
   title: string;
   series_name: string;
   total_pages: number;
-  context?: string;
+  context: string;
 }
