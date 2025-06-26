@@ -116,19 +116,29 @@ export default function Pages() {
     setIsUploadModalOpen(false);
   };
 
-  const handleConfirmUpload = async (pageNumber: number, file: File) => {
+  const handleConfirmUpload = async (
+    pageNumber: number,
+    file: File,
+    context?: string
+  ) => {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
       }
 
-      console.log("Uploading page:", pageNumber, file.name);
+      console.log(
+        "Uploading page:",
+        pageNumber,
+        file.name,
+        context ? "with context" : "without context"
+      );
 
       // Upload to API
       const apiPage = await pageService.createPage({
         chapter_id: parseInt(chapterId),
         page_number: pageNumber,
         file,
+        context,
       });
 
       // Convert to frontend format and add to list

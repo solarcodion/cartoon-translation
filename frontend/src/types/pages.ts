@@ -6,6 +6,7 @@ export interface Page {
   image_url: string;
   dimensions: string;
   file_size: string;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface PageApiItem {
   file_name: string;
   width?: number;
   height?: number;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +43,7 @@ export function convertApiPageToLegacy(apiPage: PageApiItem): Page {
     image_url: apiPage.file_path, // This will be the public URL from the API
     dimensions,
     file_size: "Unknown", // File size not stored in API, could be calculated
+    context: apiPage.context,
     created_at: apiPage.created_at,
     updated_at: apiPage.updated_at,
   };

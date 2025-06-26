@@ -73,6 +73,7 @@ class PageService:
                 "file_name": page_data.file_name,
                 "width": width,
                 "height": height,
+                "context": page_data.context,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }

@@ -232,6 +232,7 @@ class PageBase(BaseModel):
     file_name: str
     width: Optional[int] = None
     height: Optional[int] = None
+    context: Optional[str] = None
 
 
 class PageCreate(BaseModel):
@@ -241,6 +242,7 @@ class PageCreate(BaseModel):
     file_name: str
     width: Optional[int] = None
     height: Optional[int] = None
+    context: Optional[str] = None
 
     class Config:
         str_strip_whitespace = True
@@ -254,6 +256,7 @@ class PageUpdate(BaseModel):
     file_name: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
+    context: Optional[str] = None
 
 
 class PageResponse(PageBase):

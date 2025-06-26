@@ -10,6 +10,7 @@ export interface PageApiItem {
   file_name: string;
   width?: number;
   height?: number;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ export interface CreatePageData {
   file: File;
   width?: number;
   height?: number;
+  context?: string;
 }
 
 export interface UpdatePageData {
@@ -27,34 +29,40 @@ export interface UpdatePageData {
   file_name?: string;
   width?: number;
   height?: number;
+  context?: string;
 }
 
 class PageService {
   private async getAuthHeaders() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.access_token) {
       throw new Error("No authentication token available");
     }
     return {
-      "Authorization": `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${session.access_token}`,
     };
   }
 
   async createPage(pageData: CreatePageData): Promise<PageApiItem> {
     try {
       const headers = await this.getAuthHeaders();
-      
+
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("chapter_id", pageData.chapter_id.toString());
       formData.append("page_number", pageData.page_number.toString());
       formData.append("file", pageData.file);
-      
+
       if (pageData.width) {
         formData.append("width", pageData.width.toString());
       }
       if (pageData.height) {
         formData.append("height", pageData.height.toString());
+      }
+      if (pageData.context) {
+        formData.append("context", pageData.context);
       }
 
       const response = await fetch(`${API_BASE_URL}/pages/`, {
@@ -65,7 +73,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       return await response.json();
@@ -75,10 +85,14 @@ class PageService {
     }
   }
 
-  async getPagesByChapter(chapterId: number, skip = 0, limit = 100): Promise<PageApiItem[]> {
+  async getPagesByChapter(
+    chapterId: number,
+    skip = 0,
+    limit = 100
+  ): Promise<PageApiItem[]> {
     try {
       const headers = await this.getAuthHeaders();
-      
+
       const url = new URL(`${API_BASE_URL}/pages/chapter/${chapterId}`);
       url.searchParams.append("skip", skip.toString());
       url.searchParams.append("limit", limit.toString());
@@ -90,7 +104,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       return await response.json();
@@ -111,7 +127,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       return await response.json();
@@ -121,7 +139,10 @@ class PageService {
     }
   }
 
-  async updatePage(pageId: number, pageData: UpdatePageData): Promise<PageApiItem> {
+  async updatePage(
+    pageId: number,
+    pageData: UpdatePageData
+  ): Promise<PageApiItem> {
     try {
       const headers = await this.getAuthHeaders();
 
@@ -136,7 +157,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       return await response.json();
@@ -157,7 +180,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
     } catch (error) {
       console.error("Error deleting page:", error);
@@ -176,7 +201,9 @@ class PageService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
 
       const data = await response.json();

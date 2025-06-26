@@ -28,17 +28,19 @@ async def create_page(
     file: UploadFile = File(...),
     width: int = Form(None),
     height: int = Form(None),
+    context: str = Form(None),
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
 ):
     """
     Create a new page with file upload
-    
+
     - **chapter_id**: ID of the chapter this page belongs to
     - **page_number**: Page number within the chapter
     - **file**: Image file to upload
     - **width**: Optional image width (will be detected if not provided)
     - **height**: Optional image height (will be detected if not provided)
+    - **context**: Optional OCR text context extracted from the image
     """
     try:
         # Validate file type
@@ -65,7 +67,8 @@ async def create_page(
             page_number=page_number,
             file_name=file.filename or f"page_{page_number}.{file_extension}",
             width=width,
-            height=height
+            height=height,
+            context=context
         )
         
         # Create page

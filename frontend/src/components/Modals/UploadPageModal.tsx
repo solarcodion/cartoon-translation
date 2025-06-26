@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { FiX } from "react-icons/fi";
+import { ocrService } from "../../services/ocrService";
 
 interface UploadPageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (pageNumber: number, file: File) => Promise<void>;
+  onUpload: (pageNumber: number, file: File, context?: string) => Promise<void>;
   chapterNumber?: number;
 }
 
@@ -17,6 +18,7 @@ export default function UploadPageModal({
   const [pageNumber, setPageNumber] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -32,6 +34,45 @@ export default function UploadPageModal({
       setIsUploading(true);
       setUploadProgress(0);
 
+      let extractedContext = "";
+
+      // First, run OCR if we have an image
+      if (selectedFile && previewUrl) {
+        try {
+          setIsProcessingOCR(true);
+
+          // Convert image to base64
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const img = new Image();
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = previewUrl;
+          });
+
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx?.drawImage(img, 0, 0);
+
+          const base64Data = canvas.toDataURL("image/jpeg").split(",")[1];
+
+          // Process with OCR
+          const ocrResult = await ocrService.extractTextEnhanced(base64Data);
+
+          if (ocrResult.success && ocrResult.text.trim()) {
+            extractedContext = ocrResult.text.trim();
+            console.log("✅ OCR completed successfully:", extractedContext);
+          }
+        } catch (ocrError) {
+          console.error("❌ OCR processing failed:", ocrError);
+          // Continue with upload even if OCR fails
+        } finally {
+          setIsProcessingOCR(false);
+        }
+      }
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
@@ -43,7 +84,7 @@ export default function UploadPageModal({
         });
       }, 200);
 
-      await onUpload(number, selectedFile);
+      await onUpload(number, selectedFile, extractedContext || undefined);
 
       // Complete the progress
       setUploadProgress(100);
@@ -351,7 +392,7 @@ export default function UploadPageModal({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Uploading...
+                {isProcessingOCR ? "Processing OCR..." : "Uploading..."}
               </>
             ) : (
               "Upload & Run OCR"
