@@ -290,3 +290,41 @@ class OCRResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Translation Models
+class TranslationRequest(BaseModel):
+    """Translation request model"""
+    source_text: str
+    target_language: Optional[str] = None
+    context: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TranslationResponse(BaseModel):
+    """Translation response model"""
+    success: bool
+    source_text: str
+    translated_text: str
+    target_language: str
+    processing_time: Optional[float] = None
+    model: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EnhancedTranslationRequest(BaseModel):
+    """Enhanced translation request with series context"""
+    source_text: str
+    target_language: Optional[str] = None
+    series_context: Optional[str] = None
+    character_names: Optional[list[str]] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True

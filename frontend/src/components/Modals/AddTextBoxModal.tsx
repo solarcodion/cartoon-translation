@@ -14,6 +14,7 @@ import {
 import { MdGTranslate } from "react-icons/md";
 import type { Page, TextBoxCreate, BoundingBox } from "../../types";
 import { ocrService } from "../../services/ocrService";
+import { translationService } from "../../services/translationService";
 
 interface AddTextBoxModalProps {
   isOpen: boolean;
@@ -45,6 +46,11 @@ export default function AddTextBoxModal({
   const [isTranslating, setIsTranslating] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [zoom, setZoom] = useState(79);
+
+  // Copy button states
+  const [copiedOCR, setCopiedOCR] = useState(false);
+  const [copiedAI, setCopiedAI] = useState(false);
+  const [copiedCorrected, setCopiedCorrected] = useState(false);
 
   // Custom dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -709,18 +715,48 @@ export default function AddTextBoxModal({
 
     try {
       setIsTranslating(true);
-      // Simulate AI translation - replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setAiTranslatedText("Bản dịch từ AI sẽ xuất hiện ở đây");
+      console.log("🔄 Starting AI translation...");
+
+      // Call the translation API
+      const result = await translationService.quickTranslate(ocrText.trim());
+
+      if (result.translated_text) {
+        setAiTranslatedText(result.translated_text);
+        console.log("✅ AI translation completed successfully");
+      } else {
+        console.warn("⚠️ Translation completed but no text returned");
+        setAiTranslatedText("Translation completed but no result returned");
+      }
     } catch (error) {
-      console.error("Error translating with AI:", error);
+      console.error("❌ Error translating with AI:", error);
+      // Show user-friendly error message
+      setAiTranslatedText("Translation failed. Please try again.");
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const handleCopyText = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopyText = async (
+    text: string,
+    type: "ocr" | "ai" | "corrected"
+  ) => {
+    try {
+      await navigator.clipboard.writeText(text);
+
+      // Set the appropriate copied state
+      if (type === "ocr") {
+        setCopiedOCR(true);
+        setTimeout(() => setCopiedOCR(false), 2000);
+      } else if (type === "ai") {
+        setCopiedAI(true);
+        setTimeout(() => setCopiedAI(false), 2000);
+      } else if (type === "corrected") {
+        setCopiedCorrected(true);
+        setTimeout(() => setCopiedCorrected(false), 2000);
+      }
+    } catch (error) {
+      console.error("Failed to copy text:", error);
+    }
   };
 
   const handleClose = () => {
@@ -1129,11 +1165,28 @@ export default function AddTextBoxModal({
                     OCR Text (Editable)
                   </label>
                   <button
-                    onClick={() => handleCopyText(ocrText)}
-                    className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    onClick={() => handleCopyText(ocrText, "ocr")}
+                    className={`p-1 transition-colors ${
+                      !ocrText
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
+                    }`}
                     disabled={!ocrText}
+                    title={
+                      !ocrText
+                        ? "No text to copy"
+                        : copiedOCR
+                        ? "Copied!"
+                        : "Copy text"
+                    }
                   >
-                    <FiCopy className="text-sm" />
+                    {copiedOCR ? (
+                      <FiCheck className="text-sm text-green-500" />
+                    ) : (
+                      <FiCopy
+                        className={`text-sm ${!ocrText ? "text-gray-300" : ""}`}
+                      />
+                    )}
                   </button>
                 </div>
                 <textarea
@@ -1164,9 +1217,37 @@ export default function AddTextBoxModal({
 
               {/* AI Translated Text */}
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  AI Translated Text
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-900">
+                    AI Translated Text
+                  </label>
+                  <button
+                    onClick={() => handleCopyText(aiTranslatedText, "ai")}
+                    className={`p-1 transition-colors ${
+                      !aiTranslatedText
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
+                    }`}
+                    disabled={!aiTranslatedText}
+                    title={
+                      !aiTranslatedText
+                        ? "No text to copy"
+                        : copiedAI
+                        ? "Copied!"
+                        : "Copy text"
+                    }
+                  >
+                    {copiedAI ? (
+                      <FiCheck className="text-sm text-green-500" />
+                    ) : (
+                      <FiCopy
+                        className={`text-sm ${
+                          !aiTranslatedText ? "text-gray-300" : ""
+                        }`}
+                      />
+                    )}
+                  </button>
+                </div>
                 <textarea
                   value={aiTranslatedText}
                   onChange={(e) => setAiTranslatedText(e.target.value)}
@@ -1183,11 +1264,30 @@ export default function AddTextBoxModal({
                     Corrected Text (Final)
                   </label>
                   <button
-                    onClick={() => handleCopyText(correctedText)}
-                    className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    onClick={() => handleCopyText(correctedText, "corrected")}
+                    className={`p-1 transition-colors ${
+                      !correctedText
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
+                    }`}
                     disabled={!correctedText}
+                    title={
+                      !correctedText
+                        ? "No text to copy"
+                        : copiedCorrected
+                        ? "Copied!"
+                        : "Copy text"
+                    }
                   >
-                    <FiCopy className="text-sm" />
+                    {copiedCorrected ? (
+                      <FiCheck className="text-sm text-green-500" />
+                    ) : (
+                      <FiCopy
+                        className={`text-sm ${
+                          !correctedText ? "text-gray-300" : ""
+                        }`}
+                      />
+                    )}
                   </button>
                 </div>
                 <textarea

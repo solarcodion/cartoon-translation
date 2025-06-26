@@ -28,6 +28,10 @@ class Settings:
         self.supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY")
         self.supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY")
 
+        # OpenAI Settings
+        self.openai_api_key: str = os.getenv("OPENAI_API_KEY")
+        self.translation_target_language: str = os.getenv("TRANSLATION_TARGET_LANGUAGE", "Vietnamese")
+
         # Validate required Supabase settings
         if not self.supabase_url:
             raise ValueError("SUPABASE_URL environment variable is required")
@@ -35,6 +39,10 @@ class Settings:
             raise ValueError("SUPABASE_SERVICE_KEY environment variable is required")
         if not self.supabase_anon_key:
             raise ValueError("SUPABASE_ANON_KEY environment variable is required")
+
+        # Validate OpenAI settings (warn if not set, but don't fail)
+        if not self.openai_api_key:
+            print("⚠️ Warning: OPENAI_API_KEY environment variable is not set. Translation features will not work.")
 
 # Global settings instance
 settings = Settings()
