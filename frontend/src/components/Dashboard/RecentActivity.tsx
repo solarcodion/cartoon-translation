@@ -1,18 +1,11 @@
-// Recent Activity Data moved inline since mockData was removed
-const recentActivities = [
-  {
-    id: 1,
-    action: "User 'translator_one' translated Chapter 2 of Solo Leveling.",
-    timestamp: "2 hours ago",
-  },
-  {
-    id: 2,
-    action: "New Series 'Omniscient Reader's Viewpoint' added.",
-    timestamp: "5 hours ago",
-  },
-];
+import type { RecentActivityItem } from "../../types";
+import { dashboardService } from "../../services/dashboardService";
 
-export default function RecentActivity() {
+interface RecentActivityProps {
+  activities: RecentActivityItem[];
+}
+
+export default function RecentActivity({ activities }: RecentActivityProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -23,16 +16,25 @@ export default function RecentActivity() {
       </p>
 
       <div className="space-y-4">
-        {recentActivities.map((activity) => (
-          <div key={activity.id} className="flex items-center justify-between">
-            <p className="text-gray-900 text-sm font-medium flex-1 pr-4">
-              {activity.action}
-            </p>
-            <span className="text-gray-500 text-xs font-normal whitespace-nowrap">
-              {activity.timestamp}
-            </span>
+        {activities.length > 0 ? (
+          activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="flex items-center justify-between"
+            >
+              <p className="text-gray-900 text-sm font-medium flex-1 pr-4">
+                {dashboardService.formatActivityAction(activity)}
+              </p>
+              <span className="text-gray-500 text-xs font-normal whitespace-nowrap">
+                {dashboardService.formatActivityTimestamp(activity.timestamp)}
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500 text-sm">No recent activities found.</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

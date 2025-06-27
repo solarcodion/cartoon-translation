@@ -191,6 +191,14 @@ Once the server is running, you can access:
 - `DELETE /api/chapters/{chapter_id}` - Delete chapter - **Requires authentication**
 - `GET /api/chapters/series/{series_id}/count` - Get chapter count for a series - **Requires authentication**
 
+### Dashboard
+
+- `GET /api/dashboard/` - Get complete dashboard data (stats + recent activities) - **Requires authentication**
+- `GET /api/dashboard/stats` - Get overall dashboard statistics - **Requires authentication**
+- `GET /api/dashboard/stats/chapters` - Get chapter status statistics - **Requires authentication**
+- `GET /api/dashboard/stats/users` - Get user role statistics - **Requires authentication**
+- `GET /api/dashboard/activities` - Get recent activities (with optional limit parameter) - **Requires authentication**
+
 ### Authentication
 
 All endpoints except the root endpoint require authentication via Supabase JWT token.

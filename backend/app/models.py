@@ -524,3 +524,66 @@ class TextBoxResponse(TextBoxBase):
 class TextBoxInDB(TextBoxResponse):
     """Text box model as stored in database"""
     pass
+
+
+# Dashboard Models
+class DashboardStats(BaseModel):
+    """Dashboard statistics model"""
+    total_series: int
+    total_chapters: int
+    total_pages: int
+    total_text_boxes: int
+    total_users: int
+    total_glossary_entries: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class ChapterStatusStats(BaseModel):
+    """Chapter status statistics model"""
+    draft: int
+    in_progress: int
+    translated: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class UserRoleStats(BaseModel):
+    """User role statistics model"""
+    admin: int
+    editor: int
+    translator: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class RecentActivityItem(BaseModel):
+    """Recent activity item model"""
+    id: str
+    type: str  # 'series', 'chapter', 'page', 'user'
+    action: str
+    entity_name: str
+    user_name: Optional[str] = None
+    timestamp: datetime
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class DashboardResponse(BaseModel):
+    """Complete dashboard response model"""
+    stats: DashboardStats
+    chapter_status_stats: ChapterStatusStats
+    user_role_stats: UserRoleStats
+    recent_activities: list[RecentActivityItem]
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True

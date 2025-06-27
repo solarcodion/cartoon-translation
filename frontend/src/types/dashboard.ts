@@ -11,3 +11,12 @@ export interface ActivityItem {
   action: string;
   timestamp: string;
 }
+
+// API Dashboard types (from dashboardService)
+export type {
+  DashboardStats,
+  ChapterStatusStats,
+  UserRoleStats,
+  RecentActivityItem,
+  DashboardResponse,
+} from "../services/dashboardService";
