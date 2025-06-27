@@ -98,12 +98,15 @@ export default function Chapters() {
       // Convert API data to legacy format for compatibility
       const legacyChapters = chaptersData.map(convertApiChapterToLegacy);
 
+      // Sort chapters by chapter number in ascending order
+      const sortedChapters = legacyChapters.sort((a, b) => a.number - b.number);
+
       setSeriesInfo({
         id: seriesData.id,
         name: seriesData.title,
         totalChapters: seriesData.total_chapters,
       });
-      setChapters(legacyChapters);
+      setChapters(sortedChapters);
       setIsLoading(false);
     } catch (err) {
       console.error("Error fetching chapters:", err);
@@ -185,9 +188,19 @@ export default function Chapters() {
         chapter_number: chapterNumber,
       });
 
-      // Convert to legacy format and add to list at the beginning
+      // Convert to legacy format and add to list, then sort by chapter number
       const newLegacyChapter = convertApiChapterToLegacy(newApiChapter);
-      setChapters((prevChapters) => [newLegacyChapter, ...prevChapters]);
+      setChapters((prevChapters) => {
+        const updatedChapters = [newLegacyChapter, ...prevChapters];
+        return updatedChapters.sort((a, b) => a.number - b.number);
+      });
+
+      // Update series info to increment chapter count
+      setSeriesInfo((prevInfo) =>
+        prevInfo
+          ? { ...prevInfo, totalChapters: prevInfo.totalChapters + 1 }
+          : prevInfo
+      );
     } catch (error) {
       console.error("Error adding chapter:", error);
       throw error; // Re-throw to let the modal handle the error
@@ -217,13 +230,14 @@ export default function Chapters() {
         chapter_number: chapterNumber,
       });
 
-      // Convert to legacy format and update local state
+      // Convert to legacy format and update local state, then sort by chapter number
       const updatedLegacyChapter = convertApiChapterToLegacy(updatedApiChapter);
-      setChapters((prevChapters) =>
-        prevChapters.map((chapter) =>
+      setChapters((prevChapters) => {
+        const updatedChapters = prevChapters.map((chapter) =>
           chapter.id === chapterId ? updatedLegacyChapter : chapter
-        )
-      );
+        );
+        return updatedChapters.sort((a, b) => a.number - b.number);
+      });
     } catch (error) {
       console.error("Error updating chapter:", error);
       throw error; // Re-throw to let the modal handle the error
@@ -251,6 +265,16 @@ export default function Chapters() {
       // Remove the chapter from the local state
       setChapters((prevChapters) =>
         prevChapters.filter((chapter) => chapter.id !== chapterId)
+      );
+
+      // Update series info to decrement chapter count
+      setSeriesInfo((prevInfo) =>
+        prevInfo
+          ? {
+              ...prevInfo,
+              totalChapters: Math.max(0, prevInfo.totalChapters - 1),
+            }
+          : prevInfo
       );
     } catch (error) {
       console.error("Error deleting chapter:", error);

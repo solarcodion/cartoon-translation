@@ -29,15 +29,18 @@ class ChapterService:
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
-            
+
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
-            
+
             if not response.data:
                 raise Exception("Failed to create chapter - no data returned")
-            
+
             chapter_data = response.data[0]
-            
+
+            # Update series total_chapters count
+            await self._update_series_chapter_count(series_id)
+
             return ChapterResponse(**chapter_data)
             
         except Exception as e:
@@ -127,19 +130,37 @@ class ChapterService:
     async def delete_chapter(self, chapter_id: str) -> bool:
         """Delete a chapter"""
         try:
+            # First get the chapter to find the series_id
+            chapter_response = (
+                self.supabase.table(self.table_name)
+                .select("series_id")
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not chapter_response.data:
+                print(f"❌ Chapter with ID {chapter_id} not found")
+                return False
+
+            series_id = chapter_response.data[0]["series_id"]
+
+            # Delete the chapter
             response = (
                 self.supabase.table(self.table_name)
                 .delete()
                 .eq("id", chapter_id)
                 .execute()
             )
-            
+
             if not response.data:
                 print(f"❌ Chapter with ID {chapter_id} not found for deletion")
                 return False
-            
+
+            # Update series total_chapters count
+            await self._update_series_chapter_count(series_id)
+
             return True
-            
+
         except Exception as e:
             print(f"❌ Error deleting chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to delete chapter: {str(e)}")
@@ -161,3 +182,26 @@ class ChapterService:
         except Exception as e:
             print(f"❌ Error getting chapter count for series {series_id}: {str(e)}")
             raise Exception(f"Failed to get chapter count: {str(e)}")
+
+    async def _update_series_chapter_count(self, series_id: str) -> None:
+        """Update the total_chapters count for a series based on actual chapter count"""
+        try:
+            # Get the actual count of chapters for this series
+            actual_count = await self.get_chapter_count_by_series(series_id)
+
+            # Update the series table with the actual count
+            response = (
+                self.supabase.table("series")
+                .update({"total_chapters": actual_count, "updated_at": datetime.utcnow().isoformat()})
+                .eq("id", series_id)
+                .execute()
+            )
+
+            if not response.data:
+                print(f"❌ Failed to update series {series_id} chapter count")
+            else:
+                print(f"✅ Updated series {series_id} chapter count to {actual_count}")
+
+        except Exception as e:
+            print(f"❌ Error updating series chapter count for {series_id}: {str(e)}")
+            # Don't raise exception here to avoid breaking chapter operations

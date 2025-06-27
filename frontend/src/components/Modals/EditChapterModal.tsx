@@ -17,11 +17,13 @@ export default function EditChapterModal({
 }: EditChapterModalProps) {
   const [chapterNumber, setChapterNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Update form when chapter changes
   useEffect(() => {
     if (chapter) {
       setChapterNumber(chapter.number.toString());
+      setErrorMessage(null); // Clear error when chapter changes
     }
   }, [chapter]);
 
@@ -33,10 +35,34 @@ export default function EditChapterModal({
 
     try {
       setIsLoading(true);
+      setErrorMessage(null); // Clear any previous errors
       await onSave(chapter.id, number);
       onClose();
     } catch (error) {
       console.error("Error updating chapter:", error);
+
+      // Extract and set error message for display
+      if (error instanceof Error) {
+        const message = error.message;
+
+        // Handle specific error cases for duplicate chapters
+        if (
+          message.includes("duplicate") ||
+          message.includes("already exists")
+        ) {
+          setErrorMessage(
+            `Chapter ${number} already exists in this series. Please choose a different chapter number.`
+          );
+        } else if (message.includes("constraint")) {
+          setErrorMessage(
+            `Chapter ${number} already exists. Please choose a different chapter number.`
+          );
+        } else {
+          setErrorMessage("Failed to update chapter. Please try again.");
+        }
+      } else {
+        setErrorMessage("Failed to update chapter. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -109,13 +135,21 @@ export default function EditChapterModal({
                 min="1"
                 step="1"
                 value={chapterNumber}
-                onChange={(e) => setChapterNumber(e.target.value)}
+                onChange={(e) => {
+                  setChapterNumber(e.target.value);
+                  if (errorMessage) setErrorMessage(null); // Clear error when user starts typing
+                }}
                 onKeyDown={handleKeyPress}
                 placeholder="1"
                 disabled={isLoading}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  errorMessage ? "border-red-300" : "border-gray-300"
+                }`}
                 autoFocus
               />
+              {errorMessage && (
+                <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
+              )}
             </div>
           </div>
         </div>
