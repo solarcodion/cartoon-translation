@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { FiPlus } from "react-icons/fi";
 
 // MockUser type definition moved inline since mockData was removed
 interface MockUser {
@@ -12,6 +11,7 @@ interface MockUser {
   updated_at: string;
 }
 import EditUserModal from "../components/Modals/EditUserModal";
+import DeleteUserModal from "../components/Modals/DeleteUserModal";
 import { SectionLoadingSpinner, ErrorState } from "../components/common";
 import { ResponsivePageHeader } from "../components/Header/PageHeader";
 import { UserTable } from "../components/Lists";
@@ -25,6 +25,8 @@ export default function Users() {
   const [error, setError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserResponse | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { user: currentUser } = useAuth();
 
   // Convert UserResponse to MockUser for compatibility with existing components
@@ -89,11 +91,6 @@ export default function Users() {
     }
   };
 
-  const handleAddUser = () => {
-    // TODO: Implement add user functionality
-    console.log("Add user clicked");
-  };
-
   const handleEditUser = (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (user) {
@@ -102,7 +99,15 @@ export default function Users() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setDeletingUser(user);
+      setIsDeleteModalOpen(true);
+    }
+  };
+
+  const handleConfirmDelete = async (userId: string) => {
     try {
       if (!currentUser) {
         setError("Authentication required");
@@ -126,6 +131,7 @@ export default function Users() {
       setError(
         error instanceof Error ? error.message : "Failed to delete user"
       );
+      throw error; // Re-throw to let the modal handle the error
     }
   };
 
@@ -170,22 +176,16 @@ export default function Users() {
     setEditingUser(null);
   };
 
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingUser(null);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         {/* Page Header */}
-        <ResponsivePageHeader
-          title="User Management"
-          action={
-            <button
-              onClick={handleAddUser}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              <span className="sm:inline">Add User</span>
-            </button>
-          }
-        />
+        <ResponsivePageHeader title="User Management" />
 
         {/* Loading State */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -198,18 +198,7 @@ export default function Users() {
   if (error) {
     return (
       <div className="space-y-6">
-        <ResponsivePageHeader
-          title="User Management"
-          action={
-            <button
-              onClick={handleAddUser}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              <span className="sm:inline">Add User</span>
-            </button>
-          }
-        />
+        <ResponsivePageHeader title="User Management" />
         <ErrorState error={error} onRetry={fetchUsers} />
       </div>
     );
@@ -218,18 +207,7 @@ export default function Users() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <ResponsivePageHeader
-        title="User Management"
-        action={
-          <button
-            onClick={handleAddUser}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto cursor-pointer"
-          >
-            <FiPlus className="text-sm" />
-            <span className="sm:inline">Add User</span>
-          </button>
-        }
-      />
+      <ResponsivePageHeader title="User Management" />
 
       {/* Users Table */}
       <UserTable
@@ -245,6 +223,14 @@ export default function Users() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveUserRole}
+      />
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        user={deletingUser ? convertToMockUser(deletingUser) : null}
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onDelete={handleConfirmDelete}
       />
     </div>
   );
