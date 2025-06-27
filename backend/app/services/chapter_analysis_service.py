@@ -51,7 +51,7 @@ class ChapterAnalysisService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=2000,  # Increased for comprehensive analysis
+                max_tokens=800,  # Maximum response length set to 800 tokens
                 temperature=0.3,  # Lower temperature for more consistent analysis
                 top_p=1.0,
                 frequency_penalty=0.0,

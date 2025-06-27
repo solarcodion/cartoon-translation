@@ -14,6 +14,16 @@ export interface OCRResponse {
   processing_time?: number;
 }
 
+export interface OCRWithTranslationResponse {
+  success: boolean;
+  original_text: string; // Vietnamese text from OCR
+  translated_text: string; // English translation
+  confidence?: number;
+  processing_time?: number;
+  translation_time?: number;
+  total_time?: number;
+}
+
 export interface ApiResponse {
   success: boolean;
   message: string;
@@ -97,6 +107,81 @@ class OCRService {
       return result;
     } catch (error) {
       console.error("❌ Error in enhanced OCR request:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract Vietnamese text from image and translate to English
+   */
+  async extractTextWithTranslation(
+    imageData: string
+  ): Promise<OCRWithTranslationResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(
+        `${API_BASE_URL}/ocr/extract-text-with-translation`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            image_data: imageData,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result: OCRWithTranslationResponse = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("❌ Error in OCR with translation request:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract Vietnamese text from image using enhanced OCR and translate to English
+   */
+  async extractTextEnhancedWithTranslation(
+    imageData: string
+  ): Promise<OCRWithTranslationResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(
+        `${API_BASE_URL}/ocr/extract-text-enhanced-with-translation`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            image_data: imageData,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result: OCRWithTranslationResponse = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error(
+        "❌ Error in enhanced OCR with translation request:",
+        error
+      );
       throw error;
     }
   }

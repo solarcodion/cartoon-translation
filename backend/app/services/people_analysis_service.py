@@ -68,7 +68,7 @@ class PeopleAnalysisService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=2000,
+                max_tokens=800,  # Maximum response length set to 800 tokens
                 temperature=0.3,
                 top_p=1.0,
                 frequency_penalty=0.0,

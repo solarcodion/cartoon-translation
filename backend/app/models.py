@@ -297,6 +297,20 @@ class OCRResponse(BaseModel):
         from_attributes = True
 
 
+class OCRWithTranslationResponse(BaseModel):
+    """OCR response model with translation"""
+    success: bool
+    original_text: str  # Vietnamese text from OCR
+    translated_text: str  # English translation
+    confidence: Optional[float] = None
+    processing_time: Optional[float] = None
+    translation_time: Optional[float] = None
+    total_time: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Translation Models
 class TranslationRequest(BaseModel):
     """Translation request model"""

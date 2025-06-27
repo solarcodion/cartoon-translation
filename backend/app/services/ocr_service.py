@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from app.models import OCRResponse
+from app.models import OCRResponse, OCRWithTranslationResponse
+from app.services.translation_service import TranslationService
 
 # Handle PIL compatibility for different versions
 try:
@@ -21,22 +22,25 @@ except AttributeError:
 
 class OCRService:
     """Service for OCR operations using EasyOCR"""
-    
+
     def __init__(self):
         """Initialize OCR service with EasyOCR reader"""
-        # Initialize EasyOCR reader for English
+        # Initialize EasyOCR reader for Vietnamese
         # Using GPU if available, fallback to CPU
         try:
             # Fix PIL compatibility issue
             self._fix_pil_compatibility()
-            self.reader = easyocr.Reader(['en'], gpu=True)
+            self.reader = easyocr.Reader(['vi'], gpu=True)
         except Exception as e:
             print(f"⚠️ GPU not available, falling back to CPU: {str(e)}")
             try:
-                self.reader = easyocr.Reader(['en'], gpu=False)
+                self.reader = easyocr.Reader(['vi'], gpu=False)
             except Exception as cpu_error:
                 print(f"❌ Failed to initialize EasyOCR: {str(cpu_error)}")
                 raise Exception(f"OCR initialization failed: {str(cpu_error)}")
+
+        # Initialize translation service for Vietnamese to English translation
+        self.translation_service = TranslationService()
 
     def _fix_pil_compatibility(self):
         """Fix PIL compatibility issues with newer versions"""
@@ -234,3 +238,147 @@ class OCRService:
             return original_results
         else:
             return processed_results
+
+    async def process_image_with_translation(self, image_data: str) -> OCRWithTranslationResponse:
+        """
+        Process image with OCR (Vietnamese) and translate to English
+
+        Args:
+            image_data: Base64 encoded image data
+
+        Returns:
+            OCRWithTranslationResponse with Vietnamese text and English translation
+        """
+        try:
+            start_time = time.time()
+
+            # First, perform OCR to extract Vietnamese text
+            ocr_result = self.process_image(image_data)
+
+            if not ocr_result.success or not ocr_result.text.strip():
+                return OCRWithTranslationResponse(
+                    success=False,
+                    original_text="",
+                    translated_text="",
+                    confidence=0.0,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=0.0,
+                    total_time=time.time() - start_time
+                )
+
+            # Translate Vietnamese text to English
+            translation_start = time.time()
+            translation_result = await self.translation_service.translate_text(
+                source_text=ocr_result.text,
+                target_language="English",
+                context="This is text extracted from a Vietnamese comic/manhwa image."
+            )
+            translation_time = time.time() - translation_start
+
+            total_time = time.time() - start_time
+
+            if translation_result["success"]:
+                return OCRWithTranslationResponse(
+                    success=True,
+                    original_text=ocr_result.text,
+                    translated_text=translation_result["translated_text"],
+                    confidence=ocr_result.confidence,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=translation_time,
+                    total_time=total_time
+                )
+            else:
+                # If translation fails, return OCR result with empty translation
+                return OCRWithTranslationResponse(
+                    success=True,
+                    original_text=ocr_result.text,
+                    translated_text="[Translation failed]",
+                    confidence=ocr_result.confidence,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=translation_time,
+                    total_time=total_time
+                )
+
+        except Exception as e:
+            print(f"❌ Error in OCR with translation: {str(e)}")
+            return OCRWithTranslationResponse(
+                success=False,
+                original_text="",
+                translated_text="",
+                confidence=0.0,
+                processing_time=0.0,
+                translation_time=0.0,
+                total_time=time.time() - start_time
+            )
+
+    async def process_image_with_preprocessing_and_translation(self, image_data: str) -> OCRWithTranslationResponse:
+        """
+        Process image with enhanced OCR (preprocessing + Vietnamese) and translate to English
+
+        Args:
+            image_data: Base64 encoded image data
+
+        Returns:
+            OCRWithTranslationResponse with Vietnamese text and English translation
+        """
+        try:
+            start_time = time.time()
+
+            # First, perform enhanced OCR to extract Vietnamese text
+            ocr_result = self.process_image_with_preprocessing(image_data)
+
+            if not ocr_result.success or not ocr_result.text.strip():
+                return OCRWithTranslationResponse(
+                    success=False,
+                    original_text="",
+                    translated_text="",
+                    confidence=0.0,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=0.0,
+                    total_time=time.time() - start_time
+                )
+
+            # Translate Vietnamese text to English
+            translation_start = time.time()
+            translation_result = await self.translation_service.translate_text(
+                source_text=ocr_result.text,
+                target_language="English",
+                context="This is text extracted from a Vietnamese comic/manhwa image using enhanced OCR preprocessing."
+            )
+            translation_time = time.time() - translation_start
+
+            total_time = time.time() - start_time
+
+            if translation_result["success"]:
+                return OCRWithTranslationResponse(
+                    success=True,
+                    original_text=ocr_result.text,
+                    translated_text=translation_result["translated_text"],
+                    confidence=ocr_result.confidence,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=translation_time,
+                    total_time=total_time
+                )
+            else:
+                # If translation fails, return OCR result with empty translation
+                return OCRWithTranslationResponse(
+                    success=True,
+                    original_text=ocr_result.text,
+                    translated_text="[Translation failed]",
+                    confidence=ocr_result.confidence,
+                    processing_time=ocr_result.processing_time,
+                    translation_time=translation_time,
+                    total_time=total_time
+                )
+
+        except Exception as e:
+            print(f"❌ Error in enhanced OCR with translation: {str(e)}")
+            return OCRWithTranslationResponse(
+                success=False,
+                original_text="",
+                translated_text="",
+                confidence=0.0,
+                processing_time=0.0,
+                translation_time=0.0,
+                total_time=time.time() - start_time
+            )

@@ -3,7 +3,7 @@ from typing import Dict, Any
 
 from app.auth import get_current_user
 from app.services.ocr_service import OCRService
-from app.models import OCRRequest, OCRResponse, ApiResponse
+from app.models import OCRRequest, OCRResponse, OCRWithTranslationResponse, ApiResponse
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
 
@@ -129,6 +129,96 @@ async def extract_text_from_image_enhanced(
         )
 
 
+@router.post("/extract-text-with-translation", response_model=OCRWithTranslationResponse, status_code=status.HTTP_200_OK)
+async def extract_text_with_translation(
+    request: OCRRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Extract Vietnamese text from image and translate to English
+
+    This endpoint performs OCR on the image to extract Vietnamese text,
+    then translates it to English using OpenAI GPT.
+
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns both the original Vietnamese text and English translation.
+    """
+    try:
+        # Validate input
+        if not request.image_data or not request.image_data.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required and cannot be empty"
+            )
+
+        # Process the image with OCR and translation
+        result = await ocr_service.process_image_with_translation(request.image_data)
+
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to process image with OCR and translation"
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in extract_text_with_translation endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract and translate text from image: {str(e)}"
+        )
+
+
+@router.post("/extract-text-enhanced-with-translation", response_model=OCRWithTranslationResponse, status_code=status.HTTP_200_OK)
+async def extract_text_enhanced_with_translation(
+    request: OCRRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Extract Vietnamese text from image using enhanced OCR and translate to English
+
+    This endpoint uses image preprocessing techniques to improve OCR accuracy,
+    extracts Vietnamese text, then translates it to English using OpenAI GPT.
+
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns both the original Vietnamese text and English translation.
+    """
+    try:
+        # Validate input
+        if not request.image_data or not request.image_data.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required and cannot be empty"
+            )
+
+        # Process the image with enhanced OCR and translation
+        result = await ocr_service.process_image_with_preprocessing_and_translation(request.image_data)
+
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to process image with enhanced OCR and translation"
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in extract_text_enhanced_with_translation endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract and translate text from image with enhanced OCR: {str(e)}"
+        )
+
+
 @router.get("/health", response_model=ApiResponse, status_code=status.HTTP_200_OK)
 async def ocr_health_check(
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -147,7 +237,8 @@ async def ocr_health_check(
                 message="OCR service is healthy and ready",
                 data={
                     "service": "EasyOCR",
-                    "languages": ["en"],
+                    "languages": ["vi"],
+                    "translation_service": "OpenAI GPT",
                     "status": "ready"
                 }
             )
