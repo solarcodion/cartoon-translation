@@ -141,20 +141,13 @@ export default function Chapters() {
     if (!seriesId) return;
 
     try {
-      console.log("📋 Fetching AI glossary data from database...");
-
       const entries = await aiGlossaryService.getGlossaryBySeriesId(seriesId);
       const glossaryCharacters =
         aiGlossaryService.convertToGlossaryCharacters(entries);
 
       setGlossaryData(glossaryCharacters);
-      console.log(
-        `✅ Loaded ${entries.length} AI glossary entries from database`
-      );
     } catch (error) {
       console.error("❌ Error fetching AI glossary data:", error);
-      // Don't set main error state for glossary fetch failures
-      // Just keep empty glossary data
       setGlossaryData([]);
     }
   }, [seriesId]);
@@ -285,19 +278,15 @@ export default function Chapters() {
       }
 
       // Create TM entry using the service
-      const newEntry = await translationMemoryService.createTMEntry(seriesId, {
+      await translationMemoryService.createTMEntry(seriesId, {
         source_text: entryData.source,
         target_text: entryData.target,
         context: entryData.context,
       });
 
-      console.log("✅ TM entry added successfully:", newEntry);
-
-      // Refresh translation memory data to show the new entry
       await fetchTranslationMemory();
     } catch (error) {
       console.error("Error adding TM entry:", error);
-      throw error; // Re-throw to let the modal handle the error
     }
   };
 
@@ -331,13 +320,10 @@ export default function Chapters() {
         context: entryData.context,
       });
 
-      console.log("✅ TM entry updated successfully");
-
-      // Refresh translation memory data to show the updated entry
       await fetchTranslationMemory();
     } catch (error) {
       console.error("Error updating TM entry:", error);
-      throw error; // Re-throw to let the modal handle the error
+      throw error;
     }
   };
 
@@ -360,8 +346,6 @@ export default function Chapters() {
       // Delete TM entry using the service (tmId is already a UUID string)
       await translationMemoryService.deleteTMEntry(tmId);
 
-      console.log("✅ TM entry deleted successfully");
-
       // Refresh translation memory data to remove the deleted entry
       await fetchTranslationMemory();
     } catch (error) {
@@ -376,7 +360,6 @@ export default function Chapters() {
 
     try {
       setIsGlossaryRefreshing(true);
-      console.log("🔄 Refreshing glossary for series:", seriesId);
 
       // Analyze people in the series (this will save to database automatically)
       const result = await peopleAnalysisService.analyzePeopleInSeries(
@@ -385,14 +368,8 @@ export default function Chapters() {
       );
 
       if (result.success) {
-        console.log(
-          `✅ People analysis completed. Found ${result.total_people_found} people.`
-        );
-
         // Fetch the updated data from database
         await fetchGlossaryData();
-
-        console.log("✅ Glossary refreshed successfully from database.");
       } else {
         throw new Error("People analysis failed");
       }
@@ -402,7 +379,6 @@ export default function Chapters() {
       // Try to fetch existing data from database as fallback
       try {
         await fetchGlossaryData();
-        console.log("ℹ️ Loaded existing glossary data from database");
       } catch (dbError) {
         console.error("❌ Error loading fallback data:", dbError);
         // Create minimal fallback data

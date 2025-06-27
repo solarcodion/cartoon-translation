@@ -47,7 +47,6 @@ class TranslationMemoryService {
         token
       );
 
-      console.log("✅ TM Entry created:", response);
       return response;
     } catch (error) {
       console.error("❌ Error creating TM entry:", error);
@@ -72,7 +71,6 @@ class TranslationMemoryService {
         token
       );
 
-      console.log("✅ TM Entries fetched:", response);
       return response;
     } catch (error) {
       console.error("❌ Error fetching TM entries:", error);
@@ -101,7 +99,6 @@ class TranslationMemoryService {
         token
       );
 
-      console.log("✅ TM Entry updated:", response);
       return response;
     } catch (error) {
       console.error(`❌ Error updating TM entry ${id}:`, error);
@@ -122,8 +119,6 @@ class TranslationMemoryService {
       }
 
       await apiClient.delete(`/translation-memory/${id}`, token);
-
-      console.log("✅ TM Entry deleted:", id);
     } catch (error) {
       console.error(`❌ Error deleting TM entry ${id}:`, error);
       throw new Error(
@@ -152,7 +147,6 @@ class TranslationMemoryService {
         token
       );
 
-      console.log("✅ TM Entries search results:", response);
       return response;
     } catch (error) {
       console.error("❌ Error searching TM entries:", error);
@@ -178,7 +172,6 @@ class TranslationMemoryService {
         token
       );
 
-      console.log("✅ TM Entry usage incremented:", response);
       return response;
     } catch (error) {
       console.error(`❌ Error incrementing TM entry usage ${id}:`, error);

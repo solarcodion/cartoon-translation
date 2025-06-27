@@ -63,7 +63,6 @@ export default function UploadPageModal({
 
           if (ocrResult.success && ocrResult.text.trim()) {
             extractedContext = ocrResult.text.trim();
-            console.log("✅ OCR completed successfully:", extractedContext);
           }
         } catch (ocrError) {
           console.error("❌ OCR processing failed:", ocrError);

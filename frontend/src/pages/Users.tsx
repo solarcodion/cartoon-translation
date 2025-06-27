@@ -121,7 +121,6 @@ export default function Users() {
 
       // Remove user from local state
       setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
-      console.log("User deleted successfully");
     } catch (error) {
       console.error("Error deleting user:", error);
       setError(
@@ -158,8 +157,6 @@ export default function Users() {
       setUsers((prevUsers) =>
         prevUsers.map((user) => (user.id === userId ? updatedUser : user))
       );
-
-      console.log("User role updated successfully");
     } catch (error) {
       console.error("Error updating user role:", error);
       setError(

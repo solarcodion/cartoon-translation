@@ -82,14 +82,12 @@ export default function EditTextBoxModal({
 
     try {
       setIsTranslating(true);
-      console.log("🔄 Starting AI translation...");
 
       // Call the translation API
       const result = await translationService.quickTranslate(ocrText.trim());
 
       if (result.translated_text) {
         setAiTranslatedText(result.translated_text);
-        console.log("✅ AI translation completed successfully");
       } else {
         console.warn("⚠️ Translation completed but no text returned");
         setAiTranslatedText("Translation completed but no result returned");

@@ -47,8 +47,6 @@ class PeopleAnalysisService {
     forceRefresh: boolean = false
   ): Promise<PeopleAnalysisResponse> {
     try {
-      console.log(`🔄 Analyzing people in series ${seriesId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
         throw new Error("Authentication required. Please log in.");
@@ -66,9 +64,6 @@ class PeopleAnalysisService {
       );
 
       if (response.success) {
-        console.log(
-          `✅ People analysis completed. Found ${response.total_people_found} people.`
-        );
         return response;
       } else {
         throw new Error("People analysis failed");

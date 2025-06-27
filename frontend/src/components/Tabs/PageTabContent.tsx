@@ -589,7 +589,6 @@ export function ContextTabContent({
 
   const handleSave = async () => {
     if (!onSaveNotes) {
-      console.log("Save notes:", notes);
       return;
     }
 
@@ -600,12 +599,9 @@ export function ContextTabContent({
 
       // Show success feedback
       setSaveComplete(true);
-      setTimeout(() => setSaveComplete(false), 2000); // Hide after 2 seconds
-
-      console.log("✅ Context notes saved successfully");
+      setTimeout(() => setSaveComplete(false), 2000);
     } catch (error) {
       console.error("❌ Failed to save context notes:", error);
-      // You might want to show an error toast here
     } finally {
       setIsSaving(false);
     }
@@ -619,10 +615,6 @@ export function ContextTabContent({
 
     setIsAnalyzing(true);
     try {
-      console.log("🔄 Starting chapter analysis...");
-      console.log("📊 Pages data:", pages);
-      console.log("📊 Chapter info:", chapterInfo);
-
       const analysisRequest = {
         pages: pages
           .filter((page) => {
@@ -660,8 +652,6 @@ export function ContextTabContent({
             : undefined,
       };
 
-      console.log("📊 Analysis request:", analysisRequest);
-
       // Validate request before sending
       if (!analysisRequest.pages.length) {
         throw new Error("No valid pages found for analysis");
@@ -681,9 +671,6 @@ export function ContextTabContent({
         analysisRequest
       );
 
-      console.log("✅ Chapter analysis completed");
-      console.log("📊 Analysis result:", result);
-
       // Update the notes with the new context from the analysis
       setNotes(result.chapter_context);
 
@@ -700,8 +687,6 @@ export function ContextTabContent({
       // Show success feedback
       setAnalysisComplete(true);
       setTimeout(() => setAnalysisComplete(false), 3000); // Hide after 3 seconds
-
-      console.log("✅ Context area updated with analysis result");
     } catch (error) {
       console.error("❌ Chapter analysis failed:", error);
 

@@ -211,9 +211,6 @@ class ChapterService {
         throw new Error("Authentication required");
       }
 
-      console.log(`🔄 Analyzing chapter ${chapterId}...`);
-      console.log(`📊 Request contains ${analysisRequest.pages.length} pages`);
-
       const response = await apiClient.post<{
         success: boolean;
         message: string;
@@ -223,12 +220,6 @@ class ChapterService {
       if (!response.success) {
         throw new Error(response.message || "Chapter analysis failed");
       }
-
-      console.log(`✅ Chapter analysis completed successfully`);
-      console.log(
-        `⏱️ Processing time: ${response.data.processing_time?.toFixed(2)}s`
-      );
-      console.log(`🎯 Tokens used: ${response.data.tokens_used}`);
 
       return response.data;
     } catch (error) {

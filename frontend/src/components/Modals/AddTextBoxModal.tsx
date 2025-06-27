@@ -301,30 +301,17 @@ export default function AddTextBoxModal({
       setIsCropped(true);
       setCroppedImageData(croppedDataUrl);
 
-      // Log the cropped image data URL to console
-      console.log("Cropped Image Data URL:", croppedDataUrl);
-      console.log(
-        "Cropped Image Size:",
-        `${boundingBox.width}x${boundingBox.height}px`
-      );
-      console.log("Bounding Box Coordinates:", boundingBox);
-
       // Process with OCR
       try {
-        console.log("🔍 Starting OCR processing...");
         const ocrResult = await ocrService.extractText(croppedDataUrl);
 
         if (ocrResult.success && ocrResult.text.trim()) {
           setOcrText(ocrResult.text.trim());
-          console.log("✅ OCR completed successfully:", ocrResult.text);
         } else {
           console.log("⚠️ OCR completed but no text was detected");
-          // Don't clear existing text, just log the result
         }
       } catch (ocrError) {
         console.error("❌ OCR processing failed:", ocrError);
-        // Don't show error to user, just log it
-        // The crop functionality still works even if OCR fails
       }
     } catch (error) {
       console.error("Error cropping image:", error);
@@ -723,14 +710,12 @@ export default function AddTextBoxModal({
 
     try {
       setIsTranslating(true);
-      console.log("🔄 Starting AI translation...");
 
       // Call the translation API
       const result = await translationService.quickTranslate(ocrText.trim());
 
       if (result.translated_text) {
         setAiTranslatedText(result.translated_text);
-        console.log("✅ AI translation completed successfully");
       } else {
         console.warn("⚠️ Translation completed but no text returned");
         setAiTranslatedText("Translation completed but no result returned");

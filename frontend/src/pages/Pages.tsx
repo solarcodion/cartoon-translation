@@ -141,13 +141,6 @@ export default function Pages() {
         throw new Error("Chapter ID is required");
       }
 
-      console.log(
-        "Uploading page:",
-        pageNumber,
-        file.name,
-        context ? "with context" : "without context"
-      );
-
       // Upload to API
       const apiPage = await pageService.createPage({
         chapter_id: chapterId,
@@ -187,8 +180,6 @@ export default function Pages() {
     pageData: { page_number?: number }
   ) => {
     try {
-      console.log("Updating page:", pageId, pageData);
-
       // Update via API
       await pageService.updatePage(pageId, pageData);
 
@@ -243,8 +234,6 @@ export default function Pages() {
 
       // Update local state
       setChapterInfo((prev) => (prev ? { ...prev, context } : null));
-
-      console.log("Chapter context saved successfully");
     } catch (err) {
       console.error("Error saving chapter context:", err);
       // You might want to show a toast notification here
@@ -260,8 +249,6 @@ export default function Pages() {
     croppedImage?: string
   ) => {
     try {
-      console.log("Adding text box:", textBoxData);
-
       // Convert legacy format to API format
       const apiTextBoxData = convertLegacyTextBoxToApi(
         textBoxData,
@@ -269,9 +256,7 @@ export default function Pages() {
       );
 
       // Create the text box via API
-      const createdTextBox = await textBoxService.createTextBox(apiTextBoxData);
-
-      console.log("✅ Text box created successfully:", createdTextBox);
+      await textBoxService.createTextBox(apiTextBoxData);
 
       // Close the modal
       setIsAddTextBoxModalOpen(false);
@@ -289,8 +274,6 @@ export default function Pages() {
 
   const handleConfirmDeletePage = async (pageId: string) => {
     try {
-      console.log("Deleting page:", pageId);
-
       // Delete from API (pageId is already a UUID string)
       await pageService.deletePage(pageId);
 
@@ -445,7 +428,6 @@ export default function Pages() {
                         ? { ...prev, context: updatedChapterData.context }
                         : null
                     );
-                    console.log("✅ Chapter context refreshed after analysis");
                   }
                 }
               } catch (error) {

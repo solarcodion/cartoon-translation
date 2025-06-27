@@ -41,32 +41,28 @@ class AIGlossaryService {
    */
   async getGlossaryBySeriesId(seriesId: string): Promise<AIGlossaryEntry[]> {
     try {
-      console.log(`📋 Fetching AI glossary for series ${seriesId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       const response = await apiClient.get<AIGlossaryEntry[]>(
         `/ai-glossary/series/${seriesId}`,
         token
       );
-
-      console.log(`✅ Found ${response.length} AI glossary entries for series ${seriesId}`);
       return response;
     } catch (error: any) {
-      console.error('❌ AI glossary fetch error:', error);
-      
-      if (error.message.includes('404')) {
+      console.error("❌ AI glossary fetch error:", error);
+
+      if (error.message.includes("404")) {
         // Return empty array if no entries found
         return [];
-      } else if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to fetch AI glossary');
+        throw new Error("Failed to fetch AI glossary");
       }
     }
   }
@@ -76,11 +72,9 @@ class AIGlossaryService {
    */
   async getGlossaryEntryById(entryId: string): Promise<AIGlossaryEntry> {
     try {
-      console.log(`🔍 Fetching AI glossary entry ${entryId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       const response = await apiClient.get<AIGlossaryEntry>(
@@ -88,19 +82,18 @@ class AIGlossaryService {
         token
       );
 
-      console.log(`✅ AI glossary entry ${entryId} retrieved successfully`);
       return response;
     } catch (error: any) {
-      console.error('❌ AI glossary entry fetch error:', error);
-      
-      if (error.message.includes('404')) {
-        throw new Error('AI glossary entry not found');
-      } else if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      console.error("❌ AI glossary entry fetch error:", error);
+
+      if (error.message.includes("404")) {
+        throw new Error("AI glossary entry not found");
+      } else if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to fetch AI glossary entry');
+        throw new Error("Failed to fetch AI glossary entry");
       }
     }
   }
@@ -108,13 +101,13 @@ class AIGlossaryService {
   /**
    * Create a new AI glossary entry
    */
-  async createGlossaryEntry(entryData: AIGlossaryCreate): Promise<AIGlossaryEntry> {
+  async createGlossaryEntry(
+    entryData: AIGlossaryCreate
+  ): Promise<AIGlossaryEntry> {
     try {
-      console.log(`📝 Creating AI glossary entry...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       const response = await apiClient.post<AIGlossaryEntry>(
@@ -123,17 +116,16 @@ class AIGlossaryService {
         token
       );
 
-      console.log(`✅ AI glossary entry created successfully: ${response.id}`);
       return response;
     } catch (error: any) {
-      console.error('❌ AI glossary entry creation error:', error);
-      
-      if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      console.error("❌ AI glossary entry creation error:", error);
+
+      if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to create AI glossary entry');
+        throw new Error("Failed to create AI glossary entry");
       }
     }
   }
@@ -146,11 +138,9 @@ class AIGlossaryService {
     entryData: AIGlossaryUpdate
   ): Promise<AIGlossaryEntry> {
     try {
-      console.log(`📝 Updating AI glossary entry ${entryId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
       const response = await apiClient.put<AIGlossaryEntry>(
@@ -159,19 +149,18 @@ class AIGlossaryService {
         token
       );
 
-      console.log(`✅ AI glossary entry ${entryId} updated successfully`);
       return response;
     } catch (error: any) {
-      console.error('❌ AI glossary entry update error:', error);
-      
-      if (error.message.includes('404')) {
-        throw new Error('AI glossary entry not found');
-      } else if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      console.error("❌ AI glossary entry update error:", error);
+
+      if (error.message.includes("404")) {
+        throw new Error("AI glossary entry not found");
+      } else if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to update AI glossary entry');
+        throw new Error("Failed to update AI glossary entry");
       }
     }
   }
@@ -181,30 +170,23 @@ class AIGlossaryService {
    */
   async deleteGlossaryEntry(entryId: string): Promise<void> {
     try {
-      console.log(`🗑️ Deleting AI glossary entry ${entryId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
-      await apiClient.delete(
-        `/ai-glossary/${entryId}`,
-        token
-      );
-
-      console.log(`✅ AI glossary entry ${entryId} deleted successfully`);
+      await apiClient.delete(`/ai-glossary/${entryId}`, token);
     } catch (error: any) {
-      console.error('❌ AI glossary entry deletion error:', error);
-      
-      if (error.message.includes('404')) {
-        throw new Error('AI glossary entry not found');
-      } else if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      console.error("❌ AI glossary entry deletion error:", error);
+
+      if (error.message.includes("404")) {
+        throw new Error("AI glossary entry not found");
+      } else if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to delete AI glossary entry');
+        throw new Error("Failed to delete AI glossary entry");
       }
     }
   }
@@ -214,30 +196,29 @@ class AIGlossaryService {
    */
   async clearSeriesGlossary(seriesId: string): Promise<number> {
     try {
-      console.log(`🧹 Clearing AI glossary for series ${seriesId}...`);
-
       const token = await this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in.');
+        throw new Error("Authentication required. Please log in.");
       }
 
-      const response = await apiClient.delete<{success: boolean, message: string, data: {deleted_count: number}}>(
-        `/ai-glossary/series/${seriesId}/clear`,
-        token
-      );
+      const response = await apiClient.delete<{
+        success: boolean;
+        message: string;
+        data: { deleted_count: number };
+      }>(`/ai-glossary/series/${seriesId}/clear`, token);
 
       const deletedCount = response.data?.deleted_count || 0;
-      console.log(`✅ Cleared ${deletedCount} AI glossary entries for series ${seriesId}`);
+
       return deletedCount;
     } catch (error: any) {
-      console.error('❌ AI glossary clear error:', error);
-      
-      if (error.message.includes('401')) {
-        throw new Error('Authentication failed. Please log in again.');
+      console.error("❌ AI glossary clear error:", error);
+
+      if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
       } else if (error.message) {
         throw new Error(error.message);
       } else {
-        throw new Error('Failed to clear AI glossary');
+        throw new Error("Failed to clear AI glossary");
       }
     }
   }
@@ -260,17 +241,25 @@ class AIGlossaryService {
    * Convert multiple AI glossary entries to GlossaryCharacter format
    */
   convertToGlossaryCharacters(entries: AIGlossaryEntry[]): any[] {
-    return entries.map(entry => this.convertToGlossaryCharacter(entry));
+    return entries.map((entry) => this.convertToGlossaryCharacter(entry));
   }
 
   /**
    * Get simple avatar URL for characters
    */
   getSimpleAvatarUrl(characterName: string): string {
-    const colors = ['blue', 'green', 'purple', 'orange', 'red', 'indigo', 'pink'];
+    const colors = [
+      "blue",
+      "green",
+      "purple",
+      "orange",
+      "red",
+      "indigo",
+      "pink",
+    ];
     const colorIndex = characterName.length % colors.length;
     const color = colors[colorIndex];
-    
+
     // Using UI Avatars service with character name
     const encodedName = encodeURIComponent(characterName);
     return `https://ui-avatars.com/api/?name=${encodedName}&background=${color}&color=fff&size=128`;
