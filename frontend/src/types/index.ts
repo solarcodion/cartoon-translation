@@ -17,3 +17,10 @@ export * from "./translation";
 
 // Text box types
 export * from "./textbox";
+
+// AI Glossary types (from service)
+export type {
+  AIGlossaryEntry,
+  AIGlossaryCreate,
+  AIGlossaryUpdate,
+} from "../services/aiGlossaryService";

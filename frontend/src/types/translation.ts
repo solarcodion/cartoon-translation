@@ -40,4 +40,5 @@ export interface GlossaryCharacter {
   mentionedChapters: number[];
   status: "Ongoing" | "All";
   image?: string;
+  confidence_score?: number;
 }

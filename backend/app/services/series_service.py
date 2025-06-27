@@ -190,3 +190,60 @@ class SeriesService:
         except Exception as e:
             print(f"❌ Error fetching series statistics: {str(e)}")
             raise Exception(f"Failed to fetch series statistics: {str(e)}")
+
+    async def get_chapters_with_pages_for_analysis(self, series_id: str) -> List[Dict[str, Any]]:
+        """Get all chapters with their pages and contexts for people analysis"""
+        try:
+            print(f"📋 Fetching chapters with pages for series {series_id}")
+
+            # Get all chapters for the series
+            chapters_response = (
+                self.supabase.table("chapters")
+                .select("*")
+                .eq("series_id", series_id)
+                .order("chapter_number")
+                .execute()
+            )
+
+            if not chapters_response.data:
+                print(f"ℹ️ No chapters found for series {series_id}")
+                return []
+
+            chapters_data = []
+
+            for chapter in chapters_response.data:
+                chapter_id = chapter["id"]
+
+                # Get pages for this chapter
+                pages_response = (
+                    self.supabase.table("pages")
+                    .select("*")
+                    .eq("chapter_id", chapter_id)
+                    .order("page_number")
+                    .execute()
+                )
+
+                pages_data = []
+                if pages_response.data:
+                    for page in pages_response.data:
+                        pages_data.append({
+                            "number": page.get("page_number"),
+                            "image_url": page.get("image_url"),
+                            "context": page.get("context")
+                        })
+
+                chapter_data = {
+                    "id": chapter_id,
+                    "number": chapter.get("chapter_number"),
+                    "context": chapter.get("context", ""),
+                    "pages": pages_data
+                }
+
+                chapters_data.append(chapter_data)
+
+            print(f"✅ Found {len(chapters_data)} chapters with pages for analysis")
+            return chapters_data
+
+        except Exception as e:
+            print(f"❌ Error getting chapters with pages: {str(e)}")
+            raise Exception(f"Failed to get chapters with pages: {str(e)}")

@@ -17,10 +17,14 @@ import DeleteChapterModal from "../components/Modals/DeleteChapterModal";
 import AddTMEntryModal from "../components/Modals/AddTMEntryModal";
 import EditTMEntryModal from "../components/Modals/EditTMEntryModal";
 import DeleteTMEntryModal from "../components/Modals/DeleteTMEntryModal";
-import type { Chapter, SeriesInfo, TranslationMemory } from "../types";
+import type {
+  Chapter,
+  SeriesInfo,
+  TranslationMemory,
+  GlossaryCharacter,
+} from "../types";
 import { convertApiChapterToLegacy } from "../types/series";
 import { convertApiTMToLegacy } from "../types/translation";
-import { glossaryData } from "../data/mockData";
 import {
   AIGlossaryTabContent,
   ChaptersTabContent,
@@ -29,6 +33,8 @@ import {
 import { chapterService } from "../services/chapterService";
 import { seriesService } from "../services/seriesService";
 import { translationMemoryService } from "../services/translationMemoryService";
+import { peopleAnalysisService } from "../services/peopleAnalysisService";
+import { aiGlossaryService } from "../services/aiGlossaryService";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
@@ -38,8 +44,10 @@ export default function Chapters() {
   const [translationMemoryData, setTranslationMemoryData] = useState<
     TranslationMemory[]
   >([]);
+  const [glossaryData, setGlossaryData] = useState<GlossaryCharacter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTMLoading, setIsTMLoading] = useState(false);
+  const [isGlossaryRefreshing, setIsGlossaryRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "chapters" | "translation" | "glossary"
@@ -128,14 +136,44 @@ export default function Chapters() {
     }
   }, [seriesId]);
 
+  // Fetch AI glossary data
+  const fetchGlossaryData = useCallback(async () => {
+    if (!seriesId) return;
+
+    try {
+      console.log("📋 Fetching AI glossary data from database...");
+
+      const entries = await aiGlossaryService.getGlossaryBySeriesId(seriesId);
+      const glossaryCharacters =
+        aiGlossaryService.convertToGlossaryCharacters(entries);
+
+      setGlossaryData(glossaryCharacters);
+      console.log(
+        `✅ Loaded ${entries.length} AI glossary entries from database`
+      );
+    } catch (error) {
+      console.error("❌ Error fetching AI glossary data:", error);
+      // Don't set main error state for glossary fetch failures
+      // Just keep empty glossary data
+      setGlossaryData([]);
+    }
+  }, [seriesId]);
+
   useEffect(() => {
     if (seriesId) {
       fetchChapters();
       fetchTranslationMemory();
+      fetchGlossaryData();
     } else {
       navigate("/series");
     }
-  }, [seriesId, navigate, fetchChapters, fetchTranslationMemory]);
+  }, [
+    seriesId,
+    navigate,
+    fetchChapters,
+    fetchTranslationMemory,
+    fetchGlossaryData,
+  ]);
 
   const handleAddChapter = () => {
     setIsAddModalOpen(true);
@@ -332,6 +370,55 @@ export default function Chapters() {
     }
   };
 
+  // Glossary Refresh Handler
+  const handleRefreshGlossary = async () => {
+    if (!seriesId) return;
+
+    try {
+      setIsGlossaryRefreshing(true);
+      console.log("🔄 Refreshing glossary for series:", seriesId);
+
+      // Analyze people in the series (this will save to database automatically)
+      const result = await peopleAnalysisService.analyzePeopleInSeries(
+        seriesId,
+        true // force refresh
+      );
+
+      if (result.success) {
+        console.log(
+          `✅ People analysis completed. Found ${result.total_people_found} people.`
+        );
+
+        // Fetch the updated data from database
+        await fetchGlossaryData();
+
+        console.log("✅ Glossary refreshed successfully from database.");
+      } else {
+        throw new Error("People analysis failed");
+      }
+    } catch (error) {
+      console.error("❌ Error refreshing glossary:", error);
+
+      // Try to fetch existing data from database as fallback
+      try {
+        await fetchGlossaryData();
+        console.log("ℹ️ Loaded existing glossary data from database");
+      } catch (dbError) {
+        console.error("❌ Error loading fallback data:", dbError);
+        // Create minimal fallback data
+        const fallbackPeople =
+          peopleAnalysisService.createFallbackPeople(seriesId);
+        const enhancedFallback =
+          peopleAnalysisService.enhancePeopleWithAvatars(fallbackPeople);
+        setGlossaryData(
+          peopleAnalysisService.convertToGlossaryCharacters(enhancedFallback)
+        );
+      }
+    } finally {
+      setIsGlossaryRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-8">
@@ -436,7 +523,13 @@ export default function Chapters() {
       />
 
       {/* AI Glossary Section */}
-      <AIGlossaryTabContent activeTab={activeTab} glossaryData={glossaryData} />
+      <AIGlossaryTabContent
+        activeTab={activeTab}
+        glossaryData={glossaryData}
+        seriesId={seriesId}
+        onRefreshGlossary={handleRefreshGlossary}
+        isRefreshing={isGlossaryRefreshing}
+      />
 
       {/* Add Chapter Modal */}
       <AddChapterModal

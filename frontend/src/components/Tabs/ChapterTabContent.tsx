@@ -328,11 +328,17 @@ export function TranslationMemoryTabContent({
 interface AIGlossaryTabContentProps {
   activeTab: string;
   glossaryData: GlossaryCharacter[];
+  seriesId?: string;
+  onRefreshGlossary?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function AIGlossaryTabContent({
   activeTab,
   glossaryData,
+  seriesId,
+  onRefreshGlossary,
+  isRefreshing = false,
 }: AIGlossaryTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="glossary">
@@ -348,9 +354,15 @@ export function AIGlossaryTabContent({
                 summarized by AI.
               </p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
-              <FiRefreshCw className="text-sm" />
-              Refresh Glossary
+            <button
+              onClick={onRefreshGlossary}
+              disabled={isRefreshing || !seriesId}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiRefreshCw
+                className={`text-sm ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              {isRefreshing ? "Analyzing..." : "Refresh Glossary"}
             </button>
           </div>
         </div>
@@ -363,9 +375,26 @@ export function AIGlossaryTabContent({
                 className="bg-white border border-gray-200 rounded-lg overflow-hidden"
               >
                 {/* Character Image with Name Overlay */}
-                <div className="relative h-128 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
-                  <div className="w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-600 text-xl">📷</span>
+                <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center overflow-hidden">
+                  {character.image ? (
+                    <img
+                      src={character.image}
+                      alt={character.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        target.nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center ${
+                      character.image ? "hidden" : ""
+                    }`}
+                  >
+                    <span className="text-gray-600 text-xl">👤</span>
                   </div>
                   {/* Character Name Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end">

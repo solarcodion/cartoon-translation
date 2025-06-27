@@ -358,6 +358,86 @@ class ChapterAnalysisRequest(BaseModel):
         validate_assignment = True
 
 
+# People Analysis Models
+class PersonInfo(BaseModel):
+    """Information about a person/character detected in the series"""
+    id: str
+    name: str
+    description: str
+    image_url: Optional[str] = None
+    mentioned_chapters: list[int]
+    confidence_score: Optional[float] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PeopleAnalysisRequest(BaseModel):
+    """Request model for analyzing people in a series"""
+    series_id: str
+    force_refresh: bool = False  # Whether to force re-analysis even if data exists
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PeopleAnalysisResponse(BaseModel):
+    """Response model for people analysis"""
+    success: bool
+    people: list[PersonInfo]
+    total_people_found: int
+    processing_time: Optional[float] = None
+    model: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+# AI Glossary Models
+class AIGlossaryBase(BaseModel):
+    """Base AI glossary model"""
+    name: str
+    description: str
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class AIGlossaryCreate(AIGlossaryBase):
+    """AI glossary creation model"""
+    series_id: str
+
+
+class AIGlossaryUpdate(BaseModel):
+    """AI glossary update model"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class AIGlossaryResponse(AIGlossaryBase):
+    """AI glossary response model"""
+    id: str
+    series_id: str
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class AIGlossaryInDB(AIGlossaryResponse):
+    """AI glossary model for database operations"""
+    pass
+
+
 class ChapterAnalysisResponse(BaseModel):
     """Chapter analysis response model"""
     success: bool
