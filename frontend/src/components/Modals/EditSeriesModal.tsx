@@ -17,11 +17,13 @@ export default function EditSeriesModal({
 }: EditSeriesModalProps) {
   const [seriesName, setSeriesName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Update series name when series changes
   useEffect(() => {
     if (series) {
       setSeriesName(series.name);
+      setError(null); // Clear error when series changes
     }
   }, [series]);
 
@@ -30,10 +32,16 @@ export default function EditSeriesModal({
 
     try {
       setIsLoading(true);
+      setError(null); // Clear any previous errors
       await onSave(series.id, seriesName.trim());
+      setError(null); // Clear error on success
       onClose();
     } catch (error) {
       console.error("Error saving series name:", error);
+      // Extract error message from the error object
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update series";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +49,7 @@ export default function EditSeriesModal({
 
   const handleClose = () => {
     if (!isLoading) {
+      setError(null); // Clear error on close
       onClose();
     }
   };
@@ -102,18 +111,21 @@ export default function EditSeriesModal({
             <input
               type="text"
               value={seriesName}
-              onChange={(e) => setSeriesName(e.target.value)}
+              onChange={(e) => {
+                setSeriesName(e.target.value);
+                if (error) setError(null); // Clear error when user starts typing
+              }}
               onKeyDown={handleKeyPress}
               placeholder="Enter series name"
               disabled={isLoading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${
+                error
+                  ? "border-red-300 focus:ring-red-500"
+                  : "border-gray-300 focus:ring-blue-500"
+              }`}
               autoFocus
             />
-            {!isValidName && seriesName.length > 0 && (
-              <p className="text-sm text-red-600">
-                Series name cannot be empty
-              </p>
-            )}
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
 
           {/* Help Text */}

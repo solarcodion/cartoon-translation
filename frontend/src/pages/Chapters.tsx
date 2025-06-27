@@ -185,9 +185,9 @@ export default function Chapters() {
         chapter_number: chapterNumber,
       });
 
-      // Convert to legacy format and add to list
+      // Convert to legacy format and add to list at the beginning
       const newLegacyChapter = convertApiChapterToLegacy(newApiChapter);
-      setChapters((prevChapters) => [...prevChapters, newLegacyChapter]);
+      setChapters((prevChapters) => [newLegacyChapter, ...prevChapters]);
     } catch (error) {
       console.error("Error adding chapter:", error);
       throw error; // Re-throw to let the modal handle the error

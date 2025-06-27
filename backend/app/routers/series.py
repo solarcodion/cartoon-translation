@@ -139,10 +139,19 @@ async def create_series(
     except HTTPException:
         raise
     except Exception as e:
+        error_message = str(e)
         print(f"❌ Unexpected error in create_series: {e}")
+
+        # Check if it's a duplicate name error
+        if "already exists" in error_message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_message
+            )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create series: {str(e)}"
+            detail=f"Failed to create series: {error_message}"
         )
 
 
@@ -206,10 +215,19 @@ async def update_series(
     except HTTPException:
         raise
     except Exception as e:
+        error_message = str(e)
         print(f"❌ UPDATE - Unexpected error: {e}")
+
+        # Check if it's a duplicate name error
+        if "already exists" in error_message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_message
+            )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update series: {str(e)}"
+            detail=f"Failed to update series: {error_message}"
         )
 
 

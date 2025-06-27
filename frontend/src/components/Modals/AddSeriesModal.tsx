@@ -14,17 +14,24 @@ export default function AddSeriesModal({
 }: AddSeriesModalProps) {
   const [seriesName, setSeriesName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!seriesName.trim()) return;
 
     try {
       setIsLoading(true);
+      setError(null); // Clear any previous errors
       await onAdd(seriesName.trim());
       setSeriesName(""); // Reset form
+      setError(null); // Clear error on success
       onClose();
     } catch (error) {
       console.error("Error adding series:", error);
+      // Extract error message from the error object
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create series";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -33,6 +40,7 @@ export default function AddSeriesModal({
   const handleClose = () => {
     if (!isLoading) {
       setSeriesName(""); // Reset form on close
+      setError(null); // Clear error on close
       onClose();
     }
   };
@@ -85,12 +93,20 @@ export default function AddSeriesModal({
                 id="seriesName"
                 type="text"
                 value={seriesName}
-                onChange={(e) => setSeriesName(e.target.value)}
+                onChange={(e) => {
+                  setSeriesName(e.target.value);
+                  if (error) setError(null); // Clear error when user starts typing
+                }}
                 placeholder="e.g., Solo Leveling"
                 disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50 ${
+                  error
+                    ? "border-red-300 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-gray-500"
+                }`}
                 autoFocus
               />
+              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
             </div>
           </div>
 

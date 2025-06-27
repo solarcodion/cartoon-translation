@@ -63,9 +63,9 @@ export default function Series() {
         title: seriesName,
       });
 
-      // Convert to legacy format and add to list
+      // Convert to legacy format and add to list at the beginning
       const newLegacySeries = convertApiSeriesToLegacy(newApiSeries);
-      setSeries((prevSeries) => [...prevSeries, newLegacySeries]);
+      setSeries((prevSeries) => [newLegacySeries, ...prevSeries]);
     } catch (error) {
       console.error("Error adding series:", error);
       throw error; // Re-throw to let the modal handle the error

@@ -105,11 +105,14 @@ class SeriesService {
       return response;
     } catch (error) {
       console.error("❌ Error creating series:", error);
-      throw new Error(
-        `Failed to create series: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+
+      // If it's already an Error object with a message, just re-throw it
+      // The API client already extracts the proper error message from the response
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error("Failed to create series: Unknown error");
     }
   }
 

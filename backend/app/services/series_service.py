@@ -11,9 +11,29 @@ class SeriesService:
         self.supabase = supabase
         self.table_name = "series"
     
+    async def check_series_name_exists(self, title: str) -> bool:
+        """Check if a series with the given title already exists"""
+        try:
+            response = (
+                self.supabase.table(self.table_name)
+                .select("id")
+                .ilike("title", title)  # Case-insensitive search
+                .execute()
+            )
+
+            return len(response.data) > 0
+
+        except Exception as e:
+            print(f"❌ Error checking series name existence: {str(e)}")
+            raise Exception(f"Failed to check series name: {str(e)}")
+
     async def create_series(self, series_data: SeriesCreate, created_by: str) -> SeriesResponse:
         """Create a new series"""
         try:
+            # Check if series name already exists
+            if await self.check_series_name_exists(series_data.title):
+                raise Exception(f"A series with the name '{series_data.title}' already exists")
+
             # Prepare data for insertion with defaults
             insert_data = {
                 "title": series_data.title,
@@ -22,17 +42,17 @@ class SeriesService:
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
-            
+
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
-            
+
             if not response.data:
                 raise Exception("Failed to create series - no data returned")
-            
+
             series_data = response.data[0]
-            
+
             return SeriesResponse(**series_data)
-            
+
         except Exception as e:
             print(f"❌ Error creating series: {str(e)}")
             raise Exception(f"Failed to create series: {str(e)}")
@@ -93,10 +113,24 @@ class SeriesService:
                         update_data[field] = value.value
                     else:
                         update_data[field] = value
-            
+
+            # Check if title is being updated and if it already exists (excluding current series)
+            if "title" in update_data:
+                # Check if another series with this title exists
+                response = (
+                    self.supabase.table(self.table_name)
+                    .select("id")
+                    .ilike("title", update_data["title"])
+                    .neq("id", series_id)  # Exclude current series
+                    .execute()
+                )
+
+                if len(response.data) > 0:
+                    raise Exception(f"A series with the name '{update_data['title']}' already exists")
+
             # Always update the updated_at timestamp
             update_data["updated_at"] = datetime.utcnow().isoformat()
-            
+
             if not update_data:
                 raise Exception("No valid fields to update")
             
