@@ -1,4 +1,16 @@
-import { recentActivities } from "../../data/mockData";
+// Recent Activity Data moved inline since mockData was removed
+const recentActivities = [
+  {
+    id: 1,
+    action: "User 'translator_one' translated Chapter 2 of Solo Leveling.",
+    timestamp: "2 hours ago",
+  },
+  {
+    id: 2,
+    action: "New Series 'Omniscient Reader's Viewpoint' added.",
+    timestamp: "5 hours ago",
+  },
+];
 
 export default function RecentActivity() {
   return (

@@ -13,7 +13,6 @@ import {
   ContextTabContent,
 } from "../components/common";
 import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
-import { mockAiInsights } from "../data/mockData";
 import { pageService } from "../services/pageService";
 import { textBoxService } from "../services/textBoxService";
 import { chapterService } from "../services/chapterService";
@@ -95,7 +94,11 @@ export default function Pages() {
       };
 
       setChapterInfo(chapterInfo);
-      setAiInsights(mockAiInsights);
+      // Set default AI insights since mockData was removed
+      setAiInsights({
+        overall_quality_score: 92,
+        insights: ["Consider standardizing 'gate' vs 'portal' terminology."],
+      });
 
       // Fetch real pages data from API
       const apiPages = await pageService.getPagesByChapter(chapterId);

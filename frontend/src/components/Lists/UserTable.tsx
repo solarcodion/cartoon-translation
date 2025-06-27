@@ -1,6 +1,15 @@
 // Reusable User Table Component with Desktop and Mobile Views
 
-import type { MockUser } from "../../data/mockData";
+// MockUser type definition moved inline since mockData was removed
+interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+  role: "admin" | "editor" | "translator";
+  created_at: string;
+  updated_at: string;
+}
 import { UserTableRow, UserListItem } from "./Items";
 import { NoUsersFound } from "../common";
 
