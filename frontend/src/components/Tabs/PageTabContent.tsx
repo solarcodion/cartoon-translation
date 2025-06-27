@@ -1,6 +1,6 @@
 // Page Tab Content Components
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   FiPlus,
   FiTrash2,
@@ -84,6 +84,7 @@ interface TranslationsTabContentProps {
   selectedPage: string;
   isPageDropdownOpen: boolean;
   hoveredTMBadge: string | null;
+  pages: Page[]; // Add pages prop for page number mapping
   onSetSelectedPage: (page: string) => void;
   onSetIsPageDropdownOpen: (open: boolean) => void;
   onSetHoveredTMBadge: (id: string | null) => void;
@@ -98,6 +99,7 @@ export function TranslationsTabContent({
   selectedPage,
   isPageDropdownOpen,
   hoveredTMBadge,
+  pages,
   onSetSelectedPage,
   onSetIsPageDropdownOpen,
   onSetHoveredTMBadge,
@@ -107,6 +109,15 @@ export function TranslationsTabContent({
   const [textBoxes, setTextBoxes] = useState<TextBoxApiItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Create a mapping from page_id to page_number
+  const pageIdToNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    pages.forEach((page) => {
+      map.set(page.id, page.number);
+    });
+    return map;
+  }, [pages]);
 
   // Quick edit state
   const [editingTextBoxId, setEditingTextBoxId] = useState<string | null>(null);
@@ -146,7 +157,10 @@ export function TranslationsTabContent({
   const filteredTextBoxes =
     selectedPage === "All Pages"
       ? textBoxes
-      : textBoxes.filter((tb) => `Page ${tb.page_id}` === selectedPage);
+      : textBoxes.filter((tb) => {
+          const pageNumber = pageIdToNumberMap.get(tb.page_id);
+          return pageNumber ? `Page ${pageNumber}` === selectedPage : false;
+        });
 
   const handleStartQuickEdit = (textBox: TextBoxApiItem) => {
     setEditingTextBoxId(textBox.id);
@@ -304,11 +318,9 @@ export function TranslationsTabContent({
                 <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                   {[
                     "All Pages",
-                    "Page 1",
-                    "Page 2",
-                    "Page 3",
-                    "Page 4",
-                    "Page 5",
+                    ...pages
+                      .sort((a, b) => a.number - b.number)
+                      .map((page) => `Page ${page.number}`),
                   ].map((page) => (
                     <button
                       key={page}
@@ -387,7 +399,7 @@ export function TranslationsTabContent({
                   <tr key={textBox.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">
-                        P.{textBox.page_id}
+                        P.{pageIdToNumberMap.get(textBox.page_id)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -395,10 +407,10 @@ export function TranslationsTabContent({
                         <img
                           src={textBox.image}
                           alt="Cropped text area"
-                          className="w-12 h-16 object-cover rounded border"
+                          className="w-20 h-20 object-contain rounded"
                         />
                       ) : (
-                        <div className="flex items-center justify-center w-12 h-16 bg-gray-100 rounded border">
+                        <div className="flex items-center justify-center w-20 h-20 bg-gray-100 rounded ">
                           <FiImage className="text-gray-400 text-sm" />
                         </div>
                       )}

@@ -397,6 +397,7 @@ export default function Pages() {
             selectedPage={selectedPage}
             isPageDropdownOpen={isPageDropdownOpen}
             hoveredTMBadge={hoveredTMBadge}
+            pages={pages}
             onSetSelectedPage={setSelectedPage}
             onSetIsPageDropdownOpen={setIsPageDropdownOpen}
             onSetHoveredTMBadge={setHoveredTMBadge}

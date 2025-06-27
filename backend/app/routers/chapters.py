@@ -11,6 +11,7 @@ from app.models import (
     ChapterResponse,
     ChapterCreate,
     ChapterUpdate,
+    ChapterStatus,
     ChapterAnalysisRequest,
     ApiResponse
 )
@@ -275,9 +276,11 @@ async def analyze_chapter(
                 detail="Chapter analysis failed"
             )
 
-        # Update chapter context with the analysis result
-        from app.models import ChapterUpdate
-        chapter_update = ChapterUpdate(context=analysis_result.chapter_context)
+        # Update chapter context and status with the analysis result
+        chapter_update = ChapterUpdate(
+            context=analysis_result.chapter_context,
+            status=ChapterStatus.TRANSLATED  # Set status to translated after analysis
+        )
         updated_chapter = await chapter_service.update_chapter(chapter_id, chapter_update)
 
         if not updated_chapter:
