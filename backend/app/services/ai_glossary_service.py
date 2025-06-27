@@ -12,8 +12,8 @@ class AIGlossaryService:
         self.table_name = "ai_glossary"
     
     async def create_glossary_entry(
-        self, 
-        glossary_data: AIGlossaryCreate, 
+        self,
+        glossary_data: AIGlossaryCreate,
         created_by: str
     ) -> AIGlossaryResponse:
         """Create a new AI glossary entry"""
@@ -26,17 +26,17 @@ class AIGlossaryService:
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
-            
+
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
-            
+
             if not response.data:
                 raise Exception("Failed to create AI glossary entry - no data returned")
-            
+
             entry_data = response.data[0]
-            
+
             return AIGlossaryResponse(**entry_data)
-            
+
         except Exception as e:
             print(f"❌ Error creating AI glossary entry: {str(e)}")
             raise Exception(f"Failed to create AI glossary entry: {str(e)}")
@@ -152,19 +152,19 @@ class AIGlossaryService:
                 .eq("series_id", series_id)
                 .execute()
             )
-            
+
             deleted_count = len(response.data) if response.data else 0
-            
+
             return deleted_count
-            
+
         except Exception as e:
             print(f"❌ Error clearing AI glossary entries for series {series_id}: {str(e)}")
             raise Exception(f"Failed to clear AI glossary entries: {str(e)}")
     
     async def save_people_analysis_results(
-        self, 
-        series_id: str, 
-        people: List[PersonInfo], 
+        self,
+        series_id: str,
+        people: List[PersonInfo],
         clear_existing: bool = True
     ) -> List[AIGlossaryResponse]:
         """Save people analysis results to AI glossary table"""
@@ -172,7 +172,7 @@ class AIGlossaryService:
             # Clear existing entries if requested
             if clear_existing:
                 await self.clear_series_glossary(series_id)
-            
+
             # Create new entries
             created_entries = []
             for person in people:
@@ -181,12 +181,12 @@ class AIGlossaryService:
                     name=person.name,
                     description=person.description
                 )
-                
+
                 entry = await self.create_glossary_entry(glossary_data, "system")
                 created_entries.append(entry)
-            
+
             return created_entries
-            
+
         except Exception as e:
             print(f"❌ Error saving people analysis results: {str(e)}")
             raise Exception(f"Failed to save people analysis results: {str(e)}")
