@@ -20,8 +20,6 @@ class ChapterAnalysisService:
         # Initialize OpenAI client
         openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
-
-        print(f"✅ Chapter analysis service initialized with target language: {self.target_language}")
     
     async def analyze_chapter(self, request: ChapterAnalysisRequest) -> ChapterAnalysisResponse:
         """
@@ -46,10 +44,6 @@ class ChapterAnalysisService:
             system_prompt = self._build_system_prompt(request.translation_info, request.existing_context)
             user_prompt = self._build_user_prompt(request.pages)
             
-            print(f"🔄 Analyzing chapter with {len(request.pages)} pages...")
-            print(f"📝 Translation info: {len(request.translation_info)} rules")
-            print(f"📚 Existing context: {'Yes' if request.existing_context else 'No'}")
-            
             # Call OpenAI API with gpt-4o-mini model
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -70,10 +64,6 @@ class ChapterAnalysisService:
             
             # Parse the analysis result to extract context and summary
             chapter_context, analysis_summary = self._parse_analysis_result(analysis_result)
-            
-            print(f"✅ Chapter analysis completed in {processing_time:.2f}s")
-            print(f"📊 Generated context length: {len(chapter_context)} characters")
-            print(f"📋 Analysis summary length: {len(analysis_summary)} characters")
             
             return ChapterAnalysisResponse(
                 success=True,

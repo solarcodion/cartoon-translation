@@ -29,8 +29,6 @@ class TranslationMemoryService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            print(f"📝 Creating TM entry with data: {insert_data}")
-            
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
             
@@ -38,7 +36,6 @@ class TranslationMemoryService:
                 raise Exception("Failed to create TM entry - no data returned")
             
             tm_entry_data = response.data[0]
-            print(f"✅ TM entry created successfully: {tm_entry_data}")
             
             return TranslationMemoryResponse(**tm_entry_data)
             
@@ -49,8 +46,6 @@ class TranslationMemoryService:
     async def get_tm_entries_by_series(self, series_id: str, skip: int = 0, limit: int = 100) -> List[TranslationMemoryResponse]:
         """Get all translation memory entries for a specific series with pagination"""
         try:
-            print(f"📋 Fetching TM entries for series {series_id} (skip: {skip}, limit: {limit})")
-            
             # Query with pagination and ordering by created_at
             response = (
                 self.supabase.table(self.table_name)
@@ -62,11 +57,9 @@ class TranslationMemoryService:
             )
             
             if not response.data:
-                print(f"📋 No TM entries found for series {series_id}")
                 return []
             
             tm_entries_list = [TranslationMemoryResponse(**entry) for entry in response.data]
-            print(f"✅ Retrieved {len(tm_entries_list)} TM entries for series {series_id}")
             
             return tm_entries_list
             
@@ -77,8 +70,6 @@ class TranslationMemoryService:
     async def get_tm_entry_by_id(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
         """Get a specific translation memory entry by ID"""
         try:
-            print(f"🔍 Fetching TM entry with ID: {tm_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
@@ -91,7 +82,6 @@ class TranslationMemoryService:
                 return None
             
             tm_entry_data = response.data[0]
-            print(f"✅ TM entry found: {tm_entry_data}")
             
             return TranslationMemoryResponse(**tm_entry_data)
             
@@ -102,8 +92,6 @@ class TranslationMemoryService:
     async def update_tm_entry(self, tm_id: str, tm_data: TranslationMemoryUpdate) -> Optional[TranslationMemoryResponse]:
         """Update an existing translation memory entry"""
         try:
-            print(f"📝 Updating TM entry {tm_id} with data: {tm_data.model_dump(exclude_unset=True)}")
-            
             # Prepare update data (only include non-None fields)
             update_data = tm_data.model_dump(exclude_unset=True)
             if update_data:
@@ -121,7 +109,6 @@ class TranslationMemoryService:
                     return None
                 
                 updated_tm_entry = response.data[0]
-                print(f"✅ TM entry updated successfully: {updated_tm_entry}")
                 
                 return TranslationMemoryResponse(**updated_tm_entry)
             else:
@@ -135,8 +122,6 @@ class TranslationMemoryService:
     async def delete_tm_entry(self, tm_id: str) -> bool:
         """Delete a translation memory entry"""
         try:
-            print(f"🗑️ Deleting TM entry with ID: {tm_id}")
-            
             # First check if TM entry exists
             existing_tm_entry = await self.get_tm_entry_by_id(tm_id)
             if not existing_tm_entry:
@@ -151,7 +136,6 @@ class TranslationMemoryService:
                 .execute()
             )
             
-            print(f"✅ TM entry {tm_id} deleted successfully")
             return True
             
         except Exception as e:
@@ -161,8 +145,6 @@ class TranslationMemoryService:
     async def increment_usage_count(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
         """Increment the usage count for a translation memory entry"""
         try:
-            print(f"📈 Incrementing usage count for TM entry {tm_id}")
-            
             # Get current entry
             current_entry = await self.get_tm_entry_by_id(tm_id)
             if not current_entry:
@@ -181,8 +163,6 @@ class TranslationMemoryService:
     async def search_tm_entries(self, series_id: int, search_text: str, limit: int = 10) -> List[TranslationMemoryResponse]:
         """Search translation memory entries by source or target text"""
         try:
-            print(f"🔍 Searching TM entries for series {series_id} with text: '{search_text}'")
-            
             # Search in both source_text and target_text using ilike (case-insensitive)
             response = (
                 self.supabase.table(self.table_name)
@@ -195,11 +175,9 @@ class TranslationMemoryService:
             )
             
             if not response.data:
-                print(f"🔍 No TM entries found matching '{search_text}' for series {series_id}")
                 return []
             
             tm_entries_list = [TranslationMemoryResponse(**entry) for entry in response.data]
-            print(f"✅ Found {len(tm_entries_list)} TM entries matching '{search_text}'")
             
             return tm_entries_list
             

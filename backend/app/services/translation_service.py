@@ -19,8 +19,6 @@ class TranslationService:
         # Initialize OpenAI client
         openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
-
-        print(f"✅ Translation service initialized with target language: {self.target_language}")
     
     async def translate_text(
         self, 
@@ -55,8 +53,6 @@ class TranslationService:
             system_prompt = self._build_system_prompt(target_lang, context)
             user_prompt = f"Translate this text: {source_text.strip()}"
             
-            print(f"🔄 Translating text to {target_lang}: '{source_text[:50]}...'")
-            
             # Call OpenAI API
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -74,8 +70,6 @@ class TranslationService:
             # Extract translated text
             translated_text = response.choices[0].message.content.strip()
             processing_time = time.time() - start_time
-            
-            print(f"✅ Translation completed in {processing_time:.2f}s: '{translated_text[:50]}...'")
             
             return {
                 "success": True,

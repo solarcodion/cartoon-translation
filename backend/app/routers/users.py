@@ -63,18 +63,14 @@ async def create_user(
     try:
         # Get raw request body for debugging
         raw_body = await request.body()
-        print(f"Raw request body: {raw_body.decode()}")
 
         # Parse and validate the request data
         request_data = await request.json()
-        print(f"Parsed JSON data: {request_data}")
 
         # Validate with Pydantic model
         user_data = CreateUserRequest(**request_data)
-        print(f"Validated user data: {user_data}")
 
         result = await user_service.create_user(user_data)
-        print(f"User operation successful: {result}")
         return result
 
     except ValidationError as e:
@@ -88,10 +84,8 @@ async def create_user(
         # If it's a 409 conflict (user exists), try to fetch and return the existing user
         if e.status_code == 409:
             try:
-                print(f"User already exists, attempting to fetch existing user")
                 existing_user = await user_service.get_user_by_id(user_data.user_id)
                 if existing_user:
-                    print(f"Returning existing user: {existing_user}")
                     return existing_user
             except Exception as fetch_error:
                 print(f"Failed to fetch existing user: {fetch_error}")
@@ -165,17 +159,11 @@ async def update_my_profile(
     Users can only update their name and avatar_url, not their role.
     """
     try:
-        # Get raw request body for debugging
-        raw_body = await request.body()
-        print(f"Raw request body: {raw_body.decode()}")
-
         # Parse and validate the request data
         request_data = await request.json()
-        print(f"Parsed JSON data: {request_data}")
 
         # Validate with Pydantic model
         profile_data = UserProfileUpdate(**request_data)
-        print(f"Validated profile data: {profile_data}")
 
         # Convert profile data to user update format
         user_data = UserUpdate(
@@ -187,8 +175,6 @@ async def update_my_profile(
         return await user_service.update_user(current_user["user_id"], user_data)
 
     except ValidationError as e:
-        print(f"Validation error: {e}")
-        print(f"Validation error details: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Validation error: {e.errors()}"
@@ -247,17 +233,11 @@ async def update_user_role(
                 detail="Users cannot update their own role. Another admin must perform this action."
             )
 
-        # Get raw request body for debugging
-        raw_body = await request.body()
-        print(f"Raw request body: {raw_body.decode()}")
-
         # Parse and validate the request data
         request_data = await request.json()
-        print(f"Parsed JSON data: {request_data}")
 
         # Validate with Pydantic model
         role_data = UserRoleUpdate(**request_data)
-        print(f"Validated role data: {role_data}")
 
         return await user_service.update_user_role(user_id, role_data.role)
 

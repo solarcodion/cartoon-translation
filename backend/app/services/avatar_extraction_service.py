@@ -20,7 +20,6 @@ class AvatarExtractionService:
                 'opencv_face_detector.pbtxt'
             )
             self.face_detection_available = True
-            print("✅ Face detection model loaded successfully")
         except Exception as e:
             print(f"⚠️ Warning: Face detection model not available: {str(e)}")
             self.face_detection_available = False
@@ -121,8 +120,6 @@ class AvatarExtractionService:
             chapter_num = chapter.get('number', 'Unknown')
             pages = chapter.get('pages', [])
             
-            print(f"🔍 Extracting faces from Chapter {chapter_num} ({len(pages)} pages)")
-            
             for page in pages:
                 image_url = page.get('image_url')
                 if not image_url:
@@ -137,8 +134,6 @@ class AvatarExtractionService:
                         'page': page.get('number', 'Unknown'),
                         'source_url': image_url
                     })
-        
-        print(f"✅ Extracted {len(all_faces)} faces total")
         
         # Group similar faces (this would need more sophisticated clustering)
         # For now, just return the best faces

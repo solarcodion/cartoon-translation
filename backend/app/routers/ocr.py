@@ -15,9 +15,7 @@ def get_ocr_service() -> OCRService:
     """Dependency to get OCR service (singleton pattern)"""
     global ocr_service
     if ocr_service is None:
-        print("🚀 Initializing OCR service...")
         ocr_service = OCRService()
-        print("✅ OCR service initialized successfully")
     return ocr_service
 
 
@@ -42,8 +40,6 @@ async def extract_text_from_image(
     - **processing_time**: Time taken to process the image in seconds
     """
     try:
-        print(f"🔍 OCR request from user {current_user.get('user_id')}")
-        
         if not request.image_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,8 +53,6 @@ async def extract_text_from_image(
                 detail="Invalid or too small image data"
             )
         
-        print(f"📊 Processing image data of length: {len(request.image_data)}")
-        
         # Process the image with OCR
         result = ocr_service.process_image(request.image_data)
         
@@ -67,11 +61,6 @@ async def extract_text_from_image(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to process image with OCR"
             )
-        
-        print(f"✅ OCR completed successfully")
-        print(f"📝 Extracted text: '{result.text}'")
-        print(f"🎯 Confidence: {result.confidence:.2f}")
-        print(f"⏱️ Processing time: {result.processing_time:.2f}s")
         
         return result
         
@@ -106,8 +95,6 @@ async def extract_text_from_image_enhanced(
     - **processing_time**: Time taken to process the image in seconds
     """
     try:
-        print(f"🔍 Enhanced OCR request from user {current_user.get('user_id')}")
-        
         if not request.image_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,8 +108,6 @@ async def extract_text_from_image_enhanced(
                 detail="Invalid or too small image data"
             )
         
-        print(f"📊 Processing image data with enhancement of length: {len(request.image_data)}")
-        
         # Process the image with enhanced OCR
         result = ocr_service.process_image_with_preprocessing(request.image_data)
         
@@ -131,11 +116,6 @@ async def extract_text_from_image_enhanced(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to process image with enhanced OCR"
             )
-        
-        print(f"✅ Enhanced OCR completed successfully")
-        print(f"📝 Extracted text: '{result.text}'")
-        print(f"🎯 Confidence: {result.confidence:.2f}")
-        print(f"⏱️ Processing time: {result.processing_time:.2f}s")
         
         return result
         

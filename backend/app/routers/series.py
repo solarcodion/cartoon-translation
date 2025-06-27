@@ -101,8 +101,6 @@ async def create_series(
 
         # Get the raw request body
         body = await request.body()
-        print(f"🔍 Raw body: {body}")
-        print(f"🔍 Body type: {type(body)}")
 
         # Parse the JSON manually
         try:
@@ -111,9 +109,7 @@ async def create_series(
             else:
                 body_str = str(body)
 
-            print(f"🔍 Body string: {body_str}")
             json_data = json.loads(body_str)
-            print(f"🔍 Parsed JSON: {json_data}")
 
             # Validate required fields
             if 'title' not in json_data:
@@ -124,7 +120,6 @@ async def create_series(
 
             # Create SeriesCreate object
             series_data = SeriesCreate(title=json_data['title'])
-            print(f"🔍 Created SeriesCreate: {series_data}")
 
         except json.JSONDecodeError as e:
             print(f"❌ JSON decode error: {e}")
@@ -169,8 +164,6 @@ async def update_series(
 
         # Get the raw request body
         body = await request.body()
-        print(f"🔍 UPDATE - Raw body: {body}")
-        print(f"🔍 UPDATE - Body type: {type(body)}")
 
         # Parse the JSON manually
         try:
@@ -179,9 +172,7 @@ async def update_series(
             else:
                 body_str = str(body)
 
-            print(f"🔍 UPDATE - Body string: {body_str}")
             json_data = json.loads(body_str)
-            print(f"🔍 UPDATE - Parsed JSON: {json_data}")
 
             # Create SeriesUpdate object with only provided fields
             update_fields = {}
@@ -191,7 +182,6 @@ async def update_series(
                 update_fields['total_chapters'] = json_data['total_chapters']
 
             series_data = SeriesUpdate(**update_fields)
-            print(f"🔍 UPDATE - Created SeriesUpdate: {series_data}")
 
         except json.JSONDecodeError as e:
             print(f"❌ UPDATE - JSON decode error: {e}")

@@ -15,13 +15,9 @@ class UserService:
     async def create_user(self, user_data: CreateUserRequest) -> UserResponse:
         """Create a new user in the database or return existing user"""
         try:
-            # Log the incoming data for debugging
-            print(f"Creating user with data: {user_data}")
-
             # First, check if user already exists
             existing_user = await self.get_user_by_id(user_data.user_id)
             if existing_user:
-                print(f"User already exists, returning existing user: {existing_user}")
                 return existing_user
 
             # Prepare user data for insertion
@@ -35,12 +31,8 @@ class UserService:
                 "updated_at": datetime.utcnow().isoformat()
             }
 
-            print(f"Inserting user dict: {user_dict}")
-
             # Insert user into database
             response = self.supabase.table(self.table_name).insert(user_dict).execute()
-
-            print(f"Supabase response: {response}")
 
             if not response.data:
                 raise HTTPException(
@@ -48,7 +40,6 @@ class UserService:
                     detail="Failed to create user - no data returned from database"
                 )
 
-            print(f"User created successfully: {response.data[0]}")
             return UserResponse(**response.data[0])
 
         except HTTPException:
@@ -60,11 +51,9 @@ class UserService:
 
             if "duplicate key value" in str(e).lower() or "already exists" in str(e).lower():
                 # User already exists, fetch and return the existing user
-                print(f"User already exists, fetching existing user with ID: {user_data.user_id}")
                 try:
                     existing_user = await self.get_user_by_id(user_data.user_id)
                     if existing_user:
-                        print(f"Returning existing user: {existing_user}")
                         return existing_user
                 except Exception as fetch_error:
                     print(f"Failed to fetch existing user: {fetch_error}")
@@ -134,8 +123,6 @@ class UserService:
     async def update_user(self, user_id: str, user_data: UserUpdate) -> UserResponse:
         """Update user information"""
         try:
-            print(f"Updating user {user_id} with data: {user_data}")
-
             # First check if user exists
             existing_user = await self.get_user_by_id(user_id)
             if not existing_user:
@@ -155,12 +142,9 @@ class UserService:
 
             # If no fields to update, return existing user
             if not update_dict:
-                print(f"No fields to update for user {user_id}")
                 return existing_user
 
             update_dict["updated_at"] = datetime.utcnow().isoformat()
-
-            print(f"Updating user {user_id} with: {update_dict}")
 
             # Update user in database
             response = (
@@ -176,7 +160,6 @@ class UserService:
                     detail="User not found or update failed"
                 )
 
-            print(f"User {user_id} updated successfully")
             return UserResponse(**response.data[0])
 
         except HTTPException:

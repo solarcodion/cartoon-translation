@@ -19,8 +19,6 @@ class TextBoxService:
     async def create_text_box(self, text_box_data: TextBoxCreate) -> TextBoxResponse:
         """Create a new text box"""
         try:
-            print(f"📝 Creating text box with data: {text_box_data.model_dump()}")
-            
             # Prepare data for database insertion
             insert_data = {
                 "page_id": text_box_data.page_id,
@@ -44,7 +42,6 @@ class TextBoxService:
                 raise Exception("Failed to create text box - no data returned")
             
             text_box_data = response.data[0]
-            print(f"✅ Text box created successfully: {text_box_data}")
             
             return TextBoxResponse(**text_box_data)
             
@@ -55,8 +52,6 @@ class TextBoxService:
     async def get_text_boxes_by_page(self, page_id: str, skip: int = 0, limit: int = 100) -> List[TextBoxResponse]:
         """Get all text boxes for a specific page with pagination"""
         try:
-            print(f"📋 Fetching text boxes for page {page_id} (skip: {skip}, limit: {limit})")
-            
             # Query with pagination and ordering by created_at
             response = (
                 self.supabase.table(self.table_name)
@@ -68,14 +63,12 @@ class TextBoxService:
             )
             
             if not response.data:
-                print(f"📋 No text boxes found for page {page_id}")
                 return []
             
             text_boxes = []
             for text_box_data in response.data:
                 text_boxes.append(TextBoxResponse(**text_box_data))
             
-            print(f"✅ Found {len(text_boxes)} text boxes for page {page_id}")
             return text_boxes
             
         except Exception as e:
@@ -85,8 +78,6 @@ class TextBoxService:
     async def get_text_box_by_id(self, text_box_id: str) -> Optional[TextBoxResponse]:
         """Get a specific text box by ID"""
         try:
-            print(f"🔍 Fetching text box with ID: {text_box_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
@@ -99,7 +90,6 @@ class TextBoxService:
                 return None
             
             text_box_data = response.data[0]
-            print(f"✅ Text box found: {text_box_data}")
 
             return TextBoxResponse(**text_box_data)
             
@@ -110,8 +100,6 @@ class TextBoxService:
     async def update_text_box(self, text_box_id: str, text_box_data: TextBoxUpdate) -> Optional[TextBoxResponse]:
         """Update a text box"""
         try:
-            print(f"📝 Updating text box {text_box_id} with data: {text_box_data.model_dump(exclude_unset=True)}")
-            
             # Prepare update data (only include non-None values)
             update_data = text_box_data.model_dump(exclude_unset=True)
             if update_data:
@@ -130,7 +118,6 @@ class TextBoxService:
                 return None
             
             updated_text_box = response.data[0]
-            print(f"✅ Text box updated successfully: {updated_text_box}")
             
             return TextBoxResponse(**updated_text_box)
             
@@ -141,8 +128,6 @@ class TextBoxService:
     async def delete_text_box(self, text_box_id: str) -> bool:
         """Delete a text box"""
         try:
-            print(f"🗑️ Deleting text box with ID: {text_box_id}")
-            
             # Delete from database
             response = (
                 self.supabase.table(self.table_name)
@@ -155,7 +140,6 @@ class TextBoxService:
                 print(f"❌ Text box with ID {text_box_id} not found for deletion")
                 return False
             
-            print(f"✅ Text box {text_box_id} deleted successfully")
             return True
             
         except Exception as e:
@@ -165,8 +149,6 @@ class TextBoxService:
     async def get_text_boxes_by_chapter(self, chapter_id: str, skip: int = 0, limit: int = 1000) -> List[TextBoxResponse]:
         """Get all text boxes for a specific chapter (across all pages)"""
         try:
-            print(f"📋 Fetching text boxes for chapter {chapter_id}")
-            
             # First get all pages for the chapter
             pages_response = (
                 self.supabase.table("pages")
@@ -176,7 +158,6 @@ class TextBoxService:
             )
             
             if not pages_response.data:
-                print(f"📋 No pages found for chapter {chapter_id}")
                 return []
             
             page_ids = [page["id"] for page in pages_response.data]
@@ -192,14 +173,12 @@ class TextBoxService:
             )
             
             if not response.data:
-                print(f"📋 No text boxes found for chapter {chapter_id}")
                 return []
             
             text_boxes = []
             for text_box_data in response.data:
                 text_boxes.append(TextBoxResponse(**text_box_data))
             
-            print(f"✅ Found {len(text_boxes)} text boxes for chapter {chapter_id}")
             return text_boxes
             
         except Exception as e:

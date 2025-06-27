@@ -27,8 +27,6 @@ class AIGlossaryService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            print(f"📝 Creating AI glossary entry: {insert_data}")
-            
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
             
@@ -36,7 +34,6 @@ class AIGlossaryService:
                 raise Exception("Failed to create AI glossary entry - no data returned")
             
             entry_data = response.data[0]
-            print(f"✅ AI glossary entry created successfully: {entry_data}")
             
             return AIGlossaryResponse(**entry_data)
             
@@ -47,8 +44,6 @@ class AIGlossaryService:
     async def get_glossary_by_series_id(self, series_id: str) -> List[AIGlossaryResponse]:
         """Get all AI glossary entries for a specific series"""
         try:
-            print(f"📋 Fetching AI glossary entries for series {series_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
@@ -58,11 +53,9 @@ class AIGlossaryService:
             )
             
             if not response.data:
-                print(f"ℹ️ No AI glossary entries found for series {series_id}")
                 return []
             
             entries = [AIGlossaryResponse(**entry) for entry in response.data]
-            print(f"✅ Found {len(entries)} AI glossary entries for series {series_id}")
             
             return entries
             
@@ -73,8 +66,6 @@ class AIGlossaryService:
     async def get_glossary_entry_by_id(self, entry_id: str) -> Optional[AIGlossaryResponse]:
         """Get a specific AI glossary entry by ID"""
         try:
-            print(f"🔍 Fetching AI glossary entry {entry_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
@@ -83,11 +74,9 @@ class AIGlossaryService:
             )
             
             if not response.data:
-                print(f"ℹ️ AI glossary entry {entry_id} not found")
                 return None
             
             entry_data = response.data[0]
-            print(f"✅ AI glossary entry {entry_id} retrieved successfully")
             
             return AIGlossaryResponse(**entry_data)
             
@@ -103,8 +92,6 @@ class AIGlossaryService:
     ) -> Optional[AIGlossaryResponse]:
         """Update an existing AI glossary entry"""
         try:
-            print(f"📝 Updating AI glossary entry {entry_id}")
-            
             # Prepare update data (only include non-None values)
             update_data = {}
             if glossary_data.name is not None:
@@ -118,8 +105,6 @@ class AIGlossaryService:
             if not update_data or len(update_data) == 1:  # Only updated_at
                 raise Exception("No valid fields to update")
             
-            print(f"📝 Update data: {update_data}")
-            
             # Update in database
             response = (
                 self.supabase.table(self.table_name)
@@ -129,11 +114,9 @@ class AIGlossaryService:
             )
             
             if not response.data:
-                print(f"ℹ️ AI glossary entry {entry_id} not found for update")
                 return None
             
             entry_data = response.data[0]
-            print(f"✅ AI glossary entry {entry_id} updated successfully")
             
             return AIGlossaryResponse(**entry_data)
             
@@ -144,8 +127,6 @@ class AIGlossaryService:
     async def delete_glossary_entry(self, entry_id: str) -> bool:
         """Delete an AI glossary entry"""
         try:
-            print(f"🗑️ Deleting AI glossary entry {entry_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .delete()
@@ -154,10 +135,8 @@ class AIGlossaryService:
             )
             
             if not response.data:
-                print(f"ℹ️ AI glossary entry {entry_id} not found for deletion")
                 return False
             
-            print(f"✅ AI glossary entry {entry_id} deleted successfully")
             return True
             
         except Exception as e:
@@ -167,8 +146,6 @@ class AIGlossaryService:
     async def clear_series_glossary(self, series_id: str) -> int:
         """Clear all AI glossary entries for a series (used before refresh)"""
         try:
-            print(f"🧹 Clearing AI glossary entries for series {series_id}")
-            
             response = (
                 self.supabase.table(self.table_name)
                 .delete()
@@ -177,7 +154,6 @@ class AIGlossaryService:
             )
             
             deleted_count = len(response.data) if response.data else 0
-            print(f"✅ Cleared {deleted_count} AI glossary entries for series {series_id}")
             
             return deleted_count
             
@@ -193,8 +169,6 @@ class AIGlossaryService:
     ) -> List[AIGlossaryResponse]:
         """Save people analysis results to AI glossary table"""
         try:
-            print(f"💾 Saving {len(people)} people analysis results for series {series_id}")
-            
             # Clear existing entries if requested
             if clear_existing:
                 await self.clear_series_glossary(series_id)
@@ -211,7 +185,6 @@ class AIGlossaryService:
                 entry = await self.create_glossary_entry(glossary_data, "system")
                 created_entries.append(entry)
             
-            print(f"✅ Saved {len(created_entries)} AI glossary entries for series {series_id}")
             return created_entries
             
         except Exception as e:
@@ -221,8 +194,6 @@ class AIGlossaryService:
     async def get_glossary_stats(self) -> Dict[str, Any]:
         """Get AI glossary statistics"""
         try:
-            print("📊 Fetching AI glossary statistics")
-            
             # Get total count
             response = self.supabase.table(self.table_name).select("id", count="exact").execute()
             total_entries = response.count if response.count is not None else 0
@@ -240,7 +211,6 @@ class AIGlossaryService:
                 "average_entries_per_series": round(total_entries / max(1, len(set(entry["series_id"] for entry in series_response.data)) if series_response.data else 1), 2)
             }
             
-            print(f"✅ AI glossary statistics: {stats}")
             return stats
             
         except Exception as e:

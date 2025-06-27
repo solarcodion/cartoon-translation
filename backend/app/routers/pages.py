@@ -51,8 +51,6 @@ async def update_chapter_status_and_count(chapter_id: str):
         )
         await chapter_service.update_chapter(chapter_id, chapter_update)
 
-        print(f"✅ Updated chapter {chapter_id}: page_count={page_count}, status={status.value}")
-
     except Exception as e:
         print(f"❌ Error updating chapter status and count for {chapter_id}: {str(e)}")
 

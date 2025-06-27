@@ -39,21 +39,16 @@ async def create_tm_entry(
     try:
         # Manually parse the request body to avoid FastAPI validation issues
         body = await request.body()
-        print(f"🔍 Raw request body: {body}")
 
         # Parse JSON manually
         body_str = body.decode('utf-8')
         body_json = json.loads(body_str)
-        print(f"🔍 Parsed JSON: {body_json}")
 
         # Add series_id to the data
         body_json["series_id"] = series_id
 
         # Create TranslationMemoryCreate object manually
         tm_data = TranslationMemoryCreate(**body_json)
-        print(f"🔍 Created TranslationMemoryCreate: {tm_data}")
-
-        print(f"🚀 Creating TM entry for series {series_id} by user {current_user.get('user_id')}")
 
         # Create the TM entry
         tm_entry = await tm_service.create_tm_entry(tm_data)
@@ -96,11 +91,8 @@ async def get_tm_entries_by_series(
     - **limit**: Maximum number of entries to return
     """
     try:
-        print(f"📋 Getting TM entries for series {series_id} by user {current_user.get('user_id')}")
-        
         tm_entries = await tm_service.get_tm_entries_by_series(series_id, skip, limit)
-        
-        print(f"✅ Retrieved {len(tm_entries)} TM entries for series {series_id}")
+
         return tm_entries
 
     except Exception as e:
@@ -123,8 +115,6 @@ async def get_tm_entry(
     - **tm_id**: The ID of the translation memory entry
     """
     try:
-        print(f"🔍 Getting TM entry {tm_id} by user {current_user.get('user_id')}")
-        
         tm_entry = await tm_service.get_tm_entry_by_id(tm_id)
         
         if not tm_entry:
@@ -164,18 +154,13 @@ async def update_tm_entry(
     try:
         # Manually parse the request body to avoid FastAPI validation issues
         body = await request.body()
-        print(f"🔍 Raw request body: {body}")
 
         # Parse JSON manually
         body_str = body.decode('utf-8')
         body_json = json.loads(body_str)
-        print(f"🔍 Parsed JSON: {body_json}")
 
         # Create TranslationMemoryUpdate object manually
         tm_data = TranslationMemoryUpdate(**body_json)
-        print(f"🔍 Created TranslationMemoryUpdate: {tm_data}")
-
-        print(f"📝 Updating TM entry {tm_id} by user {current_user.get('user_id')}")
 
         updated_tm_entry = await tm_service.update_tm_entry(tm_id, tm_data)
 
@@ -221,8 +206,6 @@ async def delete_tm_entry(
     - **tm_id**: The ID of the translation memory entry to delete
     """
     try:
-        print(f"🗑️ Deleting TM entry {tm_id} by user {current_user.get('user_id')}")
-        
         success = await tm_service.delete_tm_entry(tm_id)
         
         if not success:
@@ -258,8 +241,6 @@ async def increment_tm_usage(
     - **tm_id**: The ID of the translation memory entry
     """
     try:
-        print(f"📈 Incrementing usage for TM entry {tm_id} by user {current_user.get('user_id')}")
-        
         updated_tm_entry = await tm_service.increment_usage_count(tm_id)
         
         if not updated_tm_entry:
@@ -296,11 +277,8 @@ async def search_tm_entries(
     - **limit**: Maximum number of results to return
     """
     try:
-        print(f"🔍 Searching TM entries for series {series_id} with query '{q}' by user {current_user.get('user_id')}")
-        
         tm_entries = await tm_service.search_tm_entries(series_id, q, limit)
         
-        print(f"✅ Found {len(tm_entries)} TM entries matching '{q}'")
         return tm_entries
 
     except Exception as e:

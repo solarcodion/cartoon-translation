@@ -30,12 +30,10 @@ class OCRService:
             # Fix PIL compatibility issue
             self._fix_pil_compatibility()
             self.reader = easyocr.Reader(['en'], gpu=True)
-            print("✅ EasyOCR initialized with GPU support")
         except Exception as e:
             print(f"⚠️ GPU not available, falling back to CPU: {str(e)}")
             try:
                 self.reader = easyocr.Reader(['en'], gpu=False)
-                print("✅ EasyOCR initialized with CPU")
             except Exception as cpu_error:
                 print(f"❌ Failed to initialize EasyOCR: {str(cpu_error)}")
                 raise Exception(f"OCR initialization failed: {str(cpu_error)}")
@@ -46,7 +44,6 @@ class OCRService:
             # Check if ANTIALIAS exists, if not, add it for backward compatibility
             if not hasattr(Image, 'ANTIALIAS'):
                 Image.ANTIALIAS = Image.Resampling.LANCZOS
-                print("🔧 Fixed PIL.Image.ANTIALIAS compatibility")
         except Exception as e:
             print(f"⚠️ PIL compatibility fix failed: {str(e)}")
             # Continue anyway, might not be needed
@@ -80,8 +77,6 @@ class OCRService:
                 print(f"❌ Error processing image: {str(img_error)}")
                 raise Exception(f"Image processing failed: {str(img_error)}")
             
-            print(f"🔍 Processing image with dimensions: {opencv_image.shape}")
-            
             # Perform OCR using EasyOCR
             results = self.reader.readtext(opencv_image)
             
@@ -93,7 +88,6 @@ class OCRService:
                 if confidence > 0.3:  # Filter out low-confidence results
                     extracted_texts.append(text.strip())
                     confidences.append(confidence)
-                    print(f"📝 Detected text: '{text}' (confidence: {confidence:.2f})")
             
             # Combine all extracted text
             combined_text = ' '.join(extracted_texts)
@@ -102,10 +96,6 @@ class OCRService:
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
             
             processing_time = time.time() - start_time
-            
-            print(f"✅ OCR completed in {processing_time:.2f}s")
-            print(f"📄 Extracted text: '{combined_text}'")
-            print(f"🎯 Average confidence: {avg_confidence:.2f}")
             
             return OCRResponse(
                 success=True,
@@ -184,8 +174,6 @@ class OCRService:
             # Preprocess image
             processed_image = self.preprocess_image(opencv_image)
             
-            print(f"🔍 Processing preprocessed image with dimensions: {processed_image.shape}")
-            
             # Perform OCR on both original and preprocessed images
             original_results = self.reader.readtext(opencv_image)
             processed_results = self.reader.readtext(processed_image)
@@ -201,7 +189,6 @@ class OCRService:
                 if confidence > 0.3:  # Filter out low-confidence results
                     extracted_texts.append(text.strip())
                     confidences.append(confidence)
-                    print(f"📝 Detected text: '{text}' (confidence: {confidence:.2f})")
             
             # Combine all extracted text
             combined_text = ' '.join(extracted_texts)
@@ -210,10 +197,6 @@ class OCRService:
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
             
             processing_time = time.time() - start_time
-            
-            print(f"✅ OCR with preprocessing completed in {processing_time:.2f}s")
-            print(f"📄 Extracted text: '{combined_text}'")
-            print(f"🎯 Average confidence: {avg_confidence:.2f}")
             
             return OCRResponse(
                 success=True,
@@ -248,8 +231,6 @@ class OCRService:
         
         # Return results with higher average confidence
         if orig_confidence >= proc_confidence:
-            print(f"🎯 Using original image results (confidence: {orig_confidence:.2f})")
             return original_results
         else:
-            print(f"🎯 Using preprocessed image results (confidence: {proc_confidence:.2f})")
             return processed_results

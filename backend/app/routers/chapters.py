@@ -47,23 +47,17 @@ async def create_chapter(
     try:
         # Manually parse the request body to avoid FastAPI validation issues
         body = await request.body()
-        print(f"🔍 Raw request body: {body}")
 
         # Parse JSON manually
         body_str = body.decode('utf-8')
         body_json = json.loads(body_str)
-        print(f"🔍 Parsed JSON: {body_json}")
 
         # Create ChapterCreate object manually
         chapter_data = ChapterCreate(**body_json)
-        print(f"🔍 Created ChapterCreate: {chapter_data}")
-
-        print(f"🚀 Creating chapter for series {series_id} by user {current_user.get('user_id')}")
 
         # Create the chapter
         chapter = await chapter_service.create_chapter(chapter_data, series_id)
 
-        print(f"✅ Chapter created successfully with ID: {chapter.id}")
         return chapter
         
     except Exception as e:
@@ -90,11 +84,8 @@ async def get_chapters_by_series(
     - **limit**: Maximum number of chapters to return
     """
     try:
-        print(f"📋 Fetching chapters for series {series_id} by user {current_user.get('user_id')}")
-        
         chapters = await chapter_service.get_chapters_by_series(series_id, skip, limit)
         
-        print(f"✅ Retrieved {len(chapters)} chapters for series {series_id}")
         return chapters
         
     except Exception as e:
@@ -117,8 +108,6 @@ async def get_chapter_by_id(
     - **chapter_id**: The ID of the chapter to retrieve
     """
     try:
-        print(f"🔍 Fetching chapter {chapter_id} by user {current_user.get('user_id')}")
-        
         chapter = await chapter_service.get_chapter_by_id(chapter_id)
         
         if not chapter:
@@ -127,7 +116,6 @@ async def get_chapter_by_id(
                 detail=f"Chapter with ID {chapter_id} not found"
             )
         
-        print(f"✅ Chapter {chapter_id} retrieved successfully")
         return chapter
         
     except HTTPException:
@@ -164,8 +152,6 @@ async def update_chapter(
         # Create ChapterUpdate object manually
         chapter_data = ChapterUpdate(**body_json)
 
-        print(f"📝 Updating chapter {chapter_id} by user {current_user.get('user_id')}")
-
         chapter = await chapter_service.update_chapter(chapter_id, chapter_data)
         
         if not chapter:
@@ -174,7 +160,6 @@ async def update_chapter(
                 detail=f"Chapter with ID {chapter_id} not found"
             )
         
-        print(f"✅ Chapter {chapter_id} updated successfully")
         return chapter
         
     except HTTPException:
@@ -199,8 +184,6 @@ async def delete_chapter(
     - **chapter_id**: The ID of the chapter to delete
     """
     try:
-        print(f"🗑️ Deleting chapter {chapter_id} by user {current_user.get('user_id')}")
-        
         success = await chapter_service.delete_chapter(chapter_id)
         
         if not success:
@@ -209,7 +192,6 @@ async def delete_chapter(
                 detail=f"Chapter with ID {chapter_id} not found"
             )
         
-        print(f"✅ Chapter {chapter_id} deleted successfully")
         return ApiResponse(
             success=True,
             message=f"Chapter {chapter_id} deleted successfully"
@@ -237,11 +219,8 @@ async def get_chapter_count(
     - **series_id**: The ID of the series to get chapter count for
     """
     try:
-        print(f"📊 Getting chapter count for series {series_id} by user {current_user.get('user_id')}")
-        
         count = await chapter_service.get_chapter_count_by_series(series_id)
         
-        print(f"✅ Chapter count for series {series_id}: {count}")
         return {"count": count}
 
     except Exception as e:
@@ -272,9 +251,6 @@ async def analyze_chapter(
     - **existing_context**: Existing context to maintain consistency with
     """
     try:
-        print(f"🔍 Analyzing chapter {chapter_id} by user {current_user.get('user_id')}")
-        print(f"📊 Request contains {len(request.pages)} pages")
-
         # Validate that the chapter exists
         chapter = await chapter_service.get_chapter_by_id(chapter_id)
         if not chapter:
@@ -306,12 +282,6 @@ async def analyze_chapter(
 
         if not updated_chapter:
             print(f"⚠️ Warning: Failed to update chapter context for {chapter_id}")
-        else:
-            print(f"✅ Chapter context updated successfully for {chapter_id}")
-
-        print(f"✅ Chapter analysis completed for {chapter_id}")
-        print(f"⏱️ Processing time: {analysis_result.processing_time:.2f}s")
-        print(f"🎯 Tokens used: {analysis_result.tokens_used}")
 
         return ApiResponse(
             success=True,

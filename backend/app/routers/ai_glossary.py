@@ -32,11 +32,8 @@ async def get_glossary_by_series(
     - **series_id**: The ID of the series to get glossary entries for
     """
     try:
-        print(f"🔍 Fetching AI glossary for series {series_id} by user {current_user.get('user_id')}")
-        
         entries = await ai_glossary_service.get_glossary_by_series_id(series_id)
         
-        print(f"✅ Found {len(entries)} AI glossary entries for series {series_id}")
         return entries
         
     except Exception as e:
@@ -59,8 +56,6 @@ async def get_glossary_entry_by_id(
     - **entry_id**: The ID of the glossary entry to retrieve
     """
     try:
-        print(f"🔍 Fetching AI glossary entry {entry_id} by user {current_user.get('user_id')}")
-        
         entry = await ai_glossary_service.get_glossary_entry_by_id(entry_id)
         
         if not entry:
@@ -69,7 +64,6 @@ async def get_glossary_entry_by_id(
                 detail=f"AI glossary entry with ID {entry_id} not found"
             )
         
-        print(f"✅ AI glossary entry {entry_id} retrieved successfully")
         return entry
         
     except HTTPException:
@@ -103,11 +97,8 @@ async def create_glossary_entry(
                 detail="User ID not found in authentication token"
             )
         
-        print(f"📝 Creating AI glossary entry by user {created_by}")
-        
         entry = await ai_glossary_service.create_glossary_entry(glossary_data, created_by)
-        
-        print(f"✅ AI glossary entry created successfully: {entry.id}")
+
         return entry
         
     except HTTPException:
@@ -142,8 +133,6 @@ async def update_glossary_entry(
                 detail="User ID not found in authentication token"
             )
         
-        print(f"📝 Updating AI glossary entry {entry_id} by user {updated_by}")
-        
         entry = await ai_glossary_service.update_glossary_entry(entry_id, glossary_data, updated_by)
         
         if not entry:
@@ -152,7 +141,6 @@ async def update_glossary_entry(
                 detail=f"AI glossary entry with ID {entry_id} not found"
             )
         
-        print(f"✅ AI glossary entry {entry_id} updated successfully")
         return entry
         
     except HTTPException:
@@ -184,8 +172,6 @@ async def delete_glossary_entry(
                 detail="User ID not found in authentication token"
             )
         
-        print(f"🗑️ Deleting AI glossary entry {entry_id} by user {deleted_by}")
-        
         success = await ai_glossary_service.delete_glossary_entry(entry_id)
         
         if not success:
@@ -194,7 +180,6 @@ async def delete_glossary_entry(
                 detail=f"AI glossary entry with ID {entry_id} not found"
             )
         
-        print(f"✅ AI glossary entry {entry_id} deleted successfully")
         return ApiResponse(
             success=True,
             message=f"AI glossary entry with ID {entry_id} deleted successfully"
@@ -229,11 +214,8 @@ async def clear_series_glossary(
                 detail="User ID not found in authentication token"
             )
         
-        print(f"🧹 Clearing AI glossary for series {series_id} by user {cleared_by}")
-        
         deleted_count = await ai_glossary_service.clear_series_glossary(series_id)
         
-        print(f"✅ Cleared {deleted_count} AI glossary entries for series {series_id}")
         return ApiResponse(
             success=True,
             message=f"Cleared {deleted_count} AI glossary entries for series {series_id}",
@@ -257,11 +239,8 @@ async def get_glossary_stats(
 ):
     """Get AI glossary statistics"""
     try:
-        print(f"📊 Fetching AI glossary statistics by user {current_user.get('user_id')}")
-        
         stats = await ai_glossary_service.get_glossary_stats()
-        
-        print(f"✅ AI glossary statistics retrieved successfully")
+
         return stats
         
     except Exception as e:

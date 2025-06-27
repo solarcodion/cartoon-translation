@@ -25,8 +25,6 @@ class PeopleAnalysisService:
         # Initialize OpenAI client
         openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
-
-        print(f"✅ People analysis service initialized with target language: {self.target_language}")
     
     async def analyze_people_in_series(
         self, 
@@ -63,8 +61,6 @@ class PeopleAnalysisService:
             system_prompt = self._build_system_prompt()
             user_prompt = self._build_user_prompt(chapters_data)
             
-            print(f"🔄 Analyzing people in series {series_id} across {len(chapters_data)} chapters...")
-            
             # Call OpenAI API
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -83,20 +79,15 @@ class PeopleAnalysisService:
             analysis_result = response.choices[0].message.content.strip()
             people_list = self._parse_people_analysis(analysis_result, chapters_data)
             processing_time = time.time() - start_time
-            
-            print(f"✅ People analysis completed in {processing_time:.2f}s")
-            print(f"👥 Found {len(people_list)} people/characters")
 
             # Save results to database if AI glossary service is available
             if self.ai_glossary_service and people_list:
                 try:
-                    print(f"💾 Saving analysis results to database...")
                     await self.ai_glossary_service.save_people_analysis_results(
                         series_id=series_id,
                         people=people_list,
                         clear_existing=True
                     )
-                    print(f"✅ Analysis results saved to database")
                 except Exception as db_error:
                     print(f"⚠️ Warning: Failed to save to database: {str(db_error)}")
                     # Continue without failing the analysis

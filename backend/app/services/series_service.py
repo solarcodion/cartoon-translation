@@ -23,8 +23,6 @@ class SeriesService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            print(f"📝 Creating series with data: {insert_data}")
-            
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
             
@@ -32,7 +30,6 @@ class SeriesService:
                 raise Exception("Failed to create series - no data returned")
             
             series_data = response.data[0]
-            print(f"✅ Series created successfully: {series_data}")
             
             return SeriesResponse(**series_data)
             
@@ -43,8 +40,6 @@ class SeriesService:
     async def get_series_list(self, skip: int = 0, limit: int = 100) -> List[SeriesResponse]:
         """Get list of all series with pagination"""
         try:
-            print(f"📋 Fetching series list (skip: {skip}, limit: {limit})")
-            
             # Query with pagination
             response = (
                 self.supabase.table(self.table_name)
@@ -55,11 +50,9 @@ class SeriesService:
             )
             
             if not response.data:
-                print("📋 No series found")
                 return []
             
             series_list = [SeriesResponse(**series) for series in response.data]
-            print(f"✅ Retrieved {len(series_list)} series")
             
             return series_list
             
@@ -70,8 +63,6 @@ class SeriesService:
     async def get_series_by_id(self, series_id: str) -> Optional[SeriesResponse]:
         """Get a specific series by ID"""
         try:
-            print(f"🔍 Fetching series with ID: {series_id}")
-
             response = (
                 self.supabase.table(self.table_name)
                 .select("*")
@@ -84,7 +75,6 @@ class SeriesService:
                 return None
 
             series_data = response.data[0]
-            print(f"✅ Series found: {series_data}")
 
             return SeriesResponse(**series_data)
 
@@ -95,8 +85,6 @@ class SeriesService:
     async def update_series(self, series_id: str, series_data: SeriesUpdate, updated_by: str) -> Optional[SeriesResponse]:
         """Update an existing series"""
         try:
-            print(f"📝 Updating series {series_id} with data: {series_data.dict(exclude_unset=True)}")
-            
             # Prepare update data (only include non-None values)
             update_data = {}
             for field, value in series_data.dict(exclude_unset=True).items():
@@ -125,7 +113,6 @@ class SeriesService:
                 return None
             
             updated_series = response.data[0]
-            print(f"✅ Series updated successfully: {updated_series}")
             
             return SeriesResponse(**updated_series)
             
@@ -136,8 +123,6 @@ class SeriesService:
     async def delete_series(self, series_id: str) -> bool:
         """Delete a series"""
         try:
-            print(f"🗑️ Deleting series with ID: {series_id}")
-            
             # First check if series exists
             existing_series = await self.get_series_by_id(series_id)
             if not existing_series:
@@ -152,7 +137,6 @@ class SeriesService:
                 .execute()
             )
             
-            print(f"✅ Series {series_id} deleted successfully")
             return True
             
         except Exception as e:
@@ -162,8 +146,6 @@ class SeriesService:
     async def get_series_stats(self) -> Dict[str, Any]:
         """Get series statistics"""
         try:
-            print("📊 Fetching series statistics")
-            
             # Get total count
             response = self.supabase.table(self.table_name).select("id", count="exact").execute()
             total_series = response.count or 0
@@ -184,7 +166,6 @@ class SeriesService:
                 "status_counts": status_counts
             }
             
-            print(f"✅ Series statistics: {stats}")
             return stats
             
         except Exception as e:
@@ -194,8 +175,6 @@ class SeriesService:
     async def get_chapters_with_pages_for_analysis(self, series_id: str) -> List[Dict[str, Any]]:
         """Get all chapters with their pages and contexts for people analysis"""
         try:
-            print(f"📋 Fetching chapters with pages for series {series_id}")
-
             # Get all chapters for the series
             chapters_response = (
                 self.supabase.table("chapters")
@@ -206,7 +185,6 @@ class SeriesService:
             )
 
             if not chapters_response.data:
-                print(f"ℹ️ No chapters found for series {series_id}")
                 return []
 
             chapters_data = []
@@ -241,7 +219,6 @@ class SeriesService:
 
                 chapters_data.append(chapter_data)
 
-            print(f"✅ Found {len(chapters_data)} chapters with pages for analysis")
             return chapters_data
 
         except Exception as e:
