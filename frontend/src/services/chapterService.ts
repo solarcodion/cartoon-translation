@@ -24,11 +24,23 @@ export interface ChapterApiResponse {
   updated_at: string;
 }
 
+// Text Box Translation Data for Chapter Analysis
+export interface TextBoxTranslationData {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ocr_text?: string;
+  translated_text?: string;
+  corrected_text?: string;
+}
+
 // Chapter Analysis types
 export interface PageAnalysisData {
   page_number: number;
   image_url: string;
   ocr_context?: string;
+  text_boxes?: TextBoxTranslationData[];
 }
 
 export interface ChapterAnalysisRequest {

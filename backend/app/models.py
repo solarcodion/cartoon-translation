@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 from enum import Enum
 
@@ -349,12 +349,29 @@ class EnhancedTranslationRequest(BaseModel):
         validate_assignment = True
 
 
+# Text Box Translation Data for Chapter Analysis
+class TextBoxTranslationData(BaseModel):
+    """Translation data for a text box in chapter analysis"""
+    x: int
+    y: int
+    w: int
+    h: int
+    ocr_text: Optional[str] = None
+    translated_text: Optional[str] = None
+    corrected_text: Optional[str] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 # Chapter Analysis Models
 class PageAnalysisData(BaseModel):
     """Data for a single page in chapter analysis"""
     page_number: int
     image_url: str
     ocr_context: Optional[str] = None
+    text_boxes: Optional[list[TextBoxTranslationData]] = None
 
     class Config:
         str_strip_whitespace = True
@@ -415,21 +432,30 @@ class AIGlossaryBase(BaseModel):
     """Base AI glossary model"""
     name: str
     description: str
+    tm_related_ids: Optional[List[str]] = None  # TM entry IDs that helped create this glossary entry
 
     class Config:
         str_strip_whitespace = True
         validate_assignment = True
 
 
-class AIGlossaryCreate(AIGlossaryBase):
+class AIGlossaryCreate(BaseModel):
     """AI glossary creation model"""
     series_id: str
+    name: str
+    description: str
+    tm_related_ids: Optional[List[str]] = None  # Optional for backward compatibility
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
 
 
 class AIGlossaryUpdate(BaseModel):
     """AI glossary update model"""
     name: Optional[str] = None
     description: Optional[str] = None
+    tm_related_ids: Optional[List[str]] = None
 
     class Config:
         str_strip_whitespace = True

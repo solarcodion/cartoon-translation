@@ -160,7 +160,7 @@ class TranslationMemoryService:
             print(f"❌ Error incrementing usage count for TM entry {tm_id}: {str(e)}")
             raise Exception(f"Failed to increment usage count: {str(e)}")
     
-    async def search_tm_entries(self, series_id: int, search_text: str, limit: int = 10) -> List[TranslationMemoryResponse]:
+    async def search_tm_entries(self, series_id: str, search_text: str, limit: int = 10) -> List[TranslationMemoryResponse]:
         """Search translation memory entries by source or target text"""
         try:
             # Search in both source_text and target_text using ilike (case-insensitive)
@@ -173,14 +173,72 @@ class TranslationMemoryService:
                 .limit(limit)
                 .execute()
             )
-            
+
             if not response.data:
                 return []
-            
+
             tm_entries_list = [TranslationMemoryResponse(**entry) for entry in response.data]
-            
+
             return tm_entries_list
-            
+
         except Exception as e:
             print(f"❌ Error searching TM entries: {str(e)}")
             raise Exception(f"Failed to search TM entries: {str(e)}")
+
+    async def increment_usage_count(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
+        """Increment the usage count for a translation memory entry"""
+        try:
+            # First get the current entry to get the current usage_count
+            current_entry = await self.get_tm_entry_by_id(tm_id)
+            if not current_entry:
+                print(f"❌ TM entry with ID {tm_id} not found")
+                return None
+
+            # Increment usage count
+            new_usage_count = current_entry.usage_count + 1
+
+            # Update the entry
+            update_data = {
+                "usage_count": new_usage_count,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            response = (
+                self.supabase.table(self.table_name)
+                .update(update_data)
+                .eq("id", tm_id)
+                .execute()
+            )
+
+            if not response.data:
+                print(f"❌ Failed to increment usage count for TM entry {tm_id}")
+                return None
+
+            updated_tm_entry = response.data[0]
+            return TranslationMemoryResponse(**updated_tm_entry)
+
+        except Exception as e:
+            print(f"❌ Error incrementing usage count for TM entry {tm_id}: {str(e)}")
+            raise Exception(f"Failed to increment usage count: {str(e)}")
+
+    async def get_all_tm_entries_for_analysis(self, series_id: str) -> List[TranslationMemoryResponse]:
+        """Get all translation memory entries for a series for analysis purposes"""
+        try:
+            response = (
+                self.supabase.table(self.table_name)
+                .select("*")
+                .eq("series_id", series_id)
+                .order("usage_count", desc=True)
+                .execute()
+            )
+
+            if not response.data:
+                return []
+
+            tm_entries_list = [TranslationMemoryResponse(**entry) for entry in response.data]
+
+            return tm_entries_list
+
+        except Exception as e:
+            print(f"❌ Error fetching all TM entries for series {series_id}: {str(e)}")
+            raise Exception(f"Failed to fetch TM entries for analysis: {str(e)}")

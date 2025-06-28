@@ -8,6 +8,7 @@ export interface AIGlossaryEntry {
   series_id: string;
   name: string;
   description: string;
+  tm_related_ids?: string[]; // TM entry IDs that helped create this glossary entry
   created_at: string;
   updated_at: string;
 }
@@ -16,11 +17,13 @@ export interface AIGlossaryCreate {
   series_id: string;
   name: string;
   description: string;
+  tm_related_ids?: string[];
 }
 
 export interface AIGlossaryUpdate {
   name?: string;
   description?: string;
+  tm_related_ids?: string[];
 }
 
 class AIGlossaryService {

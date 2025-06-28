@@ -23,7 +23,10 @@ import {
   type TextBoxApiItem,
 } from "../../services/textBoxService";
 import type { TextBoxApiUpdate } from "../../types/textbox";
-import { chapterService } from "../../services/chapterService";
+import {
+  chapterService,
+  type TextBoxTranslationData,
+} from "../../services/chapterService";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -596,36 +599,84 @@ export function ContextTabContent({
 
     setIsAnalyzing(true);
     try {
+      // Filter and sort valid pages
+      const validPages = pages
+        .filter((page) => {
+          // Filter out invalid pages before processing
+          const isValid =
+            page &&
+            typeof page.number === "number" &&
+            page.number > 0 &&
+            typeof page.image_url === "string" &&
+            page.image_url.trim().length > 0;
+
+          if (!isValid) {
+            console.warn("❌ Filtering out invalid page:", page);
+          }
+
+          return isValid;
+        })
+        .sort((a, b) => a.number - b.number);
+
+      // Fetch text box data for each page
+      const pagesWithTextBoxes = await Promise.all(
+        validPages.map(async (page) => {
+          try {
+            // Fetch text boxes for this page
+            const textBoxes = await textBoxService.getTextBoxesByPage(page.id);
+
+            // Convert text boxes to analysis format
+            const textBoxTranslations: TextBoxTranslationData[] = textBoxes.map(
+              (tb) => ({
+                x: tb.x,
+                y: tb.y,
+                w: tb.w,
+                h: tb.h,
+                ocr_text: tb.ocr || undefined,
+                translated_text: tb.corrected || undefined, // Use corrected text as translation
+                corrected_text: tb.corrected || undefined,
+              })
+            );
+
+            return {
+              page_number: page.number,
+              image_url: page.image_url.trim(),
+              ocr_context:
+                page.context && page.context.trim()
+                  ? page.context.trim()
+                  : undefined,
+              text_boxes:
+                textBoxTranslations.length > 0
+                  ? textBoxTranslations
+                  : undefined,
+            };
+          } catch (error) {
+            console.warn(
+              `❌ Failed to fetch text boxes for page ${page.number}:`,
+              error
+            );
+            // Return page without text boxes if fetch fails
+            return {
+              page_number: page.number,
+              image_url: page.image_url.trim(),
+              ocr_context:
+                page.context && page.context.trim()
+                  ? page.context.trim()
+                  : undefined,
+              text_boxes: undefined,
+            };
+          }
+        })
+      );
+
+      // Build the analysis request with pages and text box data
       const analysisRequest = {
-        pages: pages
-          .filter((page) => {
-            // Filter out invalid pages before processing
-            const isValid =
-              page &&
-              typeof page.number === "number" &&
-              page.number > 0 &&
-              typeof page.image_url === "string" &&
-              page.image_url.trim().length > 0;
-
-            if (!isValid) {
-              console.warn("❌ Filtering out invalid page:", page);
-            }
-
-            return isValid;
-          })
-          .sort((a, b) => a.number - b.number)
-          .map((page) => ({
-            page_number: page.number,
-            image_url: page.image_url.trim(),
-            ocr_context:
-              page.context && page.context.trim()
-                ? page.context.trim()
-                : undefined,
-          })),
+        pages: pagesWithTextBoxes,
         translation_info: [
           "Maintain natural Vietnamese flow and readability",
           "Preserve character names and proper nouns",
           "Adapt cultural references appropriately",
+          "Reference text box translations for dialogue and story understanding",
         ],
         existing_context:
           chapterInfo?.context && chapterInfo.context.trim()

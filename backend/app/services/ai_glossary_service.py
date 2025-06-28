@@ -18,7 +18,7 @@ class AIGlossaryService:
     ) -> AIGlossaryResponse:
         """Create a new AI glossary entry"""
         try:
-            # Prepare data for insertion
+            # Prepare data for insertion (excluding tm_related_ids until column is added)
             insert_data = {
                 "series_id": glossary_data.series_id,
                 "name": glossary_data.name,
@@ -26,6 +26,10 @@ class AIGlossaryService:
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
+
+            # TODO: Uncomment this section after adding tm_related_ids column to database
+            # if hasattr(glossary_data, 'tm_related_ids') and glossary_data.tm_related_ids:
+            #     insert_data["tm_related_ids"] = glossary_data.tm_related_ids
 
             # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
@@ -98,7 +102,11 @@ class AIGlossaryService:
                 update_data["name"] = glossary_data.name
             if glossary_data.description is not None:
                 update_data["description"] = glossary_data.description
-            
+
+            # TODO: Uncomment this section after adding tm_related_ids column to database
+            # if hasattr(glossary_data, 'tm_related_ids') and glossary_data.tm_related_ids is not None:
+            #     update_data["tm_related_ids"] = glossary_data.tm_related_ids
+
             # Always update the updated_at timestamp
             update_data["updated_at"] = datetime.utcnow().isoformat()
             
@@ -165,6 +173,7 @@ class AIGlossaryService:
         self,
         series_id: str,
         people: List[PersonInfo],
+        useful_tm_ids: List[str] = None,
         clear_existing: bool = True
     ) -> List[AIGlossaryResponse]:
         """Save people analysis results to AI glossary table"""
@@ -179,7 +188,8 @@ class AIGlossaryService:
                 glossary_data = AIGlossaryCreate(
                     series_id=series_id,
                     name=person.name,
-                    description=person.description
+                    description=person.description,
+                    tm_related_ids=useful_tm_ids if useful_tm_ids else []
                 )
 
                 entry = await self.create_glossary_entry(glossary_data, "system")

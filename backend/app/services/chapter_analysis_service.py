@@ -125,32 +125,52 @@ Please ensure your analysis builds upon and remains consistent with this existin
 Instructions:
 - Analyze the pages in sequential order (1, 2, 3, ...)
 - Consider both visual content and OCR text context
+- Reference text box translations to understand dialogue and story content
+- Use translated text from text boxes to better understand character interactions and plot
 - Explain picture content and preserve story understanding
 - Provide comprehensive context for future translation work
 - Focus on character development, plot progression, and key story elements
 - Maintain consistency with any existing context provided
+- When text box translations are available, incorporate them into your analysis for better story comprehension
 
 Format your response as:
-CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content]
-ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments]"""
+CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content, referencing text box translations where relevant]
+ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments based on visual content and text box translations]"""
 
         return base_prompt
     
     def _build_user_prompt(self, pages: List[PageAnalysisData]) -> str:
-        """Build user prompt with page data"""
+        """Build user prompt with page data including text box translations"""
         prompt = f"Please analyze this chapter with {len(pages)} pages:\n\n"
-        
+
         for page in sorted(pages, key=lambda x: x.page_number):
             prompt += f"Page {page.page_number}:\n"
             prompt += f"- Image URL: {page.image_url}\n"
+
             if page.ocr_context:
                 prompt += f"- OCR Context: {page.ocr_context}\n"
             else:
                 prompt += "- OCR Context: [No text detected]\n"
+
+            # Include text box translation data if available
+            if page.text_boxes and len(page.text_boxes) > 0:
+                prompt += f"- Text Box Translations ({len(page.text_boxes)} boxes):\n"
+                for i, text_box in enumerate(page.text_boxes, 1):
+                    prompt += f"  Box {i} (x:{text_box.x}, y:{text_box.y}, w:{text_box.w}, h:{text_box.h}):\n"
+                    if text_box.ocr_text:
+                        prompt += f"    OCR: {text_box.ocr_text}\n"
+                    if text_box.translated_text:
+                        prompt += f"    Translation: {text_box.translated_text}\n"
+                    if text_box.corrected_text:
+                        prompt += f"    Corrected: {text_box.corrected_text}\n"
+            else:
+                prompt += "- Text Box Translations: [No text boxes found]\n"
+
             prompt += "\n"
-        
-        prompt += "Please provide a comprehensive analysis following the format specified in the system prompt."
-        
+
+        prompt += "Please provide a comprehensive analysis following the format specified in the system prompt. "
+        prompt += "When generating the new context, please reference the text box translations to understand the dialogue and story content better."
+
         return prompt
     
     def _parse_analysis_result(self, analysis_result: str) -> tuple[str, str]:
