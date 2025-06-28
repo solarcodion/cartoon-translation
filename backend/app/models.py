@@ -71,7 +71,7 @@ class CreateUserRequest(BaseModel):
     email: EmailStr
     name: str
     role: UserRole = UserRole.TRANSLATOR
-    avatar_url: Optional[str] = None
+    avatar_url: str = ""
 
 
 class ApiResponse(BaseModel):

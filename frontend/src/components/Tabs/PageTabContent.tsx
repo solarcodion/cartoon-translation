@@ -246,24 +246,6 @@ export function TranslationsTabContent({
     }
   };
 
-  // Function to manually refresh text boxes
-  const refreshTextBoxes = async () => {
-    if (!chapterId) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
-        chapterId
-      );
-      setTextBoxes(fetchedTextBoxes);
-    } catch (err) {
-      console.error("Error refreshing text boxes:", err);
-      setError("Failed to refresh text boxes");
-    } finally {
-      setIsLoading(false);
-    }
-  };
   return (
     <TabContent activeTab={activeTab} tabId="translations">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -272,26 +254,13 @@ export function TranslationsTabContent({
             <h2 className="text-xl font-bold text-gray-900">
               Translations for Chapter {chapterInfo?.number}
             </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={refreshTextBoxes}
-                disabled={isLoading}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Refresh text boxes"
-              >
-                <FiRefreshCw
-                  className={`text-sm ${isLoading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </button>
-              <button
-                onClick={onAddTextBox}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-              >
-                <FiPlus className="text-sm" />
-                Add Text Box
-              </button>
-            </div>
+            <button
+              onClick={onAddTextBox}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            >
+              <FiPlus className="text-sm" />
+              Add Text Box
+            </button>
           </div>
         </div>
 

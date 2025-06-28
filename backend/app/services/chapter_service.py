@@ -199,8 +199,6 @@ class ChapterService:
 
             if not response.data:
                 print(f"❌ Failed to update series {series_id} chapter count")
-            else:
-                print(f"✅ Updated series {series_id} chapter count to {actual_count}")
 
         except Exception as e:
             print(f"❌ Error updating series chapter count for {series_id}: {str(e)}")

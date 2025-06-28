@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: session.user.email || "",
         name: session.user.email?.split("@")[0] || "User",
         role: "translator" as const,
-        avatar_url: session.user.user_metadata?.avatar_url,
+        avatar_url: session.user.user_metadata?.avatar_url || "",
       };
 
       await userService.createUser(userData, token);

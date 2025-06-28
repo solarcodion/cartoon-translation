@@ -26,7 +26,7 @@ class UserService:
                 "email": user_data.email,
                 "name": user_data.name,
                 "role": user_data.role.value,
-                "avatar_url": user_data.avatar_url,
+                "avatar_url": user_data.avatar_url or "",  # Ensure avatar_url is never null
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }

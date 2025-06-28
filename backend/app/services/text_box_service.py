@@ -22,15 +22,15 @@ class TextBoxService:
             # Prepare data for database insertion
             insert_data = {
                 "page_id": text_box_data.page_id,
-                "image": text_box_data.image,
+                "image": text_box_data.image or "",
                 "x": text_box_data.x,
                 "y": text_box_data.y,
                 "w": text_box_data.w,
                 "h": text_box_data.h,
-                "ocr": text_box_data.ocr,
-                "corrected": text_box_data.corrected,
+                "ocr": text_box_data.ocr or "",
+                "corrected": text_box_data.corrected or "",
                 "tm": text_box_data.tm,
-                "reason": text_box_data.reason,
+                "reason": text_box_data.reason or "",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }

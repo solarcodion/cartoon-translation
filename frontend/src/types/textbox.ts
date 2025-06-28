@@ -113,8 +113,8 @@ export function convertLegacyTextBoxToApi(
     y: legacyTextBox.boundingBox.y,
     w: legacyTextBox.boundingBox.width,
     h: legacyTextBox.boundingBox.height,
-    ocr: legacyTextBox.ocrText,
-    corrected: legacyTextBox.correctedText,
-    reason: legacyTextBox.correctionReason,
+    ocr: legacyTextBox.ocrText || "",
+    corrected: legacyTextBox.correctedText || "",
+    reason: legacyTextBox.correctionReason || "",
   };
 }
