@@ -75,7 +75,7 @@ class TerminologyAnalysisService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=800,  # Maximum response length set to 800 tokens
+                max_tokens=1500,  # Increased token limit for comprehensive terminology analysis
                 temperature=0.3,
                 top_p=1.0,
                 frequency_penalty=0.0,
@@ -132,14 +132,14 @@ class TerminologyAnalysisService:
         """Build system prompt for terminology analysis with TM data"""
         return f"""You are an expert manhwa/manga terminology analyst specializing in identifying and categorizing manhwa-specific terms. You have access to translation memory data that can help understand term translations and context.
 
-Your task is to identify and extract manhwa-specific terminology including:
-- Character names (protagonists, antagonists, side characters)
-- Place names (cities, kingdoms, dungeons, schools, organizations)
-- Items (weapons, artifacts, potions, equipment)
-- Skills and techniques (martial arts, magic spells, special abilities)
-- Organizations (guilds, clans, sects, companies)
-- Titles and ranks (cultivation levels, job classes, noble titles)
-- Concepts unique to the story (cultivation systems, game mechanics, special terms)
+Your task is to identify and extract ALL types of manhwa-specific terminology. You MUST find terms from MULTIPLE categories, not just characters:
+
+REQUIRED CATEGORIES (find at least 1-2 terms from each if they exist):
+- CHARACTER: Named people (protagonists, antagonists, side characters, NPCs)
+- ITEM: Objects (weapons, artifacts, potions, equipment, tools, food)
+- PLACE: Locations (cities, kingdoms, dungeons, schools, buildings, areas)
+- TERM: Skills, abilities, techniques, magic spells, special powers, fighting styles
+- OTHER: Organizations, groups, guilds, clans, concepts, systems, rules, anything else
 
 Guidelines:
 - Focus on terms that are specific to this manhwa and would benefit from consistent translation
@@ -173,28 +173,54 @@ Format your response as a JSON object with this structure:
   "useful_tm_ids": ["tm_id_1", "tm_id_2"]
 }}
 
-Example:
+Example (MUST include diverse categories):
 {{
   "terminology": [
     {{
-      "name": "Kiếm Thần",
-      "translated_text": "The highest title in martial arts, only achievable by those who can completely master sword techniques. The holder of this title can cut through mountains and split oceans with their sword.",
-      "category": "title",
-      "description": "Danh hiệu cao quý nhất trong thế giới võ thuật, chỉ những người có thể làm chủ hoàn toàn sức mạnh kiếm thuật mới có thể đạt được. Người sở hữu danh hiệu này có thể chém đứt núi non và chia cắt đại dương.",
-      "mentioned_chapters": [1, 5, 12],
-      "confidence_score": 0.95
+      "name": "Tao Léo",
+      "translated_text": "A main character in the story with unique abilities.",
+      "category": "character",
+      "description": "Nhân vật chính trong câu chuyện với khả năng đặc biệt.",
+      "mentioned_chapters": [1],
+      "confidence_score": 0.90
     }},
     {{
-      "name": "Tao Léo",
-      "translated_text": "A main character in the story, known for their unique abilities and important role in the plot development.",
-      "category": "character",
-      "description": "Nhân vật chính trong câu chuyện, được biết đến với những khả năng độc đáo và vai trò quan trọng trong việc phát triển cốt truyện.",
-      "mentioned_chapters": [1, 3, 7],
-      "confidence_score": 0.90
+      "name": "Kiếm lửa",
+      "translated_text": "A magical sword that can create fire attacks.",
+      "category": "item",
+      "description": "Thanh kiếm ma thuật có thể tạo ra các đòn tấn công lửa.",
+      "mentioned_chapters": [1],
+      "confidence_score": 0.85
+    }},
+    {{
+      "name": "Học viện Thần thánh",
+      "translated_text": "The sacred academy where students learn magic.",
+      "category": "place",
+      "description": "Học viện thiêng liêng nơi học sinh học phép thuật.",
+      "mentioned_chapters": [1],
+      "confidence_score": 0.80
+    }},
+    {{
+      "name": "Phép thuật gió",
+      "translated_text": "Wind magic ability used for movement and attacks.",
+      "category": "term",
+      "description": "Khả năng phép thuật gió dùng để di chuyển và tấn công.",
+      "mentioned_chapters": [1],
+      "confidence_score": 0.75
+    }},
+    {{
+      "name": "Hội Kiếm sĩ",
+      "translated_text": "The swordsman guild that trains warriors.",
+      "category": "other",
+      "description": "Hội những kiếm sĩ huấn luyện các chiến binh.",
+      "mentioned_chapters": [1],
+      "confidence_score": 0.70
     }}
   ],
   "useful_tm_ids": ["tm_id_123"]
 }}
+
+CRITICAL: Your response MUST include terms from at least 3 different categories. Do not focus only on characters!
 
 Only return the JSON object, no additional text."""
 
@@ -245,16 +271,15 @@ Only return the JSON object, no additional text."""
         else:
             prompt_parts.append(f"\n--- No Translation Memory Data Available ---")
 
-        prompt_parts.append("\nPlease identify and extract ALL manhwa-specific terminology that appears in these chapters.")
-        prompt_parts.append("IMPORTANT: Extract ALL terminology regardless of whether Translation Memory data helps or not.")
-        prompt_parts.append("Focus on terms that would benefit from consistent translation across the series:")
-        prompt_parts.append("- Character names (protagonists, antagonists, side characters)")
-        prompt_parts.append("- Place names (cities, kingdoms, dungeons, schools, organizations)")
-        prompt_parts.append("- Items (weapons, artifacts, potions, equipment)")
-        prompt_parts.append("- Skills and techniques (martial arts, magic spells, special abilities)")
-        prompt_parts.append("- Organizations (guilds, clans, sects, companies)")
-        prompt_parts.append("- Titles and ranks (cultivation levels, job classes, noble titles)")
-        prompt_parts.append("- Concepts unique to the story (cultivation systems, game mechanics, special terms)")
+        prompt_parts.append("\n🎯 CRITICAL INSTRUCTION: You MUST find terminology from MULTIPLE categories, not just characters!")
+        prompt_parts.append("\nAnalyze the text carefully and extract ALL manhwa-specific terminology from these 5 categories:")
+        prompt_parts.append("👤 CHARACTER: Any named people or characters")
+        prompt_parts.append("⚔️ ITEM: Any objects mentioned (weapons, tools, food, equipment, artifacts)")
+        prompt_parts.append("📍 PLACE: Any location names (cities, buildings, areas, regions, schools)")
+        prompt_parts.append("✨ TERM: Any skills, abilities, techniques, magic spells, powers, fighting styles")
+        prompt_parts.append("🔄 OTHER: Organizations, groups, guilds, concepts, systems, rules, anything else")
+        prompt_parts.append("\nIMPORTANT: Use EXACTLY these 5 categories: character, item, place, term, other")
+        prompt_parts.append("If something doesn't fit character/item/place/term, put it in 'other' category.")
 
         if tm_data:
             prompt_parts.append("\nTranslation Memory Usage:")
@@ -322,27 +347,41 @@ Only return the JSON object, no additional text."""
         """Create fallback terminology when AI analysis fails"""
         fallback_terms = []
         
-        # Create generic terms based on common manhwa patterns
+        # Create generic terms based on common manhwa patterns using the 5 categories
         term_templates = [
             {
                 "name": "Nhân vật chính",
-                "translated_text": "The protagonist of the story who leads the plot and plays the most important role in developing events. Usually possesses special abilities or undergoes strong character development.",
+                "translated_text": "The protagonist of the story who leads the plot and plays the most important role in developing events.",
                 "category": GlossaryCategory.CHARACTER,
-                "description": "Nhân vật chính của câu chuyện, người dẫn dắt cốt truyện và có vai trò quan trọng nhất trong việc phát triển các sự kiện. Thường sở hữu những khả năng đặc biệt hoặc trải qua quá trình phát triển mạnh mẽ.",
-                "chapters": list(range(1, min(num_chapters + 1, 6)))
+                "description": "Nhân vật chính của câu chuyện, người dẫn dắt cốt truyện và có vai trò quan trọng nhất trong việc phát triển các sự kiện.",
+                "chapters": list(range(1, min(num_chapters + 1, 3)))
+            },
+            {
+                "name": "Vũ khí ma thuật",
+                "translated_text": "A magical weapon with special powers used by characters in the story.",
+                "category": GlossaryCategory.ITEM,
+                "description": "Vũ khí ma thuật có sức mạnh đặc biệt được các nhân vật sử dụng trong truyện.",
+                "chapters": list(range(1, min(num_chapters + 1, 3)))
+            },
+            {
+                "name": "Học viện",
+                "translated_text": "The academy or school where characters learn and train their abilities.",
+                "category": GlossaryCategory.PLACE,
+                "description": "Học viện hoặc trường học nơi các nhân vật học hỏi và rèn luyện khả năng của mình.",
+                "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
                 "name": "Kỹ năng đặc biệt",
-                "translated_text": "A special technique or ability that characters use in the story, often with superior power and playing an important role in battles or difficult situations.",
-                "category": GlossaryCategory.SKILL,
-                "description": "Kỹ năng hoặc kỹ thuật đặc biệt mà các nhân vật sử dụng trong truyện, thường có sức mạnh vượt trội và đóng vai trò quan trọng trong các trận chiến hoặc tình huống khó khăn.",
-                "chapters": list(range(1, min(num_chapters + 1, 4)))
+                "translated_text": "A special technique or ability that characters use in battles or difficult situations.",
+                "category": GlossaryCategory.TERM,
+                "description": "Kỹ năng hoặc kỹ thuật đặc biệt mà các nhân vật sử dụng trong các trận chiến hoặc tình huống khó khăn.",
+                "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
-                "name": "Vũ khí thần thoại",
-                "translated_text": "A weapon of mythological origin or created by magic, possessing extraordinary power and usually only usable by chosen individuals.",
-                "category": GlossaryCategory.ITEM,
-                "description": "Vũ khí có nguồn gốc từ thần thoại hoặc được tạo ra bằng ma thuật, sở hữu sức mạnh phi thường và thường chỉ có thể được sử dụng bởi những người được chọn.",
+                "name": "Hệ thống tu luyện",
+                "translated_text": "The cultivation or training system used in the story world.",
+                "category": GlossaryCategory.OTHER,
+                "description": "Hệ thống tu luyện hoặc rèn luyện được sử dụng trong thế giới truyện.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             }
         ]
@@ -374,7 +413,7 @@ Only return the JSON object, no additional text."""
         # Convert to lowercase for case-insensitive matching
         category_lower = raw_category.lower().strip()
 
-        # Define category mappings to enum values (only using database-allowed categories)
+        # Define category mappings to the 5 allowed categories
         category_mappings = {
             # Character-related
             'character': GlossaryCategory.CHARACTER,
@@ -385,50 +424,59 @@ Only return the JSON object, no additional text."""
             'villain': GlossaryCategory.CHARACTER,
             'people': GlossaryCategory.CHARACTER,
 
-            # Skill-related
-            'skill': GlossaryCategory.SKILL,
-            'ability': GlossaryCategory.SKILL,
-            'technique': GlossaryCategory.SKILL,
-            'power': GlossaryCategory.SKILL,
-            'magic': GlossaryCategory.SKILL,
-            'spell': GlossaryCategory.SKILL,
-            'martial_art': GlossaryCategory.SKILL,
-
-            # Item-related (including locations, organizations, and concepts as items)
+            # Item-related
             'item': GlossaryCategory.ITEM,
             'weapon': GlossaryCategory.ITEM,
             'tool': GlossaryCategory.ITEM,
             'artifact': GlossaryCategory.ITEM,
             'equipment': GlossaryCategory.ITEM,
             'object': GlossaryCategory.ITEM,
+            'food': GlossaryCategory.ITEM,
+            'potion': GlossaryCategory.ITEM,
 
-            # Location-related (map to item since location not allowed in DB)
-            'place': GlossaryCategory.ITEM,
-            'location': GlossaryCategory.ITEM,
-            'area': GlossaryCategory.ITEM,
-            'region': GlossaryCategory.ITEM,
-            'city': GlossaryCategory.ITEM,
-            'building': GlossaryCategory.ITEM,
+            # Place-related
+            'place': GlossaryCategory.PLACE,
+            'location': GlossaryCategory.PLACE,
+            'area': GlossaryCategory.PLACE,
+            'region': GlossaryCategory.PLACE,
+            'city': GlossaryCategory.PLACE,
+            'building': GlossaryCategory.PLACE,
+            'school': GlossaryCategory.PLACE,
+            'academy': GlossaryCategory.PLACE,
 
-            # Organization-related (map to item since organization not allowed in DB)
-            'organization': GlossaryCategory.ITEM,
-            'guild': GlossaryCategory.ITEM,
-            'clan': GlossaryCategory.ITEM,
-            'faction': GlossaryCategory.ITEM,
-            'group': GlossaryCategory.ITEM,
-            'team': GlossaryCategory.ITEM,
+            # Term-related (skills, abilities, techniques)
+            'term': GlossaryCategory.TERM,
+            'skill': GlossaryCategory.TERM,
+            'ability': GlossaryCategory.TERM,
+            'power': GlossaryCategory.TERM,
+            'magic': GlossaryCategory.TERM,
+            'spell': GlossaryCategory.TERM,
+            'technique': GlossaryCategory.TERM,
+            'martial_art': GlossaryCategory.TERM,
+            'fighting_style': GlossaryCategory.TERM,
 
-            # Concept-related (map to item as fallback)
-            'concept': GlossaryCategory.ITEM,
-            'idea': GlossaryCategory.ITEM,
-            'theory': GlossaryCategory.ITEM,
-            'principle': GlossaryCategory.ITEM,
-            'rule': GlossaryCategory.ITEM,
-            'law': GlossaryCategory.ITEM,
+            # Other-related (everything else)
+            'other': GlossaryCategory.OTHER,
+            'organization': GlossaryCategory.OTHER,
+            'guild': GlossaryCategory.OTHER,
+            'clan': GlossaryCategory.OTHER,
+            'faction': GlossaryCategory.OTHER,
+            'group': GlossaryCategory.OTHER,
+            'team': GlossaryCategory.OTHER,
+            'concept': GlossaryCategory.OTHER,
+            'idea': GlossaryCategory.OTHER,
+            'theory': GlossaryCategory.OTHER,
+            'principle': GlossaryCategory.OTHER,
+            'rule': GlossaryCategory.OTHER,
+            'law': GlossaryCategory.OTHER,
+            'title': GlossaryCategory.OTHER,
+            'rank': GlossaryCategory.OTHER,
+            'level': GlossaryCategory.OTHER,
+            'system': GlossaryCategory.OTHER,
         }
 
-        # Return mapped category or default to ITEM
-        return category_mappings.get(category_lower, GlossaryCategory.ITEM)
+        # Return mapped category or default to OTHER
+        return category_mappings.get(category_lower, GlossaryCategory.OTHER)
 
     async def health_check(self) -> dict:
         """Check if terminology analysis service is working"""

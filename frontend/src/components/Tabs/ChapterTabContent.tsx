@@ -6,9 +6,11 @@ import {
   FiTrash2,
   FiRefreshCw,
   FiMoreHorizontal,
+  FiUser,
+  FiMapPin,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import { LuBrain, LuTag } from "react-icons/lu";
+import { LuBrain, LuTag, LuSword, LuSparkles, LuCircle } from "react-icons/lu";
 import { EmptyState, TabContent } from "../common";
 import DropdownMenu from "../common/DropdownMenu";
 import type {
@@ -350,9 +352,8 @@ export function AIGlossaryTabContent({
                 AI-Generated Manhwa Terminology
               </h2>
               <p className="text-sm text-gray-600">
-                Characters, places, items, skills, and other manhwa-specific
-                terms automatically identified with original text and
-                translations.
+                Characters, items, places, terms, and other manhwa-specific
+                terminology automatically identified with translations.
               </p>
             </div>
             <button
@@ -383,47 +384,32 @@ export function AIGlossaryTabContent({
                     className={`w-full h-full rounded-lg flex items-center justify-center ${
                       character.category === "character"
                         ? "bg-blue-400"
-                        : character.category === "place"
-                        ? "bg-green-400"
                         : character.category === "item"
                         ? "bg-orange-400"
-                        : character.category === "skill"
-                        ? "bg-pink-400"
-                        : character.category === "technique"
-                        ? "bg-red-400"
-                        : character.category === "organization"
-                        ? "bg-gray-400"
-                        : character.category === "title"
+                        : character.category === "place"
+                        ? "bg-green-400"
+                        : character.category === "term"
                         ? "bg-purple-400"
-                        : character.category === "concept"
-                        ? "bg-cyan-400"
+                        : character.category === "other"
+                        ? "bg-gray-400"
                         : "bg-gray-400"
                     }`}
                   >
                     {/* Dynamic icon based on category */}
                     {character.category === "character" && (
-                      <span className="text-white text-6xl">👤</span>
-                    )}
-                    {character.category === "place" && (
-                      <span className="text-white text-6xl">🏛️</span>
+                      <FiUser className="text-white text-4xl" />
                     )}
                     {character.category === "item" && (
-                      <span className="text-white text-6xl">⚔️</span>
+                      <LuSword className="text-white text-4xl" />
                     )}
-                    {character.category === "skill" && (
-                      <span className="text-white text-6xl">✨</span>
+                    {character.category === "place" && (
+                      <FiMapPin className="text-white text-4xl" />
                     )}
-                    {character.category === "technique" && (
-                      <span className="text-white text-6xl">🥋</span>
+                    {character.category === "term" && (
+                      <LuSparkles className="text-white text-4xl" />
                     )}
-                    {character.category === "organization" && (
-                      <span className="text-white text-6xl">🏢</span>
-                    )}
-                    {character.category === "title" && (
-                      <span className="text-white text-6xl">👑</span>
-                    )}
-                    {character.category === "concept" && (
-                      <span className="text-white text-6xl">💭</span>
+                    {character.category === "other" && (
+                      <LuCircle className="text-white text-4xl" />
                     )}
                     {!character.category && (
                       <LuTag className="text-white text-4xl" />

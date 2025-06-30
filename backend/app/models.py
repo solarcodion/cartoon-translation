@@ -138,8 +138,10 @@ class ChapterStatus(str, Enum):
 class GlossaryCategory(str, Enum):
     """AI Glossary category enumeration"""
     CHARACTER = "character"
-    SKILL = "skill"
     ITEM = "item"
+    PLACE = "place"
+    TERM = "term"
+    OTHER = "other"
 
 
 class ChapterBase(BaseModel):
