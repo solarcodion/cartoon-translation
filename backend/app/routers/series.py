@@ -13,7 +13,9 @@ from app.models import (
     SeriesUpdate,
     ApiResponse,
     PeopleAnalysisRequest,
-    PeopleAnalysisResponse
+    PeopleAnalysisResponse,
+    TerminologyAnalysisRequest,
+    TerminologyAnalysisResponse
 )
 
 router = APIRouter(prefix="/series", tags=["series"])
@@ -309,4 +311,49 @@ async def analyze_people_in_series(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"People analysis failed: {str(e)}"
+        )
+
+
+@router.post("/{series_id}/analyze-terminology", response_model=TerminologyAnalysisResponse)
+async def analyze_terminology_in_series(
+    series_id: str,
+    request: TerminologyAnalysisRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    series_service: SeriesService = Depends(get_series_service),
+    people_analysis_service: PeopleAnalysisService = Depends(get_people_analysis_service)
+):
+    """
+    Analyze manhwa-specific terminology in a series across all chapters
+
+    This endpoint analyzes all chapters in a series to identify and extract
+    manhwa-specific terminology including characters, places, items, skills, etc.
+    """
+    try:
+        # Verify series exists
+        series = await series_service.get_series_by_id(series_id)
+        if not series:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Series with ID {series_id} not found"
+            )
+
+        # Get all chapters and their data for the series
+        chapters_data = await series_service.get_chapters_with_pages_for_analysis(series_id)
+
+        # Perform terminology analysis using the new method
+        result = await people_analysis_service.analyze_terminology_in_series(
+            series_id=series_id,
+            chapters_data=chapters_data,
+            force_refresh=request.force_refresh
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Terminology analysis error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Terminology analysis failed: {str(e)}"
         )

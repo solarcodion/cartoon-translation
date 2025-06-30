@@ -135,6 +135,13 @@ class ChapterStatus(str, Enum):
     TRANSLATED = "translated"
 
 
+class GlossaryCategory(str, Enum):
+    """AI Glossary category enumeration"""
+    CHARACTER = "character"
+    SKILL = "skill"
+    ITEM = "item"
+
+
 class ChapterBase(BaseModel):
     """Base chapter model"""
     chapter_number: int
@@ -391,7 +398,7 @@ class ChapterAnalysisRequest(BaseModel):
 
 # People Analysis Models
 class PersonInfo(BaseModel):
-    """Information about a person/character detected in the series"""
+    """Information about a person/character detected in the series - DEPRECATED: Use TerminologyInfo instead"""
     id: str
     name: str
     description: str
@@ -404,8 +411,34 @@ class PersonInfo(BaseModel):
         validate_assignment = True
 
 
+class TerminologyInfo(BaseModel):
+    """Terminology information model for AI glossary analysis"""
+    id: str
+    name: str  # Display name
+    translated_text: str  # English translation of description
+    category: GlossaryCategory  # Type: character, place, item, skill, technique, organization, etc.
+    description: str  # Detailed description in Vietnamese
+    mentioned_chapters: list[int] = []
+    confidence_score: Optional[float] = 0.8
+    image_url: Optional[str] = None  # Best image showing this term
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 class PeopleAnalysisRequest(BaseModel):
-    """Request model for analyzing people in a series"""
+    """Request model for analyzing people in a series - DEPRECATED: Use TerminologyAnalysisRequest instead"""
+    series_id: str
+    force_refresh: bool = False  # Whether to force re-analysis even if data exists
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TerminologyAnalysisRequest(BaseModel):
+    """Request model for analyzing terminology in a series"""
     series_id: str
     force_refresh: bool = False  # Whether to force re-analysis even if data exists
 
@@ -415,7 +448,7 @@ class PeopleAnalysisRequest(BaseModel):
 
 
 class PeopleAnalysisResponse(BaseModel):
-    """Response model for people analysis"""
+    """Response model for people analysis - DEPRECATED: Use TerminologyAnalysisResponse instead"""
     success: bool
     people: list[PersonInfo]
     total_people_found: int
@@ -427,11 +460,26 @@ class PeopleAnalysisResponse(BaseModel):
         from_attributes = True
 
 
+class TerminologyAnalysisResponse(BaseModel):
+    """Response model for terminology analysis"""
+    success: bool
+    terminology: list[TerminologyInfo]
+    total_terms_found: int
+    processing_time: Optional[float] = None
+    model: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 # AI Glossary Models
 class AIGlossaryBase(BaseModel):
     """Base AI glossary model"""
-    name: str
-    description: str
+    name: str  # Display name
+    translated_text: str  # English translation of description
+    category: GlossaryCategory  # Type of term: character, place, item, skill, technique, organization, etc.
+    description: str  # Detailed description in Vietnamese
     tm_related_ids: Optional[List[str]] = None  # TM entry IDs that helped create this glossary entry
 
     class Config:
@@ -442,8 +490,10 @@ class AIGlossaryBase(BaseModel):
 class AIGlossaryCreate(BaseModel):
     """AI glossary creation model"""
     series_id: str
-    name: str
-    description: str
+    name: str  # Display name
+    translated_text: str  # English translation of description
+    category: GlossaryCategory  # Term category
+    description: str  # Description in Vietnamese
     tm_related_ids: Optional[List[str]] = None  # Optional for backward compatibility
 
     class Config:
@@ -454,6 +504,8 @@ class AIGlossaryCreate(BaseModel):
 class AIGlossaryUpdate(BaseModel):
     """AI glossary update model"""
     name: Optional[str] = None
+    translated_text: Optional[str] = None
+    category: Optional[GlossaryCategory] = None
     description: Optional[str] = None
     tm_related_ids: Optional[List[str]] = None
 

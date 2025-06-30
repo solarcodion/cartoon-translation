@@ -24,9 +24,9 @@ def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterServ
     return ChapterService(supabase)
 
 
-def get_chapter_analysis_service() -> ChapterAnalysisService:
-    """Dependency to get chapter analysis service"""
-    return ChapterAnalysisService()
+def get_chapter_analysis_service(supabase: Client = Depends(get_supabase)) -> ChapterAnalysisService:
+    """Dependency to get chapter analysis service with TM support"""
+    return ChapterAnalysisService(supabase)
 
 
 
@@ -267,8 +267,8 @@ async def analyze_chapter(
                 detail="Pages array cannot be empty"
             )
 
-        # Perform chapter analysis
-        analysis_result = await analysis_service.analyze_chapter(request)
+        # Perform chapter analysis with series_id for TM integration
+        analysis_result = await analysis_service.analyze_chapter(request, chapter.series_id)
 
         if not analysis_result.success:
             raise HTTPException(

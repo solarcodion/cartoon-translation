@@ -1,4 +1,4 @@
-// People Analysis Service for AI Glossary functionality
+// People Analysis Service for AI Glossary functionality - DEPRECATED: Use TerminologyAnalysisService instead
 
 import { apiClient } from "./api";
 import { supabase } from "../lib/supabase";
@@ -12,7 +12,23 @@ export interface PersonInfo {
   confidence_score?: number;
 }
 
+export interface TerminologyInfo {
+  id: string;
+  name: string; // Display name
+  translated_text: string; // Vietnamese translation
+  category: string; // Type: character, place, item, skill, technique, organization, etc.
+  description: string; // Detailed description in Vietnamese
+  mentioned_chapters: number[];
+  confidence_score?: number;
+  image_url?: string; // Best image showing this term
+}
+
 export interface PeopleAnalysisRequest {
+  series_id: string;
+  force_refresh?: boolean;
+}
+
+export interface TerminologyAnalysisRequest {
   series_id: string;
   force_refresh?: boolean;
 }
@@ -21,6 +37,15 @@ export interface PeopleAnalysisResponse {
   success: boolean;
   people: PersonInfo[];
   total_people_found: number;
+  processing_time?: number;
+  model?: string;
+  tokens_used?: number;
+}
+
+export interface TerminologyAnalysisResponse {
+  success: boolean;
+  terminology: TerminologyInfo[];
+  total_terms_found: number;
   processing_time?: number;
   model?: string;
   tokens_used?: number;
@@ -87,6 +112,53 @@ class PeopleAnalysisService {
   }
 
   /**
+   * Analyze manhwa-specific terminology in a series using AI
+   */
+  async analyzeTerminologyInSeries(
+    seriesId: string,
+    forceRefresh: boolean = false
+  ): Promise<TerminologyAnalysisResponse> {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) {
+        throw new Error("Authentication required. Please log in.");
+      }
+
+      const requestData: TerminologyAnalysisRequest = {
+        series_id: seriesId,
+        force_refresh: forceRefresh,
+      };
+
+      const response = await apiClient.post<TerminologyAnalysisResponse>(
+        `/series/${seriesId}/analyze-terminology`,
+        requestData,
+        token
+      );
+
+      if (response.success) {
+        return response;
+      } else {
+        throw new Error("Terminology analysis failed");
+      }
+    } catch (error: any) {
+      console.error("❌ Terminology analysis error:", error);
+
+      // Handle different error types
+      if (error.message.includes("404")) {
+        throw new Error("Series not found");
+      } else if (error.message.includes("429")) {
+        throw new Error("Analysis service is busy. Please try again later.");
+      } else if (error.message.includes("401")) {
+        throw new Error("Authentication failed. Please log in again.");
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error("Failed to analyze terminology in series");
+      }
+    }
+  }
+
+  /**
    * Convert PersonInfo to GlossaryCharacter format for compatibility
    */
   convertToGlossaryCharacter(person: PersonInfo): any {
@@ -97,6 +169,24 @@ class PeopleAnalysisService {
       mentionedChapters: person.mentioned_chapters,
       status: "Ongoing" as const,
       image: person.image_url,
+    };
+  }
+
+  /**
+   * Convert TerminologyInfo to GlossaryCharacter format for compatibility
+   */
+  convertTerminologyToGlossaryCharacter(term: TerminologyInfo): any {
+    return {
+      id: term.id,
+      name: term.name,
+      originalText: "", // No longer using original_text field
+      translatedText: term.translated_text,
+      category: term.category,
+      summary: term.description,
+      mentionedChapters: term.mentioned_chapters,
+      status: "Ongoing" as const,
+      image:
+        term.image_url || this.getSimpleAvatarUrl(term.name, term.category),
     };
   }
 
@@ -133,17 +223,20 @@ class PeopleAnalysisService {
   }
 
   /**
-   * Get simple avatar URL for fallback cases
+   * Get avatar URL for terminology based on name and category
    */
-  getSimpleAvatarUrl(personIndex: number): string {
-    // You can replace this with actual avatar generation service
-    const avatarColors = ["blue", "green", "purple", "orange", "red"];
-    const color = avatarColors[personIndex % avatarColors.length];
+  getSimpleAvatarUrl(name: string, category?: string): string {
+    // Generate avatar based on category
+    switch (category) {
+      case "character":
+        // Use DiceBear avatars for characters (more realistic than letters)
+        const seed = encodeURIComponent(name);
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64`;
 
-    // Using a simple avatar service (you can replace with your preferred service)
-    return `https://ui-avatars.com/api/?name=Person+${
-      personIndex + 1
-    }&background=${color}&color=fff&size=128`;
+      default:
+        // For all other categories, return null to force icon display
+        return null;
+    }
   }
 
   /**
@@ -152,7 +245,8 @@ class PeopleAnalysisService {
   enhancePeopleWithAvatars(people: PersonInfo[]): PersonInfo[] {
     return people.map((person, index) => ({
       ...person,
-      image_url: person.image_url || this.getSimpleAvatarUrl(index),
+      image_url:
+        person.image_url || this.getSimpleAvatarUrl(person.name, "character"),
     }));
   }
 }

@@ -5,13 +5,14 @@ import json
 from typing import List, Optional, Dict, Any
 from supabase import Client
 from app.config import settings
-from app.models import PeopleAnalysisRequest, PeopleAnalysisResponse, PersonInfo
+from app.models import PeopleAnalysisRequest, PeopleAnalysisResponse, PersonInfo, TerminologyAnalysisResponse
 from app.services.ai_glossary_service import AIGlossaryService
 from app.services.translation_memory_service import TranslationMemoryService
+from app.services.terminology_analysis_service import TerminologyAnalysisService
 
 
 class PeopleAnalysisService:
-    """Service for AI-powered people/character analysis using OpenAI GPT"""
+    """Service for AI-powered people/character analysis using OpenAI GPT - DEPRECATED: Use TerminologyAnalysisService instead"""
 
     def __init__(self, supabase: Client = None):
         """Initialize people analysis service with OpenAI client and optional Supabase client"""
@@ -19,6 +20,7 @@ class PeopleAnalysisService:
         self.supabase = supabase
         self.ai_glossary_service = AIGlossaryService(supabase) if supabase else None
         self.tm_service = TranslationMemoryService(supabase) if supabase else None
+        self.terminology_service = TerminologyAnalysisService(supabase) if supabase else None
 
         if not settings.openai_api_key:
             print("⚠️ Warning: OpenAI API key not configured. People analysis service will not work.")
@@ -28,6 +30,25 @@ class PeopleAnalysisService:
         # Initialize OpenAI client
         openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
+
+    async def analyze_terminology_in_series(
+        self,
+        series_id: str,
+        chapters_data: List[Dict[str, Any]],
+        force_refresh: bool = False
+    ) -> TerminologyAnalysisResponse:
+        """
+        Analyze manhwa-specific terminology across all chapters in a series
+        This method delegates to the new TerminologyAnalysisService
+        """
+        if not self.terminology_service:
+            raise Exception("Terminology analysis service is not available")
+
+        return await self.terminology_service.analyze_terminology_in_series(
+            series_id=series_id,
+            chapters_data=chapters_data,
+            force_refresh=force_refresh
+        )
     
     async def analyze_people_in_series(
         self, 
@@ -66,7 +87,6 @@ class PeopleAnalysisService:
             if self.tm_service:
                 try:
                     tm_data = await self.tm_service.get_all_tm_entries_for_analysis(series_id)
-                    print(f"📚 Retrieved {len(tm_data)} TM entries for series analysis")
                 except Exception as tm_error:
                     print(f"⚠️ Warning: Failed to fetch TM data: {str(tm_error)}")
 
@@ -98,7 +118,6 @@ class PeopleAnalysisService:
                 try:
                     for tm_id in useful_tm_ids:
                         await self.tm_service.increment_usage_count(tm_id)
-                    print(f"✅ Updated usage count for {len(useful_tm_ids)} useful TM entries")
                 except Exception as tm_error:
                     print(f"⚠️ Warning: Failed to update TM usage counts: {str(tm_error)}")
 
@@ -108,7 +127,6 @@ class PeopleAnalysisService:
                     await self.ai_glossary_service.save_people_analysis_results(
                         series_id=series_id,
                         people=people_list,
-                        useful_tm_ids=useful_tm_ids,
                         clear_existing=True
                     )
                 except Exception as db_error:

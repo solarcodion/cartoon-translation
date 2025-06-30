@@ -378,15 +378,15 @@ export default function Chapters() {
     }
   };
 
-  // Glossary Refresh Handler
+  // Glossary Refresh Handler - Updated to use terminology analysis
   const handleRefreshGlossary = async () => {
     if (!seriesId) return;
 
     try {
       setIsGlossaryRefreshing(true);
 
-      // Analyze people in the series (this will save to database automatically)
-      const result = await peopleAnalysisService.analyzePeopleInSeries(
+      // Analyze terminology in the series (this will save to database automatically)
+      const result = await peopleAnalysisService.analyzeTerminologyInSeries(
         seriesId,
         true // force refresh
       );
@@ -395,7 +395,7 @@ export default function Chapters() {
         // Fetch the updated data from database
         await fetchGlossaryData();
       } else {
-        throw new Error("People analysis failed");
+        throw new Error("Terminology analysis failed");
       }
     } catch (error) {
       console.error("❌ Error refreshing glossary:", error);

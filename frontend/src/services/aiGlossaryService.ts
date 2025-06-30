@@ -6,8 +6,10 @@ import { supabase } from "../lib/supabase";
 export interface AIGlossaryEntry {
   id: string;
   series_id: string;
-  name: string;
-  description: string;
+  name: string; // Display name
+  translated_text: string; // English translation of description
+  category: string; // Type: character, place, item, skill, technique, organization, etc.
+  description: string; // Detailed description in Vietnamese
   tm_related_ids?: string[]; // TM entry IDs that helped create this glossary entry
   created_at: string;
   updated_at: string;
@@ -15,13 +17,17 @@ export interface AIGlossaryEntry {
 
 export interface AIGlossaryCreate {
   series_id: string;
-  name: string;
-  description: string;
+  name: string; // Display name
+  translated_text: string; // English translation of description
+  category: string; // Term category
+  description: string; // Description in Vietnamese
   tm_related_ids?: string[];
 }
 
 export interface AIGlossaryUpdate {
   name?: string;
+  translated_text?: string;
+  category?: string;
   description?: string;
   tm_related_ids?: string[];
 }
@@ -233,10 +239,13 @@ class AIGlossaryService {
     return {
       id: entry.id,
       name: entry.name,
+      originalText: "", // No longer using original_text field
+      translatedText: entry.translated_text,
+      category: entry.category,
       summary: entry.description,
       mentionedChapters: [], // This could be enhanced to track chapters
       status: "Ongoing" as const,
-      image: this.getSimpleAvatarUrl(entry.name),
+      image: this.getSimpleAvatarUrl(entry.name, entry.category),
     };
   }
 
@@ -248,24 +257,20 @@ class AIGlossaryService {
   }
 
   /**
-   * Get simple avatar URL for characters
+   * Get avatar URL for terminology based on category
    */
-  getSimpleAvatarUrl(characterName: string): string {
-    const colors = [
-      "blue",
-      "green",
-      "purple",
-      "orange",
-      "red",
-      "indigo",
-      "pink",
-    ];
-    const colorIndex = characterName.length % colors.length;
-    const color = colors[colorIndex];
+  getSimpleAvatarUrl(name: string, category?: string): string {
+    // Generate avatar based on category
+    switch (category) {
+      case "character":
+        // Use DiceBear avatars for characters (more realistic than letters)
+        const seed = encodeURIComponent(name);
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9&size=64`;
 
-    // Using UI Avatars service with character name
-    const encodedName = encodeURIComponent(characterName);
-    return `https://ui-avatars.com/api/?name=${encodedName}&background=${color}&color=fff&size=128`;
+      default:
+        // For all other categories, return null to force icon display
+        return null;
+    }
   }
 }
 

@@ -347,11 +347,12 @@ export function AIGlossaryTabContent({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                AI-Generated Series Glossary
+                AI-Generated Manhwa Terminology
               </h2>
               <p className="text-sm text-gray-600">
-                Characters, terms, and lore automatically identified and
-                summarized by AI.
+                Characters, places, items, skills, and other manhwa-specific
+                terms automatically identified with original text and
+                translations.
               </p>
             </div>
             <button
@@ -362,7 +363,9 @@ export function AIGlossaryTabContent({
               <FiRefreshCw
                 className={`text-sm ${isRefreshing ? "animate-spin" : ""}`}
               />
-              {isRefreshing ? "Analyzing..." : "Refresh Glossary"}
+              {isRefreshing
+                ? "Analyzing Terminology..."
+                : "Analyze Terminology"}
             </button>
           </div>
         </div>
@@ -374,29 +377,59 @@ export function AIGlossaryTabContent({
                 key={character.id}
                 className="bg-white border border-gray-200 rounded-lg overflow-hidden"
               >
-                {/* Character Image with Name Overlay */}
+                {/* Term Image with Name Overlay */}
                 <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center overflow-hidden">
-                  {character.image ? (
-                    <img
-                      src={character.image}
-                      alt={character.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback to placeholder if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        target.nextElementSibling?.classList.remove("hidden");
-                      }}
-                    />
-                  ) : null}
                   <div
-                    className={`w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center ${
-                      character.image ? "hidden" : ""
+                    className={`w-full h-full rounded-lg flex items-center justify-center ${
+                      character.category === "character"
+                        ? "bg-blue-400"
+                        : character.category === "place"
+                        ? "bg-green-400"
+                        : character.category === "item"
+                        ? "bg-orange-400"
+                        : character.category === "skill"
+                        ? "bg-pink-400"
+                        : character.category === "technique"
+                        ? "bg-red-400"
+                        : character.category === "organization"
+                        ? "bg-gray-400"
+                        : character.category === "title"
+                        ? "bg-purple-400"
+                        : character.category === "concept"
+                        ? "bg-cyan-400"
+                        : "bg-gray-400"
                     }`}
                   >
-                    <span className="text-gray-600 text-xl">👤</span>
+                    {/* Dynamic icon based on category */}
+                    {character.category === "character" && (
+                      <span className="text-white text-6xl">👤</span>
+                    )}
+                    {character.category === "place" && (
+                      <span className="text-white text-6xl">🏛️</span>
+                    )}
+                    {character.category === "item" && (
+                      <span className="text-white text-6xl">⚔️</span>
+                    )}
+                    {character.category === "skill" && (
+                      <span className="text-white text-6xl">✨</span>
+                    )}
+                    {character.category === "technique" && (
+                      <span className="text-white text-6xl">🥋</span>
+                    )}
+                    {character.category === "organization" && (
+                      <span className="text-white text-6xl">🏢</span>
+                    )}
+                    {character.category === "title" && (
+                      <span className="text-white text-6xl">👑</span>
+                    )}
+                    {character.category === "concept" && (
+                      <span className="text-white text-6xl">💭</span>
+                    )}
+                    {!character.category && (
+                      <LuTag className="text-white text-4xl" />
+                    )}
                   </div>
-                  {/* Character Name Overlay */}
+                  {/* Term Name Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end">
                     <h3 className="text-xl font-semibold text-white">
                       {character.name}
@@ -404,18 +437,46 @@ export function AIGlossaryTabContent({
                   </div>
                 </div>
 
-                {/* Character Info */}
+                {/* Term Info */}
                 <div className="p-4">
-                  {/* AI Summary */}
-                  <div className="mb-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <LuBrain className="text-xs text-gray-500" />
-                      <span className="text-xs text-gray-500">AI Summary</span>
+                  {/* Category Badge */}
+                  {character.category && (
+                    <div className="mb-3">
+                      <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                        {character.category}
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {character.summary}
-                    </p>
-                  </div>
+                  )}
+
+                  {/* Vietnamese Description */}
+                  {character.summary && (
+                    <div className="mb-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <LuBrain className="text-xs text-gray-500" />
+                        <span className="text-xs text-gray-500">
+                          Vietnamese Description
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {character.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* English Translation */}
+                  {character.translatedText && (
+                    <div className="mb-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <LuTag className="text-xs text-gray-500" />
+                        <span className="text-xs text-gray-500">
+                          English Translation
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {character.translatedText}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Mentioned in Chapters */}
                   <div className="mb-3">

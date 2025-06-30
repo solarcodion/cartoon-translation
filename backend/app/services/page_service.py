@@ -33,9 +33,6 @@ class PageService:
                 except Exception as e:
                     width, height = None, None
 
-            # Skip bucket creation - assume it exists
-            print(f"ℹ️ Using storage bucket: {self.storage_bucket}")
-
             # Upload file to Supabase storage
             try:
                 # Simple upload approach

@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from supabase import Client
 from datetime import datetime
-from app.models import AIGlossaryCreate, AIGlossaryUpdate, AIGlossaryResponse, PersonInfo
+from app.models import AIGlossaryCreate, AIGlossaryUpdate, AIGlossaryResponse, PersonInfo, TerminologyInfo, GlossaryCategory
 
 
 class AIGlossaryService:
@@ -18,10 +18,12 @@ class AIGlossaryService:
     ) -> AIGlossaryResponse:
         """Create a new AI glossary entry"""
         try:
-            # Prepare data for insertion (excluding tm_related_ids until column is added)
+            # Prepare data for insertion with new terminology fields
             insert_data = {
                 "series_id": glossary_data.series_id,
                 "name": glossary_data.name,
+                "translated_text": glossary_data.translated_text,
+                "category": glossary_data.category.value if hasattr(glossary_data.category, 'value') else str(glossary_data.category),
                 "description": glossary_data.description,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
@@ -100,6 +102,10 @@ class AIGlossaryService:
             update_data = {}
             if glossary_data.name is not None:
                 update_data["name"] = glossary_data.name
+            if glossary_data.translated_text is not None:
+                update_data["translated_text"] = glossary_data.translated_text
+            if glossary_data.category is not None:
+                update_data["category"] = glossary_data.category.value if hasattr(glossary_data.category, 'value') else str(glossary_data.category)
             if glossary_data.description is not None:
                 update_data["description"] = glossary_data.description
 
@@ -173,23 +179,23 @@ class AIGlossaryService:
         self,
         series_id: str,
         people: List[PersonInfo],
-        useful_tm_ids: List[str] = None,
         clear_existing: bool = True
     ) -> List[AIGlossaryResponse]:
-        """Save people analysis results to AI glossary table"""
+        """Save people analysis results to AI glossary table - DEPRECATED: Use save_terminology_analysis_results instead"""
         try:
             # Clear existing entries if requested
             if clear_existing:
                 await self.clear_series_glossary(series_id)
 
-            # Create new entries
+            # Create new entries (convert PersonInfo to new format)
             created_entries = []
             for person in people:
                 glossary_data = AIGlossaryCreate(
                     series_id=series_id,
                     name=person.name,
-                    description=person.description,
-                    tm_related_ids=useful_tm_ids if useful_tm_ids else []
+                    translated_text=person.name,  # Use name as translated text for backward compatibility
+                    category=GlossaryCategory.CHARACTER,  # Default to character for people analysis
+                    description=person.description
                 )
 
                 entry = await self.create_glossary_entry(glossary_data, "system")
@@ -200,6 +206,38 @@ class AIGlossaryService:
         except Exception as e:
             print(f"❌ Error saving people analysis results: {str(e)}")
             raise Exception(f"Failed to save people analysis results: {str(e)}")
+
+    async def save_terminology_analysis_results(
+        self,
+        series_id: str,
+        terminology: List[TerminologyInfo],
+        clear_existing: bool = True
+    ) -> List[AIGlossaryResponse]:
+        """Save terminology analysis results to AI glossary table"""
+        try:
+            # Clear existing entries if requested
+            if clear_existing:
+                await self.clear_series_glossary(series_id)
+
+            # Create new entries
+            created_entries = []
+            for term in terminology:
+                glossary_data = AIGlossaryCreate(
+                    series_id=series_id,
+                    name=term.name,
+                    translated_text=term.translated_text,
+                    category=term.category,
+                    description=term.description
+                )
+
+                entry = await self.create_glossary_entry(glossary_data, "system")
+                created_entries.append(entry)
+
+            return created_entries
+
+        except Exception as e:
+            print(f"❌ Error saving terminology analysis results: {str(e)}")
+            raise Exception(f"Failed to save terminology analysis results: {str(e)}")
     
     async def get_glossary_stats(self) -> Dict[str, Any]:
         """Get AI glossary statistics"""
