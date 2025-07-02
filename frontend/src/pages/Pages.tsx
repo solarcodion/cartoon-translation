@@ -12,13 +12,7 @@ import {
   TranslationsTabContent,
   ContextTabContent,
 } from "../components/common";
-import type {
-  Page,
-  ChapterInfo,
-  AIInsights,
-  TextBoxCreate,
-  BatchPageUploadResponse,
-} from "../types";
+import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
 import { pageService } from "../services/pageService";
 import { textBoxService } from "../services/textBoxService";
 import { chapterService } from "../services/chapterService";

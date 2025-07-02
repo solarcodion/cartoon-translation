@@ -225,7 +225,7 @@ class PeopleAnalysisService {
   /**
    * Get avatar URL for terminology based on name and category
    */
-  getSimpleAvatarUrl(name: string, category?: string): string {
+  getSimpleAvatarUrl(name: string, category?: string): string | null {
     // Generate avatar based on category
     switch (category) {
       case "character":
@@ -243,10 +243,12 @@ class PeopleAnalysisService {
    * Enhance people data with fallback avatars if needed
    */
   enhancePeopleWithAvatars(people: PersonInfo[]): PersonInfo[] {
-    return people.map((person, index) => ({
+    return people.map((person) => ({
       ...person,
       image_url:
-        person.image_url || this.getSimpleAvatarUrl(person.name, "character"),
+        person.image_url ||
+        this.getSimpleAvatarUrl(person.name, "character") ||
+        undefined,
     }));
   }
 }

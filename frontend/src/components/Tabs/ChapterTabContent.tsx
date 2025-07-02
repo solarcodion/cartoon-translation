@@ -5,7 +5,6 @@ import {
   FiPlus,
   FiTrash2,
   FiRefreshCw,
-  FiMoreHorizontal,
   FiUser,
   FiMapPin,
 } from "react-icons/fi";

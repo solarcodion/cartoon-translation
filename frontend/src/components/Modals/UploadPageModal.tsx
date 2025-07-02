@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { FiX } from "react-icons/fi";
-import { ocrService } from "../../services/ocrService";
 
 interface UploadPageModalProps {
   isOpen: boolean;
@@ -13,7 +12,6 @@ export default function UploadPageModal({
   isOpen,
   onClose,
   onUpload,
-  chapterNumber,
 }: UploadPageModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [startPageNumber, setStartPageNumber] = useState("1");
@@ -360,7 +358,7 @@ export default function UploadPageModal({
                   {/* Image Previews Grid */}
                   {!isUploading && (
                     <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
-                      {selectedFiles.map((file, index) => (
+                      {selectedFiles.map((_, index) => (
                         <div key={index} className="relative group">
                           <div className="border-2 border-gray-200 rounded-lg p-2 bg-gray-50">
                             <img
