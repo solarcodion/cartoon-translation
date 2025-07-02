@@ -17,7 +17,6 @@ class TranslationService:
             return
 
         # Initialize OpenAI client
-        openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
     
     async def translate_text(

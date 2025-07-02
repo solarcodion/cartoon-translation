@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { apiClient } from "./api";
-import type { TranslationMemory, TranslationMemoryApiItem } from "../types";
+import type { TranslationMemoryApiItem } from "../types";
 
 export interface TMEntryCreateRequest {
   source_text: string;

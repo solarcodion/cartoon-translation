@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { FiX } from "react-icons/fi";
-import type { TranslationMemory } from "../../types";
 
 interface AddTMEntryModalProps {
   isOpen: boolean;

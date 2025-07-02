@@ -259,7 +259,7 @@ class AIGlossaryService {
   /**
    * Get avatar URL for terminology based on category
    */
-  getSimpleAvatarUrl(name: string, category?: string): string {
+  getSimpleAvatarUrl(name: string, category?: string): string | null {
     // Generate avatar based on category
     switch (category) {
       case "character":
