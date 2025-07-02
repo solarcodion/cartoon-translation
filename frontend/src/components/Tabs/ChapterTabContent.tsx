@@ -24,9 +24,10 @@ interface ChaptersTabContentProps {
   activeTab: string;
   chapters: Chapter[];
   seriesId: string;
-  onAddChapter: () => void;
-  onEditChapter: (chapterId: string) => void;
-  onDeleteChapter: (chapterId: string) => void;
+  onAddChapter?: () => void;
+  onEditChapter?: (chapterId: string) => void;
+  onDeleteChapter?: (chapterId: string) => void;
+  canModify?: boolean;
 }
 
 export function ChaptersTabContent({
@@ -36,6 +37,7 @@ export function ChaptersTabContent({
   onAddChapter,
   onEditChapter,
   onDeleteChapter,
+  canModify = true,
 }: ChaptersTabContentProps) {
   const navigate = useNavigate();
 
@@ -71,13 +73,15 @@ export function ChaptersTabContent({
         <div className="p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Chapters</h2>
-            <button
-              onClick={onAddChapter}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              Add Chapter
-            </button>
+            {canModify && onAddChapter && (
+              <button
+                onClick={onAddChapter}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <FiPlus className="text-sm" />
+                Add Chapter
+              </button>
+            )}
           </div>
         </div>
 
@@ -122,28 +126,37 @@ export function ChaptersTabContent({
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onEditChapter(chapter.id);
-                        }}
-                        className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                        title="Edit chapter"
-                      >
-                        <BiSolidEdit className="text-lg" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onDeleteChapter(chapter.id);
-                        }}
-                        className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-                        title="Delete chapter"
-                      >
-                        <FiTrash2 className="text-lg" />
-                      </button>
+                      {canModify && onEditChapter && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onEditChapter(chapter.id);
+                          }}
+                          className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                          title="Edit chapter"
+                        >
+                          <BiSolidEdit className="text-lg" />
+                        </button>
+                      )}
+                      {canModify && onDeleteChapter && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDeleteChapter(chapter.id);
+                          }}
+                          className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+                          title="Delete chapter"
+                        >
+                          <FiTrash2 className="text-lg" />
+                        </button>
+                      )}
+                      {!canModify && (
+                        <span className="text-sm text-gray-400 italic">
+                          View only
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -156,14 +169,20 @@ export function ChaptersTabContent({
             <EmptyState
               icon="📖"
               title="No chapters found"
-              description="Add chapters to get started"
+              description={
+                canModify
+                  ? "Add chapters to get started"
+                  : "No chapters available"
+              }
               action={
-                <button
-                  onClick={onAddChapter}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  Add First Chapter
-                </button>
+                canModify && onAddChapter ? (
+                  <button
+                    onClick={onAddChapter}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                  >
+                    Add First Chapter
+                  </button>
+                ) : null
               }
             />
           )}
@@ -179,9 +198,10 @@ interface TranslationMemoryTabContentProps {
   translationMemoryData: TranslationMemory[];
   openDropdown: string | null;
   onSetOpenDropdown: (id: string | null) => void;
-  onAddEntry: () => void;
-  onEditEntry: (tmId: string) => void;
-  onDeleteEntry: (tmId: string) => void;
+  onAddEntry?: () => void;
+  onEditEntry?: (tmId: string) => void;
+  onDeleteEntry?: (tmId: string) => void;
+  canModifyTM?: boolean;
   isLoading?: boolean;
 }
 
@@ -193,6 +213,7 @@ export function TranslationMemoryTabContent({
   onAddEntry,
   onEditEntry,
   onDeleteEntry,
+  canModifyTM = true,
   isLoading = false,
 }: TranslationMemoryTabContentProps) {
   return (
@@ -208,13 +229,15 @@ export function TranslationMemoryTabContent({
                 Series-specific terms and translations.
               </p>
             </div>
-            <button
-              onClick={onAddEntry}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              Add Entry
-            </button>
+            {canModifyTM && onAddEntry && (
+              <button
+                onClick={onAddEntry}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <FiPlus className="text-sm" />
+                Add Entry
+              </button>
+            )}
           </div>
         </div>
 
@@ -259,7 +282,9 @@ export function TranslationMemoryTabContent({
                         No translation memory entries
                       </p>
                       <p className="text-sm">
-                        Add your first translation to get started.
+                        {canModifyTM
+                          ? "Add your first translation to get started."
+                          : "No translation memory entries available."}
                       </p>
                     </div>
                   </td>
@@ -291,29 +316,35 @@ export function TranslationMemoryTabContent({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <DropdownMenu
-                        items={[
-                          {
-                            label: "Edit",
-                            icon: <BiSolidEdit className="text-sm" />,
-                            onClick: () => onEditEntry(entry.id),
-                            className: "text-gray-700",
-                          },
-                          {
-                            label: "Delete",
-                            icon: <FiTrash2 className="text-sm" />,
-                            onClick: () => onDeleteEntry(entry.id),
-                            className: "text-red-600 hover:bg-red-50",
-                          },
-                        ]}
-                        isOpen={openDropdown === entry.id}
-                        onToggle={() =>
-                          onSetOpenDropdown(
-                            openDropdown === entry.id ? null : entry.id
-                          )
-                        }
-                        onClose={() => onSetOpenDropdown(null)}
-                      />
+                      {canModifyTM && onEditEntry && onDeleteEntry ? (
+                        <DropdownMenu
+                          items={[
+                            {
+                              label: "Edit",
+                              icon: <BiSolidEdit className="text-sm" />,
+                              onClick: () => onEditEntry(entry.id),
+                              className: "text-gray-700",
+                            },
+                            {
+                              label: "Delete",
+                              icon: <FiTrash2 className="text-sm" />,
+                              onClick: () => onDeleteEntry(entry.id),
+                              className: "text-red-600 hover:bg-red-50",
+                            },
+                          ]}
+                          isOpen={openDropdown === entry.id}
+                          onToggle={() =>
+                            onSetOpenDropdown(
+                              openDropdown === entry.id ? null : entry.id
+                            )
+                          }
+                          onClose={() => onSetOpenDropdown(null)}
+                        />
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">
+                          View only
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -8,11 +8,13 @@ interface PagesTableProps {
   /** Array of pages to display */
   pages: Page[];
   /** Callback when edit button is clicked */
-  onEditPage: (pageId: string) => void;
+  onEditPage?: (pageId: string) => void;
   /** Callback when delete button is clicked */
-  onDeletePage: (pageId: string) => void;
+  onDeletePage?: (pageId: string) => void;
   /** Callback when upload page is clicked */
-  onUploadPage: () => void;
+  onUploadPage?: () => void;
+  /** Whether user can modify (edit/delete) pages */
+  canModify?: boolean;
 }
 
 export default function PagesTable({
@@ -20,6 +22,7 @@ export default function PagesTable({
   onEditPage,
   onDeletePage,
   onUploadPage,
+  canModify = true,
 }: PagesTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -45,8 +48,15 @@ export default function PagesTable({
             <PageItemRow
               key={page.id}
               page={page}
-              onEdit={() => onEditPage(page.id)}
-              onDelete={() => onDeletePage(page.id)}
+              onEdit={
+                canModify && onEditPage ? () => onEditPage(page.id) : undefined
+              }
+              onDelete={
+                canModify && onDeletePage
+                  ? () => onDeletePage(page.id)
+                  : undefined
+              }
+              canModify={canModify}
             />
           ))}
         </tbody>
@@ -57,14 +67,20 @@ export default function PagesTable({
         <EmptyState
           icon="📄"
           title="No pages found"
-          description="Upload pages to begin translation"
+          description={
+            canModify
+              ? "Upload pages to begin translation"
+              : "No pages available"
+          }
           action={
-            <button
-              onClick={onUploadPage}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              Upload First Page
-            </button>
+            canModify && onUploadPage ? (
+              <button
+                onClick={onUploadPage}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                Upload First Page
+              </button>
+            ) : null
           }
         />
       )}

@@ -29,6 +29,7 @@ import UploadPageModal from "../components/Modals/UploadPageModal";
 import EditPageModal from "../components/Modals/EditPageModal";
 import DeletePageModal from "../components/Modals/DeletePageModal";
 import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -36,6 +37,7 @@ export default function Pages() {
     chapterId: string;
   }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [pages, setPages] = useState<Page[]>([]);
   const [chapterInfo, setChapterInfo] = useState<ChapterInfo | null>(null);
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
@@ -55,6 +57,12 @@ export default function Pages() {
   const [deletingPage, setDeletingPage] = useState<Page | null>(null);
   const [isAddTextBoxModalOpen, setIsAddTextBoxModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Check if user can perform admin/editor actions
+  const canModify = user?.role === "admin" || user?.role === "editor";
+
+  // Check if user can modify TM (only admin and translator can modify TM)
+  const canModifyTM = user?.role === "admin" || user?.role === "translator";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -393,9 +401,10 @@ export default function Pages() {
             activeTab={activeTab}
             pages={pages}
             chapterInfo={chapterInfo}
-            onUploadPage={handleUploadPage}
-            onEditPage={handleEditPage}
-            onDeletePage={handleDeletePage}
+            onUploadPage={canModify ? handleUploadPage : undefined}
+            onEditPage={canModify ? handleEditPage : undefined}
+            onDeletePage={canModify ? handleDeletePage : undefined}
+            canModify={canModify}
           />
 
           {/* Translations Tab Content */}
@@ -410,7 +419,8 @@ export default function Pages() {
             onSetSelectedPage={setSelectedPage}
             onSetIsPageDropdownOpen={setIsPageDropdownOpen}
             onSetHoveredTMBadge={setHoveredTMBadge}
-            onAddTextBox={handleAddTextBox}
+            onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
+            canModifyTM={canModifyTM}
             refreshTrigger={refreshTrigger}
           />
 
@@ -419,7 +429,8 @@ export default function Pages() {
             activeTab={activeTab}
             chapterInfo={chapterInfo}
             contextNotes={chapterInfo?.context || ""}
-            onSaveNotes={handleSaveContext}
+            onSaveNotes={canModifyTM ? handleSaveContext : undefined}
+            canModifyTM={canModifyTM}
             pages={pages}
             chapterId={chapterId}
             onContextUpdate={async (context) => {

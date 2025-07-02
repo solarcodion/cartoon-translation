@@ -33,9 +33,10 @@ interface PagesTabContentProps {
   activeTab: string;
   pages: Page[];
   chapterInfo: ChapterInfo | null;
-  onUploadPage: () => void;
-  onEditPage: (pageId: string) => void;
-  onDeletePage: (pageId: string) => void;
+  onUploadPage?: () => void;
+  onEditPage?: (pageId: string) => void;
+  onDeletePage?: (pageId: string) => void;
+  canModify?: boolean;
 }
 
 export function PagesTabContent({
@@ -45,6 +46,7 @@ export function PagesTabContent({
   onUploadPage,
   onEditPage,
   onDeletePage,
+  canModify = true,
 }: PagesTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="pages">
@@ -54,13 +56,15 @@ export function PagesTabContent({
           <SimplePageHeader
             title={`Pages for Chapter ${chapterInfo?.number}`}
             action={
-              <button
-                onClick={onUploadPage}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-              >
-                <FiPlus className="text-sm" />
-                Upload Page
-              </button>
+              canModify && onUploadPage ? (
+                <button
+                  onClick={onUploadPage}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  <FiPlus className="text-sm" />
+                  Upload Page
+                </button>
+              ) : null
             }
           />
         </div>
@@ -69,9 +73,10 @@ export function PagesTabContent({
         <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <PagesTable
             pages={pages}
-            onEditPage={onEditPage}
-            onDeletePage={onDeletePage}
-            onUploadPage={onUploadPage}
+            onEditPage={canModify && onEditPage ? onEditPage : undefined}
+            onDeletePage={canModify && onDeletePage ? onDeletePage : undefined}
+            onUploadPage={canModify && onUploadPage ? onUploadPage : undefined}
+            canModify={canModify}
           />
         </div>
       </>
@@ -91,7 +96,8 @@ interface TranslationsTabContentProps {
   onSetSelectedPage: (page: string) => void;
   onSetIsPageDropdownOpen: (open: boolean) => void;
   onSetHoveredTMBadge: (id: string | null) => void;
-  onAddTextBox: () => void;
+  onAddTextBox?: () => void;
+  canModifyTM?: boolean;
   refreshTrigger?: number; // Add refresh trigger prop
 }
 
@@ -107,6 +113,7 @@ export function TranslationsTabContent({
   onSetIsPageDropdownOpen,
   onSetHoveredTMBadge,
   onAddTextBox,
+  canModifyTM = true,
   refreshTrigger,
 }: TranslationsTabContentProps) {
   const [textBoxes, setTextBoxes] = useState<TextBoxApiItem[]>([]);
@@ -257,13 +264,15 @@ export function TranslationsTabContent({
             <h2 className="text-xl font-bold text-gray-900">
               Translations for Chapter {chapterInfo?.number}
             </h2>
-            <button
-              onClick={onAddTextBox}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              Add Text Box
-            </button>
+            {canModifyTM && onAddTextBox && (
+              <button
+                onClick={onAddTextBox}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <FiPlus className="text-sm" />
+                Add Text Box
+              </button>
+            )}
           </div>
         </div>
 
@@ -361,8 +370,12 @@ export function TranslationsTabContent({
                   <td colSpan={7} className="px-6 py-8 text-center">
                     <div className="text-gray-500">
                       {selectedPage === "All Pages"
-                        ? "No text boxes found for this chapter"
-                        : `No text boxes found for ${selectedPage}`}
+                        ? canModifyTM
+                          ? "No text boxes found for this chapter"
+                          : "No text boxes available for this chapter"
+                        : canModifyTM
+                        ? `No text boxes found for ${selectedPage}`
+                        : `No text boxes available for ${selectedPage}`}
                     </div>
                   </td>
                 </tr>
@@ -472,45 +485,53 @@ export function TranslationsTabContent({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <button
-                          onClick={() => {
-                            if (editingTextBoxId === textBox.id) {
-                              handleSaveQuickEdit(textBox.id);
-                            } else {
-                              handleStartQuickEdit(textBox);
-                            }
-                          }}
-                          className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
-                            editingTextBoxId === textBox.id
-                              ? "text-green-600 hover:text-green-800 hover:bg-green-100"
-                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                          }`}
-                          title={
-                            editingTextBoxId === textBox.id
-                              ? "Save Changes"
-                              : "Quick Edit"
-                          }
-                        >
-                          {editingTextBoxId === textBox.id ? (
-                            <FiSave className="text-base" />
-                          ) : (
-                            <FiZap className="text-base" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleOpenEditModal(textBox)}
-                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-all duration-200 cursor-pointer"
-                          title="Edit"
-                        >
-                          <BiSolidEdit className="text-base" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(textBox)}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-all duration-200 cursor-pointer"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="text-base" />
-                        </button>
+                        {canModifyTM ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (editingTextBoxId === textBox.id) {
+                                  handleSaveQuickEdit(textBox.id);
+                                } else {
+                                  handleStartQuickEdit(textBox);
+                                }
+                              }}
+                              className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
+                                editingTextBoxId === textBox.id
+                                  ? "text-green-600 hover:text-green-800 hover:bg-green-100"
+                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                              }`}
+                              title={
+                                editingTextBoxId === textBox.id
+                                  ? "Save Changes"
+                                  : "Quick Edit"
+                              }
+                            >
+                              {editingTextBoxId === textBox.id ? (
+                                <FiSave className="text-base" />
+                              ) : (
+                                <FiZap className="text-base" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditModal(textBox)}
+                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-all duration-200 cursor-pointer"
+                              title="Edit"
+                            >
+                              <BiSolidEdit className="text-base" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenDeleteModal(textBox)}
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full transition-all duration-200 cursor-pointer"
+                              title="Delete"
+                            >
+                              <FiTrash2 className="text-base" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-400 italic">
+                            View only
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -546,6 +567,7 @@ interface ContextTabContentProps {
   chapterInfo: ChapterInfo | null;
   contextNotes?: string;
   onSaveNotes?: (notes: string) => Promise<void> | void;
+  canModifyTM?: boolean;
   pages?: Page[];
   chapterId?: string;
   onContextUpdate?: (context: string) => void;
@@ -556,6 +578,7 @@ export function ContextTabContent({
   chapterInfo,
   contextNotes = "",
   onSaveNotes,
+  canModifyTM = true,
   pages = [],
   chapterId,
   onContextUpdate,
@@ -776,54 +799,79 @@ export function ContextTabContent({
             </div>
             <textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="Add context notes for this chapter. This can include character motivations, plot points, specific terminology, or tone guidelines for translators and editors..."
+              onChange={
+                canModifyTM ? (e) => setNotes(e.target.value) : undefined
+              }
+              disabled={!canModifyTM}
+              className={`w-full h-40 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${
+                !canModifyTM ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
+              placeholder={
+                canModifyTM
+                  ? "Add context notes for this chapter. This can include character motivations, plot points, specific terminology, or tone guidelines for translators and editors..."
+                  : "Context notes (view only)"
+              }
             />
           </div>
 
           <div className="flex justify-between items-center">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-                saveComplete
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-900 hover:bg-gray-800 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
-              }`}
-            >
-              {isSaving ? (
-                <FiRefreshCw className="text-sm animate-spin" />
-              ) : saveComplete ? (
-                <FiSave className="text-sm" />
-              ) : (
-                <FiSave className="text-sm" />
-              )}
-              {isSaving ? "Saving..." : saveComplete ? "Saved!" : "Save Notes"}
-            </button>
+            {canModifyTM && onSaveNotes ? (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                  saveComplete
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-900 hover:bg-gray-800 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+                }`}
+              >
+                {isSaving ? (
+                  <FiRefreshCw className="text-sm animate-spin" />
+                ) : saveComplete ? (
+                  <FiSave className="text-sm" />
+                ) : (
+                  <FiSave className="text-sm" />
+                )}
+                {isSaving
+                  ? "Saving..."
+                  : saveComplete
+                  ? "Saved!"
+                  : "Save Notes"}
+              </button>
+            ) : (
+              <span className="text-sm text-gray-400 italic">
+                {canModifyTM ? "No save function available" : "View only"}
+              </span>
+            )}
 
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing || !chapterId || !pages.length}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-                analysisComplete
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
-              }`}
-            >
-              {isAnalyzing ? (
-                <FiRefreshCw className="text-sm animate-spin" />
-              ) : analysisComplete ? (
-                <FiSave className="text-sm" />
-              ) : (
-                <FiZap className="text-sm" />
-              )}
-              {isAnalyzing
-                ? "Analyzing..."
-                : analysisComplete
-                ? "Analysis Complete!"
-                : "Analyze Chapter"}
-            </button>
+            {onContextUpdate ? (
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || !chapterId || !pages.length}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                  analysisComplete
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+                }`}
+              >
+                {isAnalyzing ? (
+                  <FiRefreshCw className="text-sm animate-spin" />
+                ) : analysisComplete ? (
+                  <FiSave className="text-sm" />
+                ) : (
+                  <FiZap className="text-sm" />
+                )}
+                {isAnalyzing
+                  ? "Analyzing..."
+                  : analysisComplete
+                  ? "Analysis Complete!"
+                  : "Analyze Chapter"}
+              </button>
+            ) : (
+              <span className="text-sm text-gray-400 italic">
+                Analysis not available
+              </span>
+            )}
           </div>
         </div>
       </div>

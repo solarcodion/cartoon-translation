@@ -8,12 +8,19 @@ interface PageItemProps {
   /** Page data to display */
   page: Page;
   /** Callback when edit button is clicked */
-  onEdit: () => void;
+  onEdit?: () => void;
   /** Callback when delete button is clicked */
-  onDelete: () => void;
+  onDelete?: () => void;
+  /** Whether user can modify (edit/delete) pages */
+  canModify?: boolean;
 }
 
-export default function PageItemRow({ page, onEdit, onDelete }: PageItemProps) {
+export default function PageItemRow({
+  page,
+  onEdit,
+  onDelete,
+  canModify = true,
+}: PageItemProps) {
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-6 py-4 whitespace-nowrap">
@@ -47,28 +54,35 @@ export default function PageItemRow({ page, onEdit, onDelete }: PageItemProps) {
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right">
         <div className="flex items-center gap-2 justify-end">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-            title="Edit page"
-          >
-            <BiSolidEdit className="text-lg" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-            title="Delete page"
-          >
-            <FiTrash2 className="text-lg" />
-          </button>
+          {canModify && onEdit && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+              title="Edit page"
+            >
+              <BiSolidEdit className="text-lg" />
+            </button>
+          )}
+          {canModify && onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+              title="Delete page"
+            >
+              <FiTrash2 className="text-lg" />
+            </button>
+          )}
+          {!canModify && (
+            <span className="text-sm text-gray-400 italic">View only</span>
+          )}
         </div>
       </td>
     </tr>

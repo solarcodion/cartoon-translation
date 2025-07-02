@@ -10,9 +10,11 @@ interface ChapterItemProps {
   /** Callback when chapter item is clicked */
   onClick: () => void;
   /** Callback when edit button is clicked */
-  onEdit: () => void;
+  onEdit?: () => void;
   /** Callback when delete button is clicked */
-  onDelete: () => void;
+  onDelete?: () => void;
+  /** Whether user can modify (edit/delete) chapters */
+  canModify?: boolean;
 }
 
 export default function ChapterItemRow({
@@ -20,6 +22,7 @@ export default function ChapterItemRow({
   onClick,
   onEdit,
   onDelete,
+  canModify = true,
 }: ChapterItemProps) {
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -68,28 +71,35 @@ export default function ChapterItemRow({
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right">
         <div className="flex items-center gap-2 justify-end">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-            title="Edit chapter"
-          >
-            <BiSolidEdit className="text-lg" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-            title="Delete chapter"
-          >
-            <FiTrash2 className="text-lg" />
-          </button>
+          {canModify && onEdit && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+              title="Edit chapter"
+            >
+              <BiSolidEdit className="text-lg" />
+            </button>
+          )}
+          {canModify && onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+              title="Delete chapter"
+            >
+              <FiTrash2 className="text-lg" />
+            </button>
+          )}
+          {!canModify && (
+            <span className="text-sm text-gray-400 italic">View only</span>
+          )}
         </div>
       </td>
     </tr>

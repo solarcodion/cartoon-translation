@@ -10,9 +10,11 @@ interface SeriesTableProps {
   /** Callback when series item is clicked */
   onSeriesClick: (seriesId: string) => void;
   /** Callback when edit button is clicked */
-  onEditSeries: (seriesId: string) => void;
+  onEditSeries?: (seriesId: string) => void;
   /** Callback when delete button is clicked */
-  onDeleteSeries: (seriesId: string) => void;
+  onDeleteSeries?: (seriesId: string) => void;
+  /** Whether user can modify (edit/delete) series */
+  canModify?: boolean;
 }
 
 export default function SeriesTable({
@@ -20,6 +22,7 @@ export default function SeriesTable({
   onSeriesClick,
   onEditSeries,
   onDeleteSeries,
+  canModify = true,
 }: SeriesTableProps) {
   return (
     <div className="bg-white">
@@ -43,8 +46,17 @@ export default function SeriesTable({
               key={seriesItem.id}
               series={seriesItem}
               onClick={() => onSeriesClick(seriesItem.id)}
-              onEdit={() => onEditSeries(seriesItem.id)}
-              onDelete={() => onDeleteSeries(seriesItem.id)}
+              onEdit={
+                canModify && onEditSeries
+                  ? () => onEditSeries(seriesItem.id)
+                  : undefined
+              }
+              onDelete={
+                canModify && onDeleteSeries
+                  ? () => onDeleteSeries(seriesItem.id)
+                  : undefined
+              }
+              canModify={canModify}
             />
           ))}
         </tbody>

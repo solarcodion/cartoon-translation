@@ -35,10 +35,12 @@ import { seriesService } from "../services/seriesService";
 import { translationMemoryService } from "../services/translationMemoryService";
 import { peopleAnalysisService } from "../services/peopleAnalysisService";
 import { aiGlossaryService } from "../services/aiGlossaryService";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<SeriesInfo | null>(null);
   const [translationMemoryData, setTranslationMemoryData] = useState<
@@ -65,6 +67,12 @@ export default function Chapters() {
   const [deletingTMEntry, setDeletingTMEntry] =
     useState<TranslationMemory | null>(null);
   const [isDeleteTMModalOpen, setIsDeleteTMModalOpen] = useState(false);
+
+  // Check if user can perform admin/editor actions
+  const canModify = user?.role === "admin" || user?.role === "editor";
+
+  // Check if user can modify TM (only admin and translator can modify TM)
+  const canModifyTM = user?.role === "admin" || user?.role === "translator";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -505,9 +513,10 @@ export default function Chapters() {
         activeTab={activeTab}
         chapters={chapters}
         seriesId={seriesId!}
-        onAddChapter={handleAddChapter}
-        onEditChapter={handleEditChapter}
-        onDeleteChapter={handleDeleteChapter}
+        onAddChapter={canModify ? handleAddChapter : undefined}
+        onEditChapter={canModify ? handleEditChapter : undefined}
+        onDeleteChapter={canModify ? handleDeleteChapter : undefined}
+        canModify={canModify}
       />
 
       {/* Translation Memory Section */}
@@ -516,9 +525,10 @@ export default function Chapters() {
         translationMemoryData={translationMemoryData}
         openDropdown={openDropdown}
         onSetOpenDropdown={setOpenDropdown}
-        onAddEntry={handleAddTMEntry}
-        onEditEntry={handleEditTMEntry}
-        onDeleteEntry={handleDeleteTMEntry}
+        onAddEntry={canModifyTM ? handleAddTMEntry : undefined}
+        onEditEntry={canModifyTM ? handleEditTMEntry : undefined}
+        onDeleteEntry={canModifyTM ? handleDeleteTMEntry : undefined}
+        canModifyTM={canModifyTM}
         isLoading={isTMLoading}
       />
 

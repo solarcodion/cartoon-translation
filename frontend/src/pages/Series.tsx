@@ -10,9 +10,11 @@ import { SimplePageHeader } from "../components/Header/PageHeader";
 import type { SeriesItem } from "../types";
 import { seriesService } from "../services/seriesService";
 import { convertApiSeriesToLegacy } from "../types/series";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Series() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [series, setSeries] = useState<SeriesItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +23,9 @@ export default function Series() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingSeries, setDeletingSeries] = useState<SeriesItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Check if user can perform admin/editor actions
+  const canModify = user?.role === "admin" || user?.role === "editor";
 
   // Fetch series data
   const fetchSeries = async () => {
@@ -189,13 +194,15 @@ export default function Series() {
       <SimplePageHeader
         title="Series"
         action={
-          <button
-            onClick={handleAddSeries}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-          >
-            <FiPlus className="text-sm" />
-            Add Series
-          </button>
+          canModify ? (
+            <button
+              onClick={handleAddSeries}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            >
+              <FiPlus className="text-sm" />
+              Add Series
+            </button>
+          ) : null
         }
       />
 
@@ -203,8 +210,9 @@ export default function Series() {
       <SeriesTable
         series={series}
         onSeriesClick={handleSeriesClick}
-        onEditSeries={handleEditSeries}
-        onDeleteSeries={handleDeleteSeries}
+        onEditSeries={canModify ? handleEditSeries : undefined}
+        onDeleteSeries={canModify ? handleDeleteSeries : undefined}
+        canModify={canModify}
       />
 
       {/* Add Series Modal */}
