@@ -210,7 +210,7 @@ Instructions:
 - Reference text box translations to understand dialogue and story content
 - Use translated text from text boxes to better understand character interactions and plot
 - Use the Translation Memory data to maintain consistency in character names and terminology
-- When you use any TM entry in your analysis, reference it by its TM_ID in your response
+- Do NOT include TM_ID references or alerts in your context or summary sections
 - Explain picture content and preserve story understanding
 - Provide comprehensive context for future translation work
 - Focus on character development, plot progression, and key story elements
@@ -218,8 +218,8 @@ Instructions:
 - When text box translations are available, incorporate them into your analysis for better story comprehension
 
 Format your response as:
-CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content, referencing text box translations where relevant]
-ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments based on visual content and text box translations]
+CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content, referencing text box translations where relevant. Do not include any TM_ID references here.]
+ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments based on visual content and text box translations. Do not include any TM_ID references here.]
 USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this analysis, e.g., "tm_id_1,tm_id_2,tm_id_3" or "none" if no TM data was used]"""
 
         return base_prompt
@@ -332,9 +332,15 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
                 # Extract context (remove CHAPTER_CONTEXT: prefix)
                 context_part = parts[0].replace("CHAPTER_CONTEXT:", "").strip()
 
+                # Clean any TM_ID references from context
+                context_part = self._clean_tm_references(context_part)
+
                 # Split the second part to get summary and TM IDs
                 summary_and_tm = parts[1].split("USED_TM_IDS:")
                 summary_part = summary_and_tm[0].strip()
+
+                # Clean any TM_ID references from summary
+                summary_part = self._clean_tm_references(summary_part)
 
                 # Extract TM IDs if present
                 useful_tm_ids = []
@@ -350,13 +356,37 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
 
                 return context_part, summary_part, useful_tm_ids
             else:
-                # Fallback: treat entire result as context
-                return analysis_result.strip(), "Analysis completed successfully.", []
+                # Fallback: treat entire result as context and clean it
+                cleaned_context = self._clean_tm_references(analysis_result.strip())
+                return cleaned_context, "Analysis completed successfully.", []
 
         except Exception as e:
             print(f"⚠️ Warning: Could not parse analysis result with TM: {str(e)}")
-            # Fallback: return the entire result as context
-            return analysis_result.strip(), "Analysis completed successfully.", []
+            # Fallback: return the entire result as context and clean it
+            cleaned_context = self._clean_tm_references(analysis_result.strip())
+            return cleaned_context, "Analysis completed successfully.", []
+
+    def _clean_tm_references(self, text: str) -> str:
+        """Remove TM_ID references and alerts from text"""
+        import re
+
+        # Remove patterns like "Translation Memory TM_ID: uuid"
+        text = re.sub(r'Translation Memory TM_ID:\s*[a-zA-Z0-9\-]+', '', text, flags=re.IGNORECASE)
+
+        # Remove patterns like "[TM_ID: uuid]"
+        text = re.sub(r'\[TM_ID:\s*[a-zA-Z0-9\-]+\]', '', text, flags=re.IGNORECASE)
+
+        # Remove patterns like "(TM_ID: uuid)"
+        text = re.sub(r'\(TM_ID:\s*[a-zA-Z0-9\-]+\)', '', text, flags=re.IGNORECASE)
+
+        # Remove patterns like "TM_ID: uuid" (this should be last to catch remaining cases)
+        text = re.sub(r'TM_ID:\s*[a-zA-Z0-9\-]+', '', text, flags=re.IGNORECASE)
+
+        # Clean up extra whitespace and newlines
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'\n\s*\n', '\n', text)
+
+        return text.strip()
 
     async def health_check(self) -> dict:
         """Check if chapter analysis service is working"""
