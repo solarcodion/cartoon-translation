@@ -19,8 +19,8 @@ FROM nginx:alpine
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Optional: Add custom Nginx config for SPA routing
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Add custom Nginx config for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
