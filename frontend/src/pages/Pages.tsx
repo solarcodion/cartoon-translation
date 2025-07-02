@@ -12,7 +12,13 @@ import {
   TranslationsTabContent,
   ContextTabContent,
 } from "../components/common";
-import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
+import type {
+  Page,
+  ChapterInfo,
+  AIInsights,
+  TextBoxCreate,
+  BatchPageUploadResponse,
+} from "../types";
 import { pageService } from "../services/pageService";
 import { textBoxService } from "../services/textBoxService";
 import { chapterService } from "../services/chapterService";
@@ -132,32 +138,35 @@ export default function Pages() {
   };
 
   const handleConfirmUpload = async (
-    pageNumber: number,
-    file: File,
-    context?: string
+    files: File[],
+    startPageNumber: number
   ) => {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
       }
 
-      // Upload to API
-      const apiPage = await pageService.createPage({
+      // Upload all files in batch
+      const result = await pageService.createPagesBatch({
         chapter_id: chapterId,
-        page_number: pageNumber,
-        file,
-        context,
+        files,
+        start_page_number: startPageNumber,
       });
 
-      // Convert to frontend format and add to list
-      const newPage = convertApiPageToLegacy(apiPage);
-      setPages((prev) =>
-        [...prev, newPage].sort((a, b) => a.number - b.number)
-      );
+      if (result.success) {
+        // Convert to frontend format and add to list
+        const newPages = result.pages.map(convertApiPageToLegacy);
+        setPages((prev) =>
+          [...prev, ...newPages].sort((a, b) => a.number - b.number)
+        );
+      }
 
-      // Chapter analysis is now manual via the Analyze button in Context tab
+      // Show any failed uploads
+      if (result.failed_uploads.length > 0) {
+        console.warn("Some uploads failed:", result.failed_uploads);
+      }
     } catch (error) {
-      console.error("Error uploading page:", error);
+      console.error("Error uploading pages:", error);
       throw error;
     }
   };

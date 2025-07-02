@@ -24,6 +24,20 @@ export interface CreatePageData {
   context?: string;
 }
 
+export interface BatchCreatePageData {
+  chapter_id: string;
+  files: File[];
+  start_page_number: number;
+}
+
+export interface BatchPageUploadResponse {
+  success: boolean;
+  message: string;
+  pages: PageApiItem[];
+  total_uploaded: number;
+  failed_uploads: string[];
+}
+
 export interface UpdatePageData {
   page_number?: number;
   file_name?: string;
@@ -81,6 +95,45 @@ class PageService {
       return await response.json();
     } catch (error) {
       console.error("Error creating page:", error);
+      throw error;
+    }
+  }
+
+  async createPagesBatch(
+    pageData: BatchCreatePageData
+  ): Promise<BatchPageUploadResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      // Create FormData for multiple file upload
+      const formData = new FormData();
+      formData.append("chapter_id", pageData.chapter_id);
+      formData.append(
+        "start_page_number",
+        pageData.start_page_number.toString()
+      );
+
+      // Append all files
+      pageData.files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch(`${API_BASE_URL}/pages/batch`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error batch uploading pages:", error);
       throw error;
     }
   }

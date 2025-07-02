@@ -285,6 +285,18 @@ class PageInDB(PageResponse):
     pass
 
 
+class BatchPageUploadResponse(BaseModel):
+    """Batch page upload response model"""
+    success: bool
+    message: str
+    pages: List[PageResponse]
+    total_uploaded: int
+    failed_uploads: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+
 # OCR Models
 class OCRRequest(BaseModel):
     """OCR request model"""

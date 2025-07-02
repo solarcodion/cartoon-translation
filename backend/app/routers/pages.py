@@ -5,19 +5,28 @@ from supabase import Client
 from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.page_service import PageService
+from app.services.ocr_service import OCRService
 from app.models import (
     PageResponse,
     PageCreate,
     PageUpdate,
-    ApiResponse
+    ApiResponse,
+    BatchPageUploadResponse
 )
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 
 
-def get_page_service(supabase: Client = Depends(get_supabase)) -> PageService:
-    """Dependency to get page service"""
-    return PageService(supabase)
+def get_ocr_service() -> OCRService:
+    """Dependency to get OCR service"""
+    return OCRService()
+
+def get_page_service(
+    supabase: Client = Depends(get_supabase),
+    ocr_service: OCRService = Depends(get_ocr_service)
+) -> PageService:
+    """Dependency to get page service with OCR support"""
+    return PageService(supabase, ocr_service)
 
 
 
@@ -123,6 +132,70 @@ async def create_page(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create page: {str(e)}"
+        )
+
+
+@router.post("/batch", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
+async def create_pages_batch(
+    chapter_id: str = Form(...),
+    start_page_number: int = Form(...),
+    files: List[UploadFile] = File(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    page_service: PageService = Depends(get_page_service)
+):
+    """
+    Create multiple pages with batch file upload
+
+    - **chapter_id**: ID of the chapter these pages belong to
+    - **start_page_number**: Starting page number for the batch
+    - **files**: List of image files to upload (one page per image)
+
+    Page numbers will be assigned sequentially starting from the specified start page number.
+    """
+    try:
+        if not files:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one file must be provided"
+            )
+
+        # Validate and prepare file data
+        files_data = []
+        for file in files:
+            # Validate file type
+            if not file.content_type or not file.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File {file.filename} must be an image"
+                )
+
+            # Get file extension
+            file_extension = file.filename.split('.')[-1].lower() if file.filename else 'jpg'
+            if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unsupported file format for {file.filename}. Use JPG, PNG, or WebP"
+                )
+
+            # Read file content
+            file_content = await file.read()
+            files_data.append((file_content, file_extension, file.filename))
+
+        # Create pages in batch
+        result = await page_service.create_pages_batch(chapter_id, files_data, start_page_number)
+
+        # Update chapter status and page count
+        await update_chapter_status_and_count(chapter_id)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in batch upload endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to batch upload pages: {str(e)}"
         )
 
 

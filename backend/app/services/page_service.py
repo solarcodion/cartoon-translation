@@ -1,20 +1,22 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 from supabase import Client
-from app.models import PageCreate, PageUpdate, PageResponse
+from app.models import PageCreate, PageUpdate, PageResponse, BatchPageUploadResponse
 import os
 import uuid
 from PIL import Image
 import io
+import base64
 
 
 class PageService:
     """Service for managing pages"""
-    
-    def __init__(self, supabase: Client):
+
+    def __init__(self, supabase: Client, ocr_service=None):
         self.supabase = supabase
         self.table_name = "pages"
         self.storage_bucket = "pages"
+        self.ocr_service = ocr_service
     
     async def create_page(self, page_data: PageCreate, file_content: bytes, file_extension: str) -> PageResponse:
         """Create a new page with file upload to Supabase storage"""
@@ -57,7 +59,7 @@ class PageService:
                 "file_name": page_data.file_name,
                 "width": width,
                 "height": height,
-                "context": page_data.context,
+                "context": page_data.context or "",  # Ensure context is never None
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
@@ -82,7 +84,71 @@ class PageService:
         except Exception as e:
             print(f"❌ Error creating page: {str(e)}")
             raise Exception(f"Failed to create page: {str(e)}")
-    
+
+    async def create_pages_batch(self, chapter_id: str, files_data: List[tuple], start_page_number: int) -> BatchPageUploadResponse:
+        """Create multiple pages with batch file upload"""
+        try:
+            # Use the provided start page number
+            next_page_number = start_page_number
+
+            created_pages = []
+            failed_uploads = []
+
+            # Process each file
+            for i, (file_content, file_extension, original_filename) in enumerate(files_data):
+                try:
+                    page_number = next_page_number + i
+
+                    # Process OCR if OCR service is available
+                    ocr_context = ""
+                    if self.ocr_service:
+                        try:
+                            # Convert image to base64 for OCR processing
+                            base64_image = base64.b64encode(file_content).decode('utf-8')
+
+                            # Process with OCR
+                            ocr_result = self.ocr_service.process_image(base64_image)
+
+                            if ocr_result.success and ocr_result.text.strip():
+                                ocr_context = ocr_result.text.strip()
+                                print(f"✅ OCR processed for page {page_number}: {len(ocr_context)} characters extracted")
+                            else:
+                                print(f"⚠️ OCR failed for page {page_number}: No text extracted")
+
+                        except Exception as ocr_error:
+                            print(f"⚠️ OCR processing failed for page {page_number}: {str(ocr_error)}")
+                            # Continue without OCR context
+
+                    # Create page data
+                    page_data = PageCreate(
+                        chapter_id=chapter_id,
+                        page_number=page_number,
+                        file_name=original_filename or f"page_{page_number}.{file_extension}",
+                        context=ocr_context  # Use OCR result or empty string
+                    )
+
+                    # Create the page
+                    page = await self.create_page(page_data, file_content, file_extension)
+                    created_pages.append(page)
+
+                except Exception as e:
+                    print(f"❌ Error creating page {next_page_number + i}: {str(e)}")
+                    failed_uploads.append(f"Page {next_page_number + i}: {str(e)}")
+                    continue
+
+            return BatchPageUploadResponse(
+                success=len(created_pages) > 0,
+                message=f"Successfully uploaded {len(created_pages)} pages" +
+                       (f", {len(failed_uploads)} failed" if failed_uploads else ""),
+                pages=created_pages,
+                total_uploaded=len(created_pages),
+                failed_uploads=failed_uploads
+            )
+
+        except Exception as e:
+            print(f"❌ Error in batch upload: {str(e)}")
+            raise Exception(f"Failed to batch upload pages: {str(e)}")
+
     async def get_pages_by_chapter(self, chapter_id: str, skip: int = 0, limit: int = 100) -> List[PageResponse]:
         """Get all pages for a specific chapter with pagination"""
         try:

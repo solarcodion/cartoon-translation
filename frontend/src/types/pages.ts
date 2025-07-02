@@ -48,3 +48,18 @@ export function convertApiPageToLegacy(apiPage: PageApiItem): Page {
     updated_at: apiPage.updated_at,
   };
 }
+
+// Batch upload types
+export interface BatchCreatePageData {
+  chapter_id: string;
+  files: File[];
+  start_page_number: number;
+}
+
+export interface BatchPageUploadResponse {
+  success: boolean;
+  message: string;
+  pages: PageApiItem[];
+  total_uploaded: number;
+  failed_uploads: string[];
+}
