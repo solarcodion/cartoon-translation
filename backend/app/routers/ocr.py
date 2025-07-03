@@ -33,18 +33,21 @@ async def extract_text_from_image(
     ocr_service: OCRService = Depends(get_ocr_service)
 ):
     """
-    Extract text from a base64 encoded image using OCR
-    
+    Extract text from a base64 encoded image using multi-language OCR
+
     This endpoint accepts a base64 encoded image and returns the extracted text
-    using EasyOCR. The image should be cropped to the text region for best results.
-    
+    using EasyOCR with support for English and Korean (with fallback support for other languages).
+    The image should be cropped to the text region for best results.
+
     - **image_data**: Base64 encoded image data (with or without data URL prefix)
-    
+
     Returns:
     - **success**: Whether the OCR operation was successful
     - **text**: Extracted text from the image
     - **confidence**: Average confidence score of the OCR results
     - **processing_time**: Time taken to process the image in seconds
+    - **detected_language**: Language code detected by OCR (ko, ja, ch_sim, vi, en)
+    - **language_confidence**: Confidence score of language detection
     """
     try:
         if not request.image_data:
@@ -88,11 +91,12 @@ async def extract_text_from_image_enhanced(
     ocr_service: OCRService = Depends(get_ocr_service)
 ):
     """
-    Extract text from a base64 encoded image using enhanced OCR with preprocessing
-    
+    Extract text from a base64 encoded image using enhanced multi-language OCR with preprocessing
+
     This endpoint uses image preprocessing techniques to improve OCR accuracy.
     It processes both the original and preprocessed images and returns the best results.
-    
+    Supports English and Korean (with fallback support for other languages).
+
     - **image_data**: Base64 encoded image data (with or without data URL prefix)
     
     Returns:
@@ -143,14 +147,14 @@ async def extract_text_with_translation(
     ocr_service: OCRService = Depends(get_ocr_service)
 ):
     """
-    Extract Vietnamese text from image and translate to English
+    Extract text from image (multi-language) and translate to English
 
-    This endpoint performs OCR on the image to extract Vietnamese text,
-    then translates it to English using OpenAI GPT.
+    This endpoint performs OCR on the image to extract text in any supported language
+    (English, Korean, and other supported languages), then translates it to English using OpenAI GPT.
 
     - **image_data**: Base64 encoded image data (with or without data URL prefix)
 
-    Returns both the original Vietnamese text and English translation.
+    Returns both the original text and English translation, along with detected language information.
     """
     try:
         # Validate input
@@ -188,14 +192,15 @@ async def extract_text_enhanced_with_translation(
     ocr_service: OCRService = Depends(get_ocr_service)
 ):
     """
-    Extract Vietnamese text from image using enhanced OCR and translate to English
+    Extract text from image using enhanced multi-language OCR and translate to English
 
     This endpoint uses image preprocessing techniques to improve OCR accuracy,
-    extracts Vietnamese text, then translates it to English using OpenAI GPT.
+    extracts text in any supported language (English, Korean, and other supported languages),
+    then translates it to English using OpenAI GPT.
 
     - **image_data**: Base64 encoded image data (with or without data URL prefix)
 
-    Returns both the original Vietnamese text and English translation.
+    Returns both the original text and English translation, along with detected language information.
     """
     try:
         # Validate input
@@ -241,10 +246,17 @@ async def ocr_health_check(
         if ocr_service and ocr_service.reader:
             return ApiResponse(
                 success=True,
-                message="OCR service is healthy and ready",
+                message="Multi-language OCR service is healthy and ready",
                 data={
                     "service": "EasyOCR",
-                    "languages": ["vi"],
+                    "languages": ocr_service.ocr_languages,
+                    "auto_detect_language": ocr_service.auto_detect_language,
+                    "supported_languages": {
+                        "ko": "Korean",
+                        "ja": "Japanese",
+                        "ch_sim": "Chinese (Simplified)",
+                        "vi": "Vietnamese"
+                    },
                     "translation_service": "OpenAI GPT",
                     "status": "ready"
                 }
