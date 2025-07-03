@@ -26,6 +26,7 @@ export {
   CardSkeleton,
   ButtonSkeleton,
   TableSkeleton,
+  SeriesTableSkeleton,
 } from "./Skeleton";
 
 export {

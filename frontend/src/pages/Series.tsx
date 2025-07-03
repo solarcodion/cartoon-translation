@@ -8,18 +8,27 @@ import { SectionLoadingSpinner, ErrorState } from "../components/common";
 import { SeriesTable } from "../components/Lists";
 import { SimplePageHeader } from "../components/Header/PageHeader";
 import type { SeriesItem } from "../types";
-import { seriesService } from "../services/seriesService";
-import { convertApiSeriesToLegacy } from "../types/series";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
+import {
+  useSeriesData,
+  useSeriesLoading,
+  useSeriesError,
+  useSeriesActions,
+} from "../stores";
 
 export default function Series() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { syncAfterSeriesCreate, syncAfterSeriesDelete } = useDashboardSync();
-  const [series, setSeries] = useState<SeriesItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Use series store instead of local state
+  const series = useSeriesData();
+  const isLoading = useSeriesLoading();
+  const error = useSeriesError();
+  const { fetchSeries, createSeries, updateSeries, deleteSeries, clearError } =
+    useSeriesActions();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<SeriesItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,31 +38,10 @@ export default function Series() {
   // Check if user can perform admin/editor actions
   const canModify = user?.role === "admin" || user?.role === "editor";
 
-  // Fetch series data
-  const fetchSeries = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Fetch from API
-      const apiSeries = await seriesService.getAllSeries();
-
-      // Convert API response to legacy format for compatibility
-      const legacySeries = apiSeries.map(convertApiSeriesToLegacy);
-      setSeries(legacySeries);
-      setIsLoading(false);
-    } catch (err) {
-      console.error("Error fetching series:", err);
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred."
-      );
-      setIsLoading(false);
-    }
-  };
-
+  // Fetch series data on component mount
   useEffect(() => {
     fetchSeries();
-  }, []);
+  }, [fetchSeries]);
 
   const handleAddSeries = () => {
     setIsAddModalOpen(true);
@@ -65,14 +53,10 @@ export default function Series() {
 
   const handleConfirmAddSeries = async (seriesName: string) => {
     try {
-      // Create series via API
-      const newApiSeries = await seriesService.createSeries({
+      // Create series via store action
+      const newSeries = await createSeries({
         title: seriesName,
       });
-
-      // Convert to legacy format and add to list at the beginning
-      const newLegacySeries = convertApiSeriesToLegacy(newApiSeries);
-      setSeries((prevSeries) => [newLegacySeries, ...prevSeries]);
 
       // Update dashboard stats in real-time
       syncAfterSeriesCreate(seriesName);
@@ -100,19 +84,10 @@ export default function Series() {
 
   const handleSaveSeriesName = async (seriesId: string, newName: string) => {
     try {
-      // Update series via API
-      const updatedApiSeries = await seriesService.updateSeries(seriesId, {
+      // Update series via store action
+      await updateSeries(seriesId, {
         title: newName,
       });
-
-      // Update the series in the local state
-      setSeries((prevSeries) =>
-        prevSeries.map((seriesItem) =>
-          seriesItem.id === seriesId
-            ? convertApiSeriesToLegacy(updatedApiSeries)
-            : seriesItem
-        )
-      );
     } catch (error) {
       console.error("Error updating series name:", error);
       throw error; // Re-throw to let the modal handle the error
@@ -125,13 +100,8 @@ export default function Series() {
       const seriesToDelete = series.find((s) => s.id === seriesId);
       const seriesName = seriesToDelete?.name || "Unknown Series";
 
-      // Delete series via API
-      await seriesService.deleteSeries(seriesId);
-
-      // Remove the series from the local state
-      setSeries((prevSeries) =>
-        prevSeries.filter((seriesItem) => seriesItem.id !== seriesId)
-      );
+      // Delete series via store action
+      await deleteSeries(seriesId);
 
       // Update dashboard stats in real-time
       syncAfterSeriesDelete(seriesName);
@@ -170,7 +140,13 @@ export default function Series() {
             </button>
           }
         />
-        <ErrorState error={error} onRetry={fetchSeries} />
+        <ErrorState
+          error={error}
+          onRetry={() => {
+            clearError();
+            fetchSeries();
+          }}
+        />
       </div>
     );
   }

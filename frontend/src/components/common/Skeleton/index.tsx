@@ -225,4 +225,45 @@ export function TableSkeleton({
   );
 }
 
+// Series table skeleton rows - specialized for series table structure
+interface SeriesTableSkeletonProps extends SkeletonProps {
+  /** Number of skeleton rows to show */
+  rows?: number;
+}
+
+export function SeriesTableSkeleton({
+  rows = 3,
+  className = "",
+  animate = true,
+}: SeriesTableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index} className="border-b border-gray-200">
+          {/* Series Name Column */}
+          <td className="px-6 py-4">
+            <div className="space-y-2">
+              <TextSkeleton size="md" width="3/4" animate={animate} />
+              <TextSkeleton size="sm" width="1/2" animate={animate} />
+            </div>
+          </td>
+
+          {/* Chapters Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/4" animate={animate} />
+          </td>
+
+          {/* Actions Column */}
+          <td className="px-6 py-4 text-right">
+            <div className="flex justify-end space-x-2">
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 export default Skeleton;

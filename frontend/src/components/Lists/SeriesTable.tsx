@@ -1,9 +1,8 @@
 // Reusable Series Table Component
 
 import type { SeriesItem } from "../../types";
-import { NoSeriesFound } from "../common";
+import { NoSeriesFound, SeriesTableSkeleton } from "../common";
 import { SeriesItemRow } from "./Items";
-import { InlineLoadingSpinner } from "../common";
 
 interface SeriesTableProps {
   /** Array of series to display */
@@ -46,13 +45,7 @@ export default function SeriesTable({
         </thead>
         <tbody>
           {isLoading ? (
-            <tr>
-              <td colSpan={3} className="px-6 py-12">
-                <div className="flex items-center justify-center">
-                  <InlineLoadingSpinner text="Loading series..." color="blue" />
-                </div>
-              </td>
-            </tr>
+            <SeriesTableSkeleton rows={3} />
           ) : (
             series.map((seriesItem) => (
               <SeriesItemRow
