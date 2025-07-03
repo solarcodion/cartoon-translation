@@ -27,6 +27,9 @@ export {
   ButtonSkeleton,
   TableSkeleton,
   SeriesTableSkeleton,
+  ChaptersTableSkeleton,
+  TranslationMemoryTableSkeleton,
+  AIGlossaryGridSkeleton,
 } from "./Skeleton";
 
 export {

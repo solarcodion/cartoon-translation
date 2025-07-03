@@ -249,3 +249,9 @@ export const refreshSeriesData = async () => {
   const { fetchSeries } = useSeriesStore.getState();
   await fetchSeries();
 };
+
+// Get series by ID from store
+export const getSeriesById = (seriesId: string): SeriesItem | null => {
+  const state = useSeriesStore.getState();
+  return state.data.find((series) => series.id === seriesId) || null;
+};

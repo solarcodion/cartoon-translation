@@ -25,6 +25,7 @@ import DeletePageModal from "../components/Modals/DeletePageModal";
 import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
+import { getChapterById } from "../stores";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -94,8 +95,22 @@ export default function Pages() {
         return;
       }
 
-      // Fetch real chapter data from API
-      const chapterData = await chapterService.getChapterById(chapterId);
+      // Try to get chapter data from store first, then fall back to API
+      let chapterData;
+      const storeChapter = getChapterById(chapterId);
+
+      if (storeChapter) {
+        // Use data from store
+        chapterData = {
+          id: storeChapter.id,
+          chapter_number: storeChapter.number,
+          page_count: 0, // We'll get this from pages
+          context: storeChapter.context,
+        };
+      } else {
+        // Fall back to API
+        chapterData = await chapterService.getChapterById(chapterId);
+      }
 
       // Convert to ChapterInfo format
       const chapterInfo: ChapterInfo = {

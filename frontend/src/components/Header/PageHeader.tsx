@@ -27,7 +27,7 @@ export default function PageHeader({
 }: PageHeaderProps) {
   // Base container classes
   const containerClasses = [
-    responsive 
+    responsive
       ? "flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       : "flex items-center justify-between",
     card ? "bg-white border border-gray-200 rounded-lg p-6 shadow-sm" : "",
@@ -37,74 +37,58 @@ export default function PageHeader({
     .join(" ");
 
   // Title size classes based on whether it's in a card or not
-  const titleClasses = card 
+  const titleClasses = card
     ? "text-3xl font-bold text-gray-900"
-    : responsive 
-      ? "text-2xl sm:text-3xl font-bold text-gray-900"
-      : "text-2xl font-bold text-gray-900";
+    : responsive
+    ? "text-2xl sm:text-3xl font-bold text-gray-900"
+    : "text-2xl font-bold text-gray-900";
 
   return (
     <div className={containerClasses}>
       <div className={card ? "space-y-2" : ""}>
         <h1 className={titleClasses}>{title}</h1>
-        {subtitle && (
-          <p className="text-gray-600">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-gray-600">{subtitle}</p>}
       </div>
       {action && (
-        <div className={responsive ? "w-full sm:w-auto" : ""}>
-          {action}
-        </div>
+        <div className={responsive ? "w-full sm:w-auto" : ""}>{action}</div>
       )}
     </div>
   );
 }
 
 // Convenience components for common patterns
-export function SimplePageHeader({ 
-  title, 
-  action 
-}: { 
-  title: string; 
-  action?: React.ReactNode; 
+export function SimplePageHeader({
+  title,
+  action,
+}: {
+  title: string;
+  action?: React.ReactNode;
 }) {
   return <PageHeader title={title} action={action} />;
 }
 
-export function ResponsivePageHeader({ 
-  title, 
-  subtitle, 
-  action 
-}: { 
-  title: string; 
-  subtitle?: string; 
-  action?: React.ReactNode; 
+export function ResponsivePageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <PageHeader 
-      title={title} 
-      subtitle={subtitle} 
-      action={action} 
-      responsive 
-    />
+    <PageHeader title={title} subtitle={subtitle} action={action} responsive />
   );
 }
 
-export function CardPageHeader({ 
-  title, 
-  subtitle, 
-  action 
-}: { 
-  title: string; 
-  subtitle?: string; 
-  action?: React.ReactNode; 
+export function CardPageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
 }) {
-  return (
-    <PageHeader 
-      title={title} 
-      subtitle={subtitle} 
-      action={action} 
-      card 
-    />
-  );
+  return <PageHeader title={title} subtitle={subtitle} action={action} card />;
 }

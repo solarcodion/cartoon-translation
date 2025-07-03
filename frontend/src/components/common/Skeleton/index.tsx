@@ -233,7 +233,6 @@ interface SeriesTableSkeletonProps extends SkeletonProps {
 
 export function SeriesTableSkeleton({
   rows = 3,
-  className = "",
   animate = true,
 }: SeriesTableSkeletonProps) {
   return (
@@ -263,6 +262,149 @@ export function SeriesTableSkeleton({
         </tr>
       ))}
     </>
+  );
+}
+
+// Chapters table skeleton rows - specialized for chapters table structure
+interface ChaptersTableSkeletonProps extends SkeletonProps {
+  /** Number of skeleton rows to show */
+  rows?: number;
+}
+
+export function ChaptersTableSkeleton({
+  rows = 3,
+  animate = true,
+}: ChaptersTableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index} className="border-b border-gray-100">
+          {/* Chapter Number Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/2" animate={animate} />
+          </td>
+
+          {/* Status Column */}
+          <td className="px-6 py-4">
+            <Skeleton className="h-6 w-20 rounded-full" animate={animate} />
+          </td>
+
+          {/* Actions Column */}
+          <td className="px-6 py-4 text-right">
+            <div className="flex justify-end space-x-2">
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+// Translation Memory table skeleton rows - specialized for TM table structure
+interface TranslationMemoryTableSkeletonProps extends SkeletonProps {
+  /** Number of skeleton rows to show */
+  rows?: number;
+}
+
+export function TranslationMemoryTableSkeleton({
+  rows = 3,
+  animate = true,
+}: TranslationMemoryTableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index} className="border-b border-gray-100">
+          {/* Source Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="3/4" animate={animate} />
+          </td>
+
+          {/* Target Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="2/3" animate={animate} />
+          </td>
+
+          {/* Context Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/2" animate={animate} />
+          </td>
+
+          {/* Usage Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/3" animate={animate} />
+          </td>
+
+          {/* Actions Column */}
+          <td className="px-6 py-4 text-right">
+            <div className="flex justify-end space-x-2">
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+// AI Glossary grid skeleton - specialized for glossary card grid structure
+interface AIGlossaryGridSkeletonProps extends SkeletonProps {
+  /** Number of skeleton cards to show */
+  cards?: number;
+}
+
+export function AIGlossaryGridSkeleton({
+  cards = 6,
+  animate = true,
+}: AIGlossaryGridSkeletonProps) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: cards }).map((_, index) => (
+        <div
+          key={index}
+          className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+        >
+          {/* Image/Icon Area */}
+          <div className="h-48 bg-gray-200">
+            <Skeleton className="w-full h-full" animate={animate} />
+          </div>
+
+          {/* Content Area */}
+          <div className="p-4">
+            {/* Category Badge */}
+            <div className="mb-3">
+              <Skeleton className="h-5 w-16 rounded-full" animate={animate} />
+            </div>
+
+            {/* Description */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1 mb-1">
+                <Skeleton className="h-3 w-3 rounded" animate={animate} />
+                <TextSkeleton size="xs" width="1/2" animate={animate} />
+              </div>
+              <div className="space-y-1">
+                <TextSkeleton size="sm" width="full" animate={animate} />
+                <TextSkeleton size="sm" width="3/4" animate={animate} />
+              </div>
+            </div>
+
+            {/* Translation */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1 mb-1">
+                <Skeleton className="h-3 w-3 rounded" animate={animate} />
+                <TextSkeleton size="xs" width="1/3" animate={animate} />
+              </div>
+              <TextSkeleton size="sm" width="2/3" animate={animate} />
+            </div>
+
+            {/* Status Badge */}
+            <Skeleton className="h-6 w-24 rounded-full" animate={animate} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

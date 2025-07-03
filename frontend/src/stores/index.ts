@@ -29,4 +29,51 @@ export {
   useSeriesIsStale,
   invalidateSeriesCache,
   refreshSeriesData,
+  getSeriesById,
 } from "./seriesStore";
+
+export {
+  useChaptersStore,
+  useChaptersBySeriesId,
+  useChaptersLoadingBySeriesId,
+  useChaptersErrorBySeriesId,
+  useChaptersGlobalLoading,
+  useChaptersGlobalError,
+  useChaptersActions,
+  useChaptersIsStale,
+  useHasCachedChapters,
+  invalidateChaptersCache,
+  refreshChaptersData,
+  getChapterById,
+} from "./chaptersStore";
+
+export {
+  useTMStore,
+  useTMBySeriesId,
+  useTMLoadingBySeriesId,
+  useTMErrorBySeriesId,
+  useTMGlobalLoading,
+  useTMGlobalError,
+  useTMActions,
+  useTMIsStale,
+  useHasCachedTM,
+  invalidateTMCache,
+  refreshTMData,
+  getTMEntryById,
+} from "./tmStore";
+
+export {
+  useAIGlossaryStore,
+  useGlossaryBySeriesId,
+  useGlossaryLoadingBySeriesId,
+  useGlossaryRefreshingBySeriesId,
+  useGlossaryErrorBySeriesId,
+  useGlossaryGlobalLoading,
+  useGlossaryGlobalError,
+  useAIGlossaryActions,
+  useGlossaryIsStale,
+  useHasCachedGlossary,
+  invalidateGlossaryCache,
+  refreshGlossaryData,
+  getGlossaryEntryById,
+} from "./aiGlossaryStore";

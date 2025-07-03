@@ -4,10 +4,10 @@ import { FiFileText } from "react-icons/fi";
 import { LuBrain } from "react-icons/lu";
 import { MdGTranslate } from "react-icons/md";
 import {
-  SectionLoadingSpinner,
   ErrorState,
   BackToSeries,
   NavigationTabs,
+  TextSkeleton,
 } from "../components/common";
 
 import { CardPageHeader } from "../components/Header/PageHeader";
@@ -17,41 +17,92 @@ import DeleteChapterModal from "../components/Modals/DeleteChapterModal";
 import AddTMEntryModal from "../components/Modals/AddTMEntryModal";
 import EditTMEntryModal from "../components/Modals/EditTMEntryModal";
 import DeleteTMEntryModal from "../components/Modals/DeleteTMEntryModal";
-import type {
-  Chapter,
-  SeriesInfo,
-  TranslationMemory,
-  GlossaryCharacter,
-} from "../types";
-import { convertApiChapterToLegacy } from "../types/series";
-import { convertApiTMToLegacy } from "../types/translation";
+import type { Chapter, SeriesInfo, TranslationMemory } from "../types";
 import {
   AIGlossaryTabContent,
   ChaptersTabContent,
   TranslationMemoryTabContent,
 } from "../components/Tabs";
-import { chapterService } from "../services/chapterService";
 import { seriesService } from "../services/seriesService";
-import { translationMemoryService } from "../services/translationMemoryService";
-import { peopleAnalysisService } from "../services/peopleAnalysisService";
-import { aiGlossaryService } from "../services/aiGlossaryService";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
+import {
+  useChaptersBySeriesId,
+  useChaptersLoadingBySeriesId,
+  useChaptersErrorBySeriesId,
+  useChaptersActions,
+  useHasCachedChapters,
+  useChaptersIsStale,
+  getSeriesById,
+  useSeriesActions,
+  useTMBySeriesId,
+  useTMLoadingBySeriesId,
+  useTMErrorBySeriesId,
+  useTMActions,
+  useHasCachedTM,
+  useTMIsStale,
+  useGlossaryBySeriesId,
+  useGlossaryLoadingBySeriesId,
+  useGlossaryRefreshingBySeriesId,
+  useGlossaryErrorBySeriesId,
+  useAIGlossaryActions,
+  useHasCachedGlossary,
+  useGlossaryIsStale,
+} from "../stores";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { syncAfterChapterCreate, syncAfterChapterDelete } = useDashboardSync();
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+
+  // Use chapters store instead of local state
+  const chapters = useChaptersBySeriesId(seriesId || "");
+  const isChaptersLoading = useChaptersLoadingBySeriesId(seriesId || "");
+  const chaptersError = useChaptersErrorBySeriesId(seriesId || "");
+  const hasCachedChapters = useHasCachedChapters(seriesId || "");
+  const isChaptersStale = useChaptersIsStale(seriesId || "");
+  const {
+    fetchChaptersBySeriesId,
+    createChapter,
+    updateChapter,
+    deleteChapter,
+    clearError,
+  } = useChaptersActions();
+
+  // Use series store for series data
+  const { fetchSeries, updateSeries } = useSeriesActions();
+
+  // Use TM store for translation memory data
+  const translationMemoryData = useTMBySeriesId(seriesId || "");
+  const isTMLoading = useTMLoadingBySeriesId(seriesId || "");
+  const tmError = useTMErrorBySeriesId(seriesId || "");
+  const hasCachedTM = useHasCachedTM(seriesId || "");
+  const isTMStale = useTMIsStale(seriesId || "");
+  const {
+    fetchTMBySeriesId,
+    createTMEntry,
+    updateTMEntry,
+    deleteTMEntry,
+    clearError: clearTMError,
+  } = useTMActions();
+
+  // Use AI Glossary store for glossary data
+  const glossaryData = useGlossaryBySeriesId(seriesId || "");
+  const isGlossaryLoading = useGlossaryLoadingBySeriesId(seriesId || "");
+  const isGlossaryRefreshing = useGlossaryRefreshingBySeriesId(seriesId || "");
+  const glossaryError = useGlossaryErrorBySeriesId(seriesId || "");
+  const hasCachedGlossary = useHasCachedGlossary(seriesId || "");
+  const isGlossaryStale = useGlossaryIsStale(seriesId || "");
+  const {
+    fetchGlossaryBySeriesId,
+    refreshGlossary,
+    clearError: clearGlossaryError,
+  } = useAIGlossaryActions();
+
+  // Keep series info as local state
   const [seriesInfo, setSeriesInfo] = useState<SeriesInfo | null>(null);
-  const [translationMemoryData, setTranslationMemoryData] = useState<
-    TranslationMemory[]
-  >([]);
-  const [glossaryData, setGlossaryData] = useState<GlossaryCharacter[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isTMLoading, setIsTMLoading] = useState(false);
-  const [isGlossaryRefreshing, setIsGlossaryRefreshing] = useState(false);
+  const [isSeriesLoading, setIsSeriesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "chapters" | "translation" | "glossary"
@@ -91,94 +142,124 @@ export default function Chapters() {
     }
   }, [openDropdown]);
 
-  // Fetch chapters data
-  const fetchChapters = useCallback(async () => {
+  // Fetch series info (use store data first, then API if needed)
+  const fetchSeriesInfo = useCallback(async () => {
     if (!seriesId) return;
 
     try {
-      setIsLoading(true);
+      setIsSeriesLoading(true);
       setError(null);
 
-      // Fetch series info and chapters from API
-      const [seriesData, chaptersData] = await Promise.all([
-        seriesService.getSeriesById(seriesId),
-        chapterService.getChaptersBySeriesId(seriesId),
-      ]);
+      // Try to get series data from store first
+      const storeSeriesData = getSeriesById(seriesId);
 
-      // Convert API data to legacy format for compatibility
-      const legacyChapters = chaptersData.map(convertApiChapterToLegacy);
+      if (storeSeriesData) {
+        // Use data from store
+        console.log(
+          `✅ Using cached series data for ${seriesId}: ${storeSeriesData.name}`
+        );
+        setSeriesInfo({
+          id: storeSeriesData.id,
+          name: storeSeriesData.name,
+          totalChapters: storeSeriesData.chapters,
+        });
+        setIsSeriesLoading(false);
+      } else {
+        // Fall back to API and also fetch all series to populate store
+        console.log(`🔄 Fetching series data from API for ${seriesId}`);
 
-      // Sort chapters by chapter number in ascending order
-      const sortedChapters = legacyChapters.sort((a, b) => a.number - b.number);
+        // Fetch all series to populate store (this will cache the data)
+        await fetchSeries();
 
-      setSeriesInfo({
-        id: seriesData.id,
-        name: seriesData.title,
-        totalChapters: seriesData.total_chapters,
-      });
-      setChapters(sortedChapters);
-      setIsLoading(false);
+        // Try store again after fetching
+        const updatedStoreData = getSeriesById(seriesId);
+        if (updatedStoreData) {
+          setSeriesInfo({
+            id: updatedStoreData.id,
+            name: updatedStoreData.name,
+            totalChapters: updatedStoreData.chapters,
+          });
+        } else {
+          // If still not found, fetch individual series
+          const seriesData = await seriesService.getSeriesById(seriesId);
+          setSeriesInfo({
+            id: seriesData.id,
+            name: seriesData.title,
+            totalChapters: seriesData.total_chapters,
+          });
+        }
+        setIsSeriesLoading(false);
+      }
     } catch (err) {
-      console.error("Error fetching chapters:", err);
+      console.error("Error fetching series info:", err);
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred."
       );
-      setIsLoading(false);
+      setIsSeriesLoading(false);
     }
-  }, [seriesId]);
+  }, [seriesId, fetchSeries]);
 
-  // Fetch translation memory data
-  const fetchTranslationMemory = useCallback(async () => {
-    if (!seriesId) return;
-
-    try {
-      setIsTMLoading(true);
-
-      // Fetch TM data from API
-      const tmData = await translationMemoryService.getTMEntries(seriesId);
-
-      // Convert API data to legacy format for compatibility
-      const legacyTMData = tmData.map(convertApiTMToLegacy);
-
-      setTranslationMemoryData(legacyTMData);
-      setIsTMLoading(false);
-    } catch (err) {
-      console.error("Error fetching translation memory:", err);
-      // Don't set main error state for TM fetch failures
-      setIsTMLoading(false);
-    }
-  }, [seriesId]);
-
-  // Fetch AI glossary data
-  const fetchGlossaryData = useCallback(async () => {
-    if (!seriesId) return;
-
-    try {
-      const entries = await aiGlossaryService.getGlossaryBySeriesId(seriesId);
-      const glossaryCharacters =
-        aiGlossaryService.convertToGlossaryCharacters(entries);
-
-      setGlossaryData(glossaryCharacters);
-    } catch (error) {
-      console.error("❌ Error fetching AI glossary data:", error);
-      setGlossaryData([]);
-    }
-  }, [seriesId]);
+  // No need for separate fetch functions - using stores now
 
   useEffect(() => {
     if (seriesId) {
-      fetchChapters();
-      fetchTranslationMemory();
-      fetchGlossaryData();
+      // Only fetch chapters if we don't have cached data or if it's stale
+      if (!hasCachedChapters || isChaptersStale) {
+        console.log(
+          `🔄 Fetching chapters for series ${seriesId} - hasCached: ${hasCachedChapters}, isStale: ${isChaptersStale}`
+        );
+        fetchChaptersBySeriesId(seriesId);
+      } else {
+        console.log(
+          `✅ Using cached chapters for series ${seriesId} - ${chapters.length} chapters available`
+        );
+      }
+
+      // Always fetch series info (it's lightweight)
+      fetchSeriesInfo();
+
+      // Fetch TM data if we don't have cached data or if it's stale
+      if (!hasCachedTM || isTMStale) {
+        console.log(
+          `🔄 Fetching TM data for series ${seriesId} - hasCached: ${hasCachedTM}, isStale: ${isTMStale}`
+        );
+        fetchTMBySeriesId(seriesId);
+      } else {
+        console.log(
+          `✅ Using cached TM data for series ${seriesId} - ${translationMemoryData.length} entries available`
+        );
+      }
+
+      // Fetch glossary data if we don't have cached data or if it's stale
+      if (!hasCachedGlossary || isGlossaryStale) {
+        console.log(
+          `🔄 Fetching glossary data for series ${seriesId} - hasCached: ${hasCachedGlossary}, isStale: ${isGlossaryStale}`
+        );
+        fetchGlossaryBySeriesId(seriesId);
+      } else {
+        console.log(
+          `✅ Using cached glossary data for series ${seriesId} - ${glossaryData.length} entries available`
+        );
+      }
     } else {
       navigate("/series");
     }
   }, [
     seriesId,
     navigate,
-    fetchChapters,
-    fetchTranslationMemory,
-    fetchGlossaryData,
+    hasCachedChapters,
+    isChaptersStale,
+    fetchChaptersBySeriesId,
+    fetchSeriesInfo,
+    hasCachedTM,
+    isTMStale,
+    fetchTMBySeriesId,
+    hasCachedGlossary,
+    isGlossaryStale,
+    fetchGlossaryBySeriesId,
+    chapters.length,
+    translationMemoryData.length,
+    glossaryData.length,
   ]);
 
   const handleAddChapter = () => {
@@ -193,24 +274,24 @@ export default function Chapters() {
     if (!seriesId) return;
 
     try {
-      // Create chapter via API
-      const newApiChapter = await chapterService.createChapter(seriesId, {
+      // Create chapter using the store
+      await createChapter(seriesId, {
         chapter_number: chapterNumber,
       });
 
-      // Convert to legacy format and add to list, then sort by chapter number
-      const newLegacyChapter = convertApiChapterToLegacy(newApiChapter);
-      setChapters((prevChapters) => {
-        const updatedChapters = [newLegacyChapter, ...prevChapters];
-        return updatedChapters.sort((a, b) => a.number - b.number);
-      });
-
       // Update series info to increment chapter count
-      setSeriesInfo((prevInfo) =>
-        prevInfo
+      setSeriesInfo((prevInfo) => {
+        const newInfo = prevInfo
           ? { ...prevInfo, totalChapters: prevInfo.totalChapters + 1 }
-          : prevInfo
-      );
+          : prevInfo;
+
+        // Also update the series store
+        if (newInfo) {
+          updateSeries(seriesId, { total_chapters: newInfo.totalChapters });
+        }
+
+        return newInfo;
+      });
 
       // Update dashboard stats in real-time
       const chapterTitle = `Chapter ${chapterNumber}`;
@@ -240,18 +321,9 @@ export default function Chapters() {
     chapterNumber: number
   ) => {
     try {
-      // Update chapter via API (only chapter number)
-      const updatedApiChapter = await chapterService.updateChapter(chapterId, {
+      // Update chapter using the store
+      await updateChapter(chapterId, {
         chapter_number: chapterNumber,
-      });
-
-      // Convert to legacy format and update local state, then sort by chapter number
-      const updatedLegacyChapter = convertApiChapterToLegacy(updatedApiChapter);
-      setChapters((prevChapters) => {
-        const updatedChapters = prevChapters.map((chapter) =>
-          chapter.id === chapterId ? updatedLegacyChapter : chapter
-        );
-        return updatedChapters.sort((a, b) => a.number - b.number);
       });
     } catch (error) {
       console.error("Error updating chapter:", error);
@@ -273,6 +345,8 @@ export default function Chapters() {
   };
 
   const handleConfirmDelete = async (chapterId: string) => {
+    if (!seriesId) return;
+
     try {
       // Get chapter info before deletion for dashboard update
       const chapterToDelete = chapters.find((c) => c.id === chapterId);
@@ -281,23 +355,25 @@ export default function Chapters() {
         : "Unknown Chapter";
       const seriesName = seriesInfo?.name || "Unknown Series";
 
-      // Delete chapter via API
-      await chapterService.deleteChapter(chapterId);
-
-      // Remove the chapter from the local state
-      setChapters((prevChapters) =>
-        prevChapters.filter((chapter) => chapter.id !== chapterId)
-      );
+      // Delete chapter using the store
+      await deleteChapter(seriesId, chapterId);
 
       // Update series info to decrement chapter count
-      setSeriesInfo((prevInfo) =>
-        prevInfo
+      setSeriesInfo((prevInfo) => {
+        const newInfo = prevInfo
           ? {
               ...prevInfo,
               totalChapters: Math.max(0, prevInfo.totalChapters - 1),
             }
-          : prevInfo
-      );
+          : prevInfo;
+
+        // Also update the series store
+        if (newInfo) {
+          updateSeries(seriesId, { total_chapters: newInfo.totalChapters });
+        }
+
+        return newInfo;
+      });
 
       // Update dashboard stats in real-time
       syncAfterChapterDelete(chapterTitle, seriesName);
@@ -326,14 +402,12 @@ export default function Chapters() {
         throw new Error("Series ID is required");
       }
 
-      // Create TM entry using the service
-      await translationMemoryService.createTMEntry(seriesId, {
+      // Create TM entry using the store
+      await createTMEntry(seriesId, {
         source_text: entryData.source,
         target_text: entryData.target,
         context: entryData.context,
       });
-
-      await fetchTranslationMemory();
     } catch (error) {
       console.error("Error adding TM entry:", error);
     }
@@ -362,14 +436,12 @@ export default function Chapters() {
     }
   ) => {
     try {
-      // Update TM entry using the service (tmId is already a UUID string)
-      await translationMemoryService.updateTMEntry(tmId, {
+      // Update TM entry using the store (tmId is already a UUID string)
+      await updateTMEntry(tmId, {
         source_text: entryData.source,
         target_text: entryData.target,
         context: entryData.context,
       });
-
-      await fetchTranslationMemory();
     } catch (error) {
       console.error("Error updating TM entry:", error);
       throw error;
@@ -391,85 +463,34 @@ export default function Chapters() {
   };
 
   const handleConfirmDeleteTMEntry = async (tmId: string) => {
-    try {
-      // Delete TM entry using the service (tmId is already a UUID string)
-      await translationMemoryService.deleteTMEntry(tmId);
+    if (!seriesId) return;
 
-      // Refresh translation memory data to remove the deleted entry
-      await fetchTranslationMemory();
+    try {
+      // Delete TM entry using the store (tmId is already a UUID string)
+      await deleteTMEntry(seriesId, tmId);
     } catch (error) {
       console.error("Error deleting TM entry:", error);
       throw error; // Re-throw to let the modal handle the error
     }
   };
 
-  // Glossary Refresh Handler - Updated to use terminology analysis
+  // Glossary Refresh Handler - Using store
   const handleRefreshGlossary = async () => {
     if (!seriesId) return;
 
     try {
-      setIsGlossaryRefreshing(true);
-
-      // Analyze terminology in the series (this will save to database automatically)
-      const result = await peopleAnalysisService.analyzeTerminologyInSeries(
-        seriesId,
-        true // force refresh
-      );
-
-      if (result.success) {
-        // Fetch the updated data from database
-        await fetchGlossaryData();
-      } else {
-        throw new Error("Terminology analysis failed");
-      }
+      // Use the store's refresh function which handles all the logic
+      await refreshGlossary(seriesId, true); // force refresh
     } catch (error) {
       console.error("❌ Error refreshing glossary:", error);
-
-      // Try to fetch existing data from database as fallback
-      try {
-        await fetchGlossaryData();
-      } catch (dbError) {
-        console.error("❌ Error loading fallback data:", dbError);
-        // Create minimal fallback data
-        const fallbackPeople =
-          peopleAnalysisService.createFallbackPeople(seriesId);
-        const enhancedFallback =
-          peopleAnalysisService.enhancePeopleWithAvatars(fallbackPeople);
-        setGlossaryData(
-          peopleAnalysisService.convertToGlossaryCharacters(enhancedFallback)
-        );
-      }
-    } finally {
-      setIsGlossaryRefreshing(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        {/* Back Button */}
-        <BackToSeries />
+  // Combine errors from different sources
+  const combinedError = error || chaptersError || tmError || glossaryError;
+  const combinedLoading = isSeriesLoading || isChaptersLoading;
 
-        {/* Page Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Series: Loading...
-          </h1>
-          <p className="text-gray-600">
-            Manage chapters, translation memory, and AI-generated glossary for
-            this series.
-          </p>
-        </div>
-
-        {/* Loading State */}
-        <div className="bg-white">
-          <SectionLoadingSpinner text="Loading chapters..." />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (combinedError) {
     return (
       <div className="space-y-8">
         {/* Back Button */}
@@ -484,7 +505,21 @@ export default function Chapters() {
           </p>
         </div>
 
-        <ErrorState error={error} onRetry={fetchChapters} />
+        <ErrorState
+          error={combinedError}
+          onRetry={() => {
+            if (seriesId) {
+              clearError(seriesId);
+              clearTMError(seriesId);
+              clearGlossaryError(seriesId);
+              setError(null);
+              fetchChaptersBySeriesId(seriesId);
+              fetchSeriesInfo();
+              fetchTMBySeriesId(seriesId);
+              fetchGlossaryBySeriesId(seriesId);
+            }
+          }}
+        />
       </div>
     );
   }
@@ -495,10 +530,25 @@ export default function Chapters() {
       <BackToSeries />
 
       {/* Page Header */}
-      <CardPageHeader
-        title={`Series: ${seriesInfo?.name || "Loading..."}`}
-        subtitle="Manage chapters, translation memory, and AI-generated glossary for this series."
-      />
+      {seriesInfo?.name ? (
+        <CardPageHeader
+          title={`Series: ${seriesInfo.name}`}
+          subtitle="Manage chapters, translation memory, and AI-generated glossary for this series."
+        />
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-gray-900">Series:</span>
+              <TextSkeleton size="3xl" width="1/3" className="inline-block" />
+            </div>
+            <p className="text-gray-600">
+              Manage chapters, translation memory, and AI-generated glossary for
+              this series.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <NavigationTabs
@@ -534,6 +584,7 @@ export default function Chapters() {
         onEditChapter={canModify ? handleEditChapter : undefined}
         onDeleteChapter={canModify ? handleDeleteChapter : undefined}
         canModify={canModify}
+        isLoading={combinedLoading}
       />
 
       {/* Translation Memory Section */}
@@ -556,6 +607,7 @@ export default function Chapters() {
         seriesId={seriesId}
         onRefreshGlossary={handleRefreshGlossary}
         isRefreshing={isGlossaryRefreshing}
+        isLoading={isGlossaryLoading}
       />
 
       {/* Add Chapter Modal */}
