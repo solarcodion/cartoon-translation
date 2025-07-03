@@ -45,7 +45,7 @@ export default function AddTextBoxModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-  const [zoom, setZoom] = useState(79);
+  const [zoom, setZoom] = useState(1);
 
   // Copy button states
   const [copiedOCR, setCopiedOCR] = useState(false);
@@ -90,6 +90,61 @@ export default function AddTextBoxModal({
   const imageRef = useRef<HTMLImageElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
+  // Helper function to convert mouse coordinates to image coordinates
+  const getImageCoordinatesFromMouse = useCallback((e: React.MouseEvent) => {
+    if (!imageRef.current || !imageContainerRef.current) return null;
+
+    const img = imageRef.current;
+
+    // Get the actual image element's bounding rect (after transforms)
+    const imgRect = img.getBoundingClientRect();
+
+    // Calculate mouse position relative to the transformed image
+    const mouseX = e.clientX - imgRect.left;
+    const mouseY = e.clientY - imgRect.top;
+
+    // Calculate the actual displayed image dimensions
+    const imgAspectRatio = img.naturalWidth / img.naturalHeight;
+    const imgDisplayWidth = imgRect.width;
+    const imgDisplayHeight = imgRect.height;
+
+    // The image might be letterboxed/pillarboxed within its container
+    let actualImageWidth, actualImageHeight, offsetX, offsetY;
+
+    if (imgAspectRatio > imgDisplayWidth / imgDisplayHeight) {
+      // Image is wider - letterboxed (black bars on top/bottom)
+      actualImageWidth = imgDisplayWidth;
+      actualImageHeight = imgDisplayWidth / imgAspectRatio;
+      offsetX = 0;
+      offsetY = (imgDisplayHeight - actualImageHeight) / 2;
+    } else {
+      // Image is taller - pillarboxed (black bars on left/right)
+      actualImageHeight = imgDisplayHeight;
+      actualImageWidth = imgDisplayHeight * imgAspectRatio;
+      offsetX = (imgDisplayWidth - actualImageWidth) / 2;
+      offsetY = 0;
+    }
+
+    // Calculate mouse position relative to the actual image content
+    const imageMouseX = mouseX - offsetX;
+    const imageMouseY = mouseY - offsetY;
+
+    // Convert to image natural coordinates
+    const scaleX = img.naturalWidth / actualImageWidth;
+    const scaleY = img.naturalHeight / actualImageHeight;
+
+    const imageX = Math.max(
+      0,
+      Math.min(img.naturalWidth, imageMouseX * scaleX)
+    );
+    const imageY = Math.max(
+      0,
+      Math.min(img.naturalHeight, imageMouseY * scaleY)
+    );
+
+    return { x: imageX, y: imageY };
+  }, []);
+
   // Zoom and pan handlers
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -102,46 +157,12 @@ export default function AddTextBoxModal({
       if (e.button === 0 && !isDraggingBox && !isResizing) {
         if (isDragSelectionMode && imageRef.current) {
           // Drag selection mode - start selecting area
-          const img = imageRef.current;
-          const imgRect = img.getBoundingClientRect();
-
-          // Calculate the actual displayed image dimensions
-          const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-          const containerAspectRatio = imgRect.width / imgRect.height;
-
-          let displayedWidth, displayedHeight;
-          if (imgAspectRatio > containerAspectRatio) {
-            displayedWidth = imgRect.width;
-            displayedHeight = imgRect.width / imgAspectRatio;
-          } else {
-            displayedHeight = imgRect.height;
-            displayedWidth = imgRect.height * imgAspectRatio;
+          const imageCoords = getImageCoordinatesFromMouse(e);
+          if (imageCoords) {
+            setIsSelectingArea(true);
+            setSelectionStart({ x: imageCoords.x, y: imageCoords.y });
+            setSelectionEnd({ x: imageCoords.x, y: imageCoords.y });
           }
-
-          // Calculate offset to center the image
-          const offsetX = (imgRect.width - displayedWidth) / 2;
-          const offsetY = (imgRect.height - displayedHeight) / 2;
-
-          // Calculate mouse position relative to image
-          const mouseX = e.clientX - imgRect.left - offsetX;
-          const mouseY = e.clientY - imgRect.top - offsetY;
-
-          // Convert to image coordinates
-          const scaleX = img.naturalWidth / displayedWidth;
-          const scaleY = img.naturalHeight / displayedHeight;
-
-          const imageX = Math.max(
-            0,
-            Math.min(img.naturalWidth, mouseX * scaleX)
-          );
-          const imageY = Math.max(
-            0,
-            Math.min(img.naturalHeight, mouseY * scaleY)
-          );
-
-          setIsSelectingArea(true);
-          setSelectionStart({ x: imageX, y: imageY });
-          setSelectionEnd({ x: imageX, y: imageY });
         } else {
           // Normal pan mode
           setIsDragging(true);
@@ -149,7 +170,13 @@ export default function AddTextBoxModal({
         }
       }
     },
-    [pan, isDraggingBox, isResizing, isDragSelectionMode]
+    [
+      pan,
+      isDraggingBox,
+      isResizing,
+      isDragSelectionMode,
+      getImageCoordinatesFromMouse,
+    ]
   );
 
   const handleMouseMove = useCallback(
@@ -161,44 +188,13 @@ export default function AddTextBoxModal({
         });
       } else if (isSelectingArea && imageRef.current) {
         // Update selection area
-        const img = imageRef.current;
-        const imgRect = img.getBoundingClientRect();
-
-        // Calculate the actual displayed image dimensions
-        const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-        const containerAspectRatio = imgRect.width / imgRect.height;
-
-        let displayedWidth, displayedHeight;
-        if (imgAspectRatio > containerAspectRatio) {
-          displayedWidth = imgRect.width;
-          displayedHeight = imgRect.width / imgAspectRatio;
-        } else {
-          displayedHeight = imgRect.height;
-          displayedWidth = imgRect.height * imgAspectRatio;
+        const imageCoords = getImageCoordinatesFromMouse(e);
+        if (imageCoords) {
+          setSelectionEnd({ x: imageCoords.x, y: imageCoords.y });
         }
-
-        // Calculate offset to center the image
-        const offsetX = (imgRect.width - displayedWidth) / 2;
-        const offsetY = (imgRect.height - displayedHeight) / 2;
-
-        // Calculate mouse position relative to image
-        const mouseX = e.clientX - imgRect.left - offsetX;
-        const mouseY = e.clientY - imgRect.top - offsetY;
-
-        // Convert to image coordinates
-        const scaleX = img.naturalWidth / displayedWidth;
-        const scaleY = img.naturalHeight / displayedHeight;
-
-        const imageX = Math.max(0, Math.min(img.naturalWidth, mouseX * scaleX));
-        const imageY = Math.max(
-          0,
-          Math.min(img.naturalHeight, mouseY * scaleY)
-        );
-
-        setSelectionEnd({ x: imageX, y: imageY });
       }
     },
-    [isDragging, dragStart, isSelectingArea]
+    [isDragging, dragStart, isSelectingArea, getImageCoordinatesFromMouse]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -339,40 +335,29 @@ export default function AddTextBoxModal({
       const img = imageRef.current;
       const imgRect = img.getBoundingClientRect();
 
-      // Calculate the actual displayed image dimensions
-      const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-      const containerAspectRatio = imgRect.width / imgRect.height;
+      // Calculate mouse movement in screen coordinates
+      const deltaX = e.clientX - boxDragStart.x;
+      const deltaY = e.clientY - boxDragStart.y;
 
-      let displayedWidth, displayedHeight;
-      if (imgAspectRatio > containerAspectRatio) {
-        displayedWidth = imgRect.width;
-        displayedHeight = imgRect.width / imgAspectRatio;
-      } else {
-        displayedHeight = imgRect.height;
-        displayedWidth = imgRect.height * imgAspectRatio;
-      }
-
-      // Calculate scale factors
-      const scaleX = img.naturalWidth / displayedWidth;
-      const scaleY = img.naturalHeight / displayedHeight;
-
-      // Calculate mouse movement in image coordinates
-      const deltaX = (e.clientX - boxDragStart.x) * scaleX;
-      const deltaY = (e.clientY - boxDragStart.y) * scaleY;
+      // Convert screen movement to image coordinates
+      // Since the image is scaled, we need to account for the current scale
+      const currentScale = imgRect.width / img.naturalWidth;
+      const imageDeltaX = deltaX / currentScale;
+      const imageDeltaY = deltaY / currentScale;
 
       // Calculate new position
       const newX = Math.max(
         0,
         Math.min(
           img.naturalWidth - boundingBox.width,
-          boxDragStartPos.x + deltaX
+          boxDragStartPos.x + imageDeltaX
         )
       );
       const newY = Math.max(
         0,
         Math.min(
           img.naturalHeight - boundingBox.height,
-          boxDragStartPos.y + deltaY
+          boxDragStartPos.y + imageDeltaY
         )
       );
 
@@ -411,64 +396,52 @@ export default function AddTextBoxModal({
       const img = imageRef.current;
       const imgRect = img.getBoundingClientRect();
 
-      // Calculate the actual displayed image dimensions
-      const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-      const containerAspectRatio = imgRect.width / imgRect.height;
+      // Calculate mouse movement in screen coordinates
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = e.clientY - resizeStart.y;
 
-      let displayedWidth, displayedHeight;
-      if (imgAspectRatio > containerAspectRatio) {
-        displayedWidth = imgRect.width;
-        displayedHeight = imgRect.width / imgAspectRatio;
-      } else {
-        displayedHeight = imgRect.height;
-        displayedWidth = imgRect.height * imgAspectRatio;
-      }
-
-      // Calculate scale factors
-      const scaleX = img.naturalWidth / displayedWidth;
-      const scaleY = img.naturalHeight / displayedHeight;
-
-      // Calculate mouse movement in image coordinates
-      const deltaX = (e.clientX - resizeStart.x) * scaleX;
-      const deltaY = (e.clientY - resizeStart.y) * scaleY;
+      // Convert screen movement to image coordinates
+      const currentScale = imgRect.width / img.naturalWidth;
+      const imageDeltaX = deltaX / currentScale;
+      const imageDeltaY = deltaY / currentScale;
 
       const newBox = { ...resizeStartBox };
 
       // Handle different resize directions
       switch (resizeHandle) {
         case "nw": // Top-left
-          newBox.x = Math.max(0, resizeStartBox.x + deltaX);
-          newBox.y = Math.max(0, resizeStartBox.y + deltaY);
-          newBox.width = Math.max(10, resizeStartBox.width - deltaX);
-          newBox.height = Math.max(10, resizeStartBox.height - deltaY);
+          newBox.x = Math.max(0, resizeStartBox.x + imageDeltaX);
+          newBox.y = Math.max(0, resizeStartBox.y + imageDeltaY);
+          newBox.width = Math.max(10, resizeStartBox.width - imageDeltaX);
+          newBox.height = Math.max(10, resizeStartBox.height - imageDeltaY);
           break;
         case "n": // Top
-          newBox.y = Math.max(0, resizeStartBox.y + deltaY);
-          newBox.height = Math.max(10, resizeStartBox.height - deltaY);
+          newBox.y = Math.max(0, resizeStartBox.y + imageDeltaY);
+          newBox.height = Math.max(10, resizeStartBox.height - imageDeltaY);
           break;
         case "ne": // Top-right
-          newBox.y = Math.max(0, resizeStartBox.y + deltaY);
-          newBox.width = Math.max(10, resizeStartBox.width + deltaX);
-          newBox.height = Math.max(10, resizeStartBox.height - deltaY);
+          newBox.y = Math.max(0, resizeStartBox.y + imageDeltaY);
+          newBox.width = Math.max(10, resizeStartBox.width + imageDeltaX);
+          newBox.height = Math.max(10, resizeStartBox.height - imageDeltaY);
           break;
         case "w": // Left
-          newBox.x = Math.max(0, resizeStartBox.x + deltaX);
-          newBox.width = Math.max(10, resizeStartBox.width - deltaX);
+          newBox.x = Math.max(0, resizeStartBox.x + imageDeltaX);
+          newBox.width = Math.max(10, resizeStartBox.width - imageDeltaX);
           break;
         case "e": // Right
-          newBox.width = Math.max(10, resizeStartBox.width + deltaX);
+          newBox.width = Math.max(10, resizeStartBox.width + imageDeltaX);
           break;
         case "sw": // Bottom-left
-          newBox.x = Math.max(0, resizeStartBox.x + deltaX);
-          newBox.width = Math.max(10, resizeStartBox.width - deltaX);
-          newBox.height = Math.max(10, resizeStartBox.height + deltaY);
+          newBox.x = Math.max(0, resizeStartBox.x + imageDeltaX);
+          newBox.width = Math.max(10, resizeStartBox.width - imageDeltaX);
+          newBox.height = Math.max(10, resizeStartBox.height + imageDeltaY);
           break;
         case "s": // Bottom
-          newBox.height = Math.max(10, resizeStartBox.height + deltaY);
+          newBox.height = Math.max(10, resizeStartBox.height + imageDeltaY);
           break;
         case "se": // Bottom-right
-          newBox.width = Math.max(10, resizeStartBox.width + deltaX);
-          newBox.height = Math.max(10, resizeStartBox.height + deltaY);
+          newBox.width = Math.max(10, resizeStartBox.width + imageDeltaX);
+          newBox.height = Math.max(10, resizeStartBox.height + imageDeltaY);
           break;
       }
 
@@ -490,7 +463,7 @@ export default function AddTextBoxModal({
     [isResizing, resizeHandle, resizeStart, resizeStartBox]
   );
 
-  // Calculate bounding box overlay position and size
+  // Calculate bounding box overlay position and size (relative to image)
   const getBoundingBoxStyle = useCallback(() => {
     if (
       !selectedPage ||
@@ -502,96 +475,52 @@ export default function AddTextBoxModal({
     }
 
     const img = imageRef.current;
-    const imgRect = img.getBoundingClientRect();
-    const containerRect = imageContainerRef.current?.getBoundingClientRect();
 
-    if (!containerRect) return { display: "none" };
-
-    // Calculate the actual displayed image dimensions
-    const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-    const containerAspectRatio = imgRect.width / imgRect.height;
-
-    let displayedWidth, displayedHeight;
-    if (imgAspectRatio > containerAspectRatio) {
-      displayedWidth = imgRect.width;
-      displayedHeight = imgRect.width / imgAspectRatio;
-    } else {
-      displayedHeight = imgRect.height;
-      displayedWidth = imgRect.height * imgAspectRatio;
-    }
-
-    // Calculate scale factors
-    const scaleX = displayedWidth / img.naturalWidth;
-    const scaleY = displayedHeight / img.naturalHeight;
-
-    // Calculate bounding box position and size
-    const boxLeft = boundingBox.x * scaleX;
-    const boxTop = boundingBox.y * scaleY;
-    const boxWidth = boundingBox.width * scaleX;
-    const boxHeight = boundingBox.height * scaleY;
-
-    // Calculate offset to center the image
-    const offsetX = (imgRect.width - displayedWidth) / 2;
-    const offsetY = (imgRect.height - displayedHeight) / 2;
+    // Since the overlay is now inside the scaled container, we can use
+    // the image's natural dimensions directly as percentages
+    const leftPercent = (boundingBox.x / img.naturalWidth) * 100;
+    const topPercent = (boundingBox.y / img.naturalHeight) * 100;
+    const widthPercent = (boundingBox.width / img.naturalWidth) * 100;
+    const heightPercent = (boundingBox.height / img.naturalHeight) * 100;
 
     return {
       position: "absolute" as const,
-      left: `${boxLeft + offsetX}px`,
-      top: `${boxTop + offsetY}px`,
-      width: `${boxWidth}px`,
-      height: `${boxHeight}px`,
+      left: `${leftPercent}%`,
+      top: `${topPercent}%`,
+      width: `${widthPercent}%`,
+      height: `${heightPercent}%`,
       border: "2px solid #ef4444",
       zIndex: 10,
+      pointerEvents: "auto" as const,
     };
   }, [selectedPage, boundingBox]);
 
-  // Calculate selection overlay style
+  // Calculate selection overlay style (relative to image)
   const getSelectionOverlayStyle = useCallback(() => {
     if (!isSelectingArea || !imageRef.current) {
       return { display: "none" };
     }
 
     const img = imageRef.current;
-    const imgRect = img.getBoundingClientRect();
 
-    // Calculate the actual displayed image dimensions
-    const imgAspectRatio = img.naturalWidth / img.naturalHeight;
-    const containerAspectRatio = imgRect.width / imgRect.height;
-
-    let displayedWidth, displayedHeight;
-    if (imgAspectRatio > containerAspectRatio) {
-      displayedWidth = imgRect.width;
-      displayedHeight = imgRect.width / imgAspectRatio;
-    } else {
-      displayedHeight = imgRect.height;
-      displayedWidth = imgRect.height * imgAspectRatio;
-    }
-
-    // Calculate scale factors
-    const scaleX = displayedWidth / img.naturalWidth;
-    const scaleY = displayedHeight / img.naturalHeight;
-
-    // Calculate selection area
+    // Calculate selection area in image coordinates
     const minX = Math.min(selectionStart.x, selectionEnd.x);
     const minY = Math.min(selectionStart.y, selectionEnd.y);
     const maxX = Math.max(selectionStart.x, selectionEnd.x);
     const maxY = Math.max(selectionStart.y, selectionEnd.y);
 
-    const selectionLeft = minX * scaleX;
-    const selectionTop = minY * scaleY;
-    const selectionWidth = (maxX - minX) * scaleX;
-    const selectionHeight = (maxY - minY) * scaleY;
-
-    // Calculate offset to center the image
-    const offsetX = (imgRect.width - displayedWidth) / 2;
-    const offsetY = (imgRect.height - displayedHeight) / 2;
+    // Convert to percentages relative to image natural dimensions
+    const leftPercent = (minX / img.naturalWidth) * 100;
+    const topPercent = (minY / img.naturalHeight) * 100;
+    const widthPercent = ((maxX - minX) / img.naturalWidth) * 100;
+    const heightPercent = ((maxY - minY) / img.naturalHeight) * 100;
 
     return {
       position: "absolute" as const,
-      left: `${selectionLeft + offsetX}px`,
-      top: `${selectionTop + offsetY}px`,
-      width: `${selectionWidth}px`,
-      height: `${selectionHeight}px`,
+      left: `${leftPercent}%`,
+      top: `${topPercent}%`,
+      width: `${widthPercent}%`,
+      height: `${heightPercent}%`,
       border: "2px dashed #3b82f6",
       backgroundColor: "rgba(59, 130, 246, 0.1)",
       zIndex: 15,
