@@ -25,9 +25,6 @@ app.add_middleware(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors with detailed information"""
-    print(f"Validation error on {request.method} {request.url}")
-    print(f"Validation errors: {exc.errors()}")
-
     # Convert validation errors to a serializable format
     errors = []
     for error in exc.errors():

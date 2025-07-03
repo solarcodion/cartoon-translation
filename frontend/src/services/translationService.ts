@@ -189,31 +189,6 @@ class TranslationService {
       throw error;
     }
   }
-
-  async healthCheck(): Promise<any> {
-    try {
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/translation/health`, {
-        method: "GET",
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const data: ApiResponse = await response.json();
-
-      return data;
-    } catch (error) {
-      console.error("Translation service health check error:", error);
-      throw error;
-    }
-  }
 }
 
 export const translationService = new TranslationService();

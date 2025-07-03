@@ -19,16 +19,6 @@ export interface SeriesApiResponse {
   updated_at: string;
 }
 
-export interface SeriesStats {
-  total_series: number;
-  status_counts: {
-    active: number;
-    completed: number;
-    on_hold: number;
-    dropped: number;
-  };
-}
-
 class SeriesService {
   private async getAuthToken(): Promise<string | null> {
     try {
@@ -153,26 +143,6 @@ class SeriesService {
       console.error(`❌ Error deleting series ${id}:`, error);
       throw new Error(
         `Failed to delete series: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
-
-  async getSeriesStats(): Promise<SeriesStats> {
-    try {
-      const token = await this.getAuthToken();
-
-      const response = await apiClient.get<SeriesStats>(
-        "/series/stats",
-        token || undefined
-      );
-
-      return response;
-    } catch (error) {
-      console.error("Error fetching series statistics:", error);
-      throw new Error(
-        `Failed to fetch series statistics: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

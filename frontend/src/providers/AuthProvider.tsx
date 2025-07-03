@@ -26,9 +26,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       await userService.createUser(userData, token);
     } catch (error) {
-      // If user already exists, that's fine - just log it
+      // If user already exists, that's fine - just ignore it
       if (error instanceof Error && error.message.includes("already exists")) {
-        console.log("Login successful");
+        // User already exists, no action needed
       } else {
         console.error("Error creating user in database:", error);
       }

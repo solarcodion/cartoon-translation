@@ -237,28 +237,4 @@ class AIGlossaryService:
             print(f"❌ Error saving terminology analysis results: {str(e)}")
             raise Exception(f"Failed to save terminology analysis results: {str(e)}")
     
-    async def get_glossary_stats(self) -> Dict[str, Any]:
-        """Get AI glossary statistics"""
-        try:
-            # Get total count
-            response = self.supabase.table(self.table_name).select("id", count="exact").execute()
-            total_entries = response.count if response.count is not None else 0
-            
-            # Get count by series (top 5)
-            series_response = (
-                self.supabase.table(self.table_name)
-                .select("series_id", count="exact")
-                .execute()
-            )
-            
-            stats = {
-                "total_entries": total_entries,
-                "total_series_with_glossary": len(set(entry["series_id"] for entry in series_response.data)) if series_response.data else 0,
-                "average_entries_per_series": round(total_entries / max(1, len(set(entry["series_id"] for entry in series_response.data)) if series_response.data else 1), 2)
-            }
-            
-            return stats
-            
-        except Exception as e:
-            print(f"❌ Error getting AI glossary statistics: {str(e)}")
-            raise Exception(f"Failed to get AI glossary statistics: {str(e)}")
+

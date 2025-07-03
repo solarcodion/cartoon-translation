@@ -387,25 +387,4 @@ Only return the JSON object, no additional text."""
             except:
                 return self._create_fallback_people(len(chapters_data)), []
 
-    async def health_check(self) -> dict:
-        """Check if people analysis service is working"""
-        try:
-            if not self.client:
-                return {
-                    "status": "unhealthy",
-                    "service": "OpenAI GPT People Analysis",
-                    "error": "OpenAI API key not configured"
-                }
-            
-            return {
-                "status": "healthy",
-                "service": "OpenAI GPT People Analysis",
-                "target_language": self.target_language,
-                "model": "gpt-4o-mini"
-            }
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "service": "OpenAI GPT People Analysis",
-                "error": str(e)
-            }
+

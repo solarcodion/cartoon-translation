@@ -391,35 +391,4 @@ async def delete_page(
         )
 
 
-@router.get("/{page_id}/url", response_model=Dict[str, str])
-async def get_page_url(
-    page_id: int = Path(..., description="Page ID"),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
-):
-    """
-    Get public URL for a page file
-    
-    - **page_id**: ID of the page
-    """
-    try:
-        page = await page_service.get_page_by_id(page_id)
-        
-        if not page:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Page not found"
-            )
-        
-        url = page_service.get_page_url(page.file_path)
-        
-        return {"url": url}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Error in get_page_url endpoint: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get page URL: {str(e)}"
-        )
+

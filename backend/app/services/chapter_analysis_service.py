@@ -386,25 +386,4 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
 
         return text.strip()
 
-    async def health_check(self) -> dict:
-        """Check if chapter analysis service is working"""
-        try:
-            if not self.client:
-                return {
-                    "status": "unhealthy",
-                    "service": "OpenAI GPT Chapter Analysis",
-                    "error": "OpenAI API key not configured"
-                }
-            
-            return {
-                "status": "healthy",
-                "service": "OpenAI GPT Chapter Analysis",
-                "target_language": self.target_language,
-                "model": "gpt-4o-mini"
-            }
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "service": "OpenAI GPT Chapter Analysis",
-                "error": str(e)
-            }
+

@@ -170,34 +170,7 @@ class SeriesService:
             print(f"❌ Error deleting series {series_id}: {str(e)}")
             raise Exception(f"Failed to delete series: {str(e)}")
     
-    async def get_series_stats(self) -> Dict[str, Any]:
-        """Get series statistics"""
-        try:
-            # Get total count
-            response = self.supabase.table(self.table_name).select("id", count="exact").execute()
-            total_series = response.count or 0
-            
-            # Get count by status
-            status_counts = {}
-            for status in ["active", "completed", "on_hold", "dropped"]:
-                response = (
-                    self.supabase.table(self.table_name)
-                    .select("id", count="exact")
-                    .eq("status", status)
-                    .execute()
-                )
-                status_counts[status] = response.count or 0
-            
-            stats = {
-                "total_series": total_series,
-                "status_counts": status_counts
-            }
-            
-            return stats
-            
-        except Exception as e:
-            print(f"❌ Error fetching series statistics: {str(e)}")
-            raise Exception(f"Failed to fetch series statistics: {str(e)}")
+
 
     async def get_chapters_with_pages_for_analysis(self, series_id: str) -> List[Dict[str, Any]]:
         """Get all chapters with their pages and contexts for people analysis"""

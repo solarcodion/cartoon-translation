@@ -462,25 +462,4 @@ Only return the JSON object, no additional text."""
         # Return mapped category or default to OTHER
         return category_mappings.get(category_lower, GlossaryCategory.OTHER)
 
-    async def health_check(self) -> dict:
-        """Check if terminology analysis service is working"""
-        try:
-            if not self.client:
-                return {
-                    "status": "unhealthy",
-                    "service": "OpenAI GPT Terminology Analysis",
-                    "error": "OpenAI API key not configured"
-                }
-            
-            return {
-                "status": "healthy",
-                "service": "OpenAI GPT Terminology Analysis",
-                "target_language": self.target_language,
-                "model": "gpt-4o-mini"
-            }
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "service": "OpenAI GPT Terminology Analysis",
-                "error": str(e)
-            }
+

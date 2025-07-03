@@ -242,30 +242,6 @@ class PageService {
       throw error;
     }
   }
-
-  async getPageUrl(pageId: string): Promise<string> {
-    try {
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/pages/${pageId}/url`, {
-        method: "GET",
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      return data.url;
-    } catch (error) {
-      console.error("Error getting page URL:", error);
-      throw error;
-    }
-  }
 }
 
 export const pageService = new PageService();
