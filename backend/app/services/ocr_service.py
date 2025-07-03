@@ -1,7 +1,6 @@
 import base64
 import io
 import time
-from typing import Optional
 import easyocr
 import cv2
 import numpy as np
@@ -9,6 +8,7 @@ from PIL import Image
 
 from app.models import OCRResponse, OCRWithTranslationResponse
 from app.services.translation_service import TranslationService
+from app.config import settings
 
 # Handle PIL compatibility for different versions
 try:
@@ -25,22 +25,96 @@ class OCRService:
 
     def __init__(self):
         """Initialize OCR service with EasyOCR reader"""
-        # Initialize EasyOCR reader for Vietnamese
-        # Using GPU if available, fallback to CPU
-        try:
-            # Fix PIL compatibility issue
-            self._fix_pil_compatibility()
-            self.reader = easyocr.Reader(['vi'], gpu=True)
-        except Exception as e:
-            print(f"⚠️ GPU not available, falling back to CPU: {str(e)}")
-            try:
-                self.reader = easyocr.Reader(['vi'], gpu=False)
-            except Exception as cpu_error:
-                print(f"❌ Failed to initialize EasyOCR: {str(cpu_error)}")
-                raise Exception(f"OCR initialization failed: {str(cpu_error)}")
+        # Fix PIL compatibility issue first
+        self._fix_pil_compatibility()
 
-        # Initialize translation service for Vietnamese to English translation
+        # Get OCR languages from configuration
+        self.ocr_languages = settings.ocr_languages
+        self.auto_detect_language = settings.ocr_auto_detect_language
+
+        # Initialize EasyOCR reader with multiple languages (CPU only)
+        self.reader = None
+        self.specialized_readers = {}  # Cache for specialized language readers
+        self._initialize_reader()
+
+        # Initialize translation service
         self.translation_service = TranslationService()
+
+        # Language mapping for better language detection
+        self.language_names = {
+            'ko': 'Korean',
+            'ja': 'Japanese',
+            'ch_sim': 'Chinese (Simplified)',
+            'ch_tra': 'Chinese (Traditional)',
+            'zh': 'Chinese',
+            'vi': 'Vietnamese',
+            'en': 'English'
+        }
+
+    def _initialize_reader(self):
+        """Initialize EasyOCR reader with multiple languages in CPU-only mode"""
+        print(f"🔧 Initializing EasyOCR with languages: {', '.join(self.ocr_languages)} (CPU-only mode)")
+
+        # Define compatible language combinations
+        # EasyOCR requires English to be included with certain languages
+        # EasyOCR limitation: Asian languages can only be paired with English, not with each other
+        # We'll use a multi-reader approach for better language support
+        compatible_combinations = [
+            self.ocr_languages,  # Try original configuration first
+            # Working two-language combinations (verified)
+            ['ko', 'en'],  # Korean + English
+            ['ja', 'en'],  # Japanese + English
+            ['ch_sim', 'en'],  # Chinese Simplified + English
+            ['vi', 'en'],  # Vietnamese + English
+            ['en']  # English only as final fallback
+        ]
+
+        for i, lang_combo in enumerate(compatible_combinations):
+            try:
+                if i == 0:
+                    print(f"🔧 Trying original configuration: {', '.join(lang_combo)}")
+                else:
+                    print(f"🔄 Fallback attempt {i}: {', '.join(lang_combo)}")
+
+                self.reader = easyocr.Reader(lang_combo, gpu=False, verbose=False)
+                self.ocr_languages = lang_combo
+                print(f"✅ EasyOCR initialized successfully with languages: {', '.join(lang_combo)}")
+                return
+
+            except Exception as e:
+                print(f"❌ Failed with {', '.join(lang_combo)}: {str(e)}")
+                continue
+
+        # If all attempts failed
+        raise Exception("OCR initialization failed: Unable to initialize EasyOCR with any language combination")
+
+    def _get_specialized_reader(self, target_languages: list) -> 'easyocr.Reader':
+        """
+        Get or create a specialized reader for specific languages
+
+        Args:
+            target_languages: List of language codes
+
+        Returns:
+            EasyOCR reader optimized for the target languages
+        """
+        cache_key = ','.join(sorted(target_languages))
+
+        if cache_key in self.specialized_readers:
+            return self.specialized_readers[cache_key]
+
+        try:
+            # Ensure English is included for compatibility
+            if 'en' not in target_languages:
+                target_languages = target_languages + ['en']
+
+            reader = easyocr.Reader(target_languages, gpu=False, verbose=False)
+            self.specialized_readers[cache_key] = reader
+            print(f"🔧 Created specialized reader for: {', '.join(target_languages)}")
+            return reader
+        except Exception as e:
+            print(f"❌ Failed to create specialized reader for {target_languages}: {str(e)}")
+            return self.reader  # Fallback to main reader
 
     def _fix_pil_compatibility(self):
         """Fix PIL compatibility issues with newer versions"""
@@ -51,7 +125,174 @@ class OCRService:
         except Exception as e:
             print(f"⚠️ PIL compatibility fix failed: {str(e)}")
             # Continue anyway, might not be needed
-    
+
+    def _detect_language_from_text(self, text: str) -> tuple[str, float]:
+        """
+        Detect language from extracted text using character analysis
+
+        Args:
+            text: Extracted text to analyze
+
+        Returns:
+            Tuple of (language_code, confidence)
+        """
+        if not text or not text.strip():
+            return 'unknown', 0.0
+
+        # Count characters by script type
+        # Korean: Hangul syllables + Hangul Jamo + Hangul compatibility Jamo
+        korean_chars = sum(1 for char in text if (
+            '\uAC00' <= char <= '\uD7AF' or  # Hangul Syllables
+            '\u1100' <= char <= '\u11FF' or  # Hangul Jamo
+            '\u3130' <= char <= '\u318F'     # Hangul Compatibility Jamo
+        ))
+
+        # Japanese: Hiragana + Katakana + Japanese-specific Kanji patterns
+        japanese_hiragana = sum(1 for char in text if '\u3040' <= char <= '\u309F')  # Hiragana
+        japanese_katakana = sum(1 for char in text if '\u30A0' <= char <= '\u30FF')  # Katakana
+        japanese_kanji = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+
+        # Chinese: CJK Unified Ideographs (but exclude if Japanese kana present)
+        chinese_chars = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+
+        # Additional Japanese indicators
+        japanese_punctuation = sum(1 for char in text if char in '。、！？')  # Japanese punctuation
+
+        # Additional Chinese indicators
+        chinese_punctuation = sum(1 for char in text if char in '。，！？；：')  # Chinese punctuation
+
+        # Vietnamese: Latin characters with Vietnamese diacritics
+        vietnamese_chars = sum(1 for char in text if any(c in char for c in 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ'))
+
+        # English: Basic Latin characters (excluding Vietnamese diacritics)
+        english_chars = sum(1 for char in text if (
+            char.isalpha() and
+            ord(char) < 256 and
+            char not in 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ'
+        ))
+
+        total_chars = len(text.replace(' ', ''))
+
+        if total_chars == 0:
+            return 'unknown', 0.0
+
+        # Calculate percentages with improved logic
+        korean_pct = korean_chars / total_chars
+        vietnamese_pct = vietnamese_chars / total_chars
+        english_pct = english_chars / total_chars
+
+        # Improved Japanese detection: prioritize kana presence
+        japanese_kana_pct = (japanese_hiragana + japanese_katakana) / total_chars
+        japanese_total_pct = (japanese_hiragana + japanese_katakana + japanese_kanji + japanese_punctuation) / total_chars
+
+        # Improved Chinese detection: CJK chars but penalize if Japanese kana present
+        chinese_base_pct = chinese_chars / total_chars
+        chinese_total_pct = (chinese_chars + chinese_punctuation) / total_chars
+
+        # If Japanese kana is present, it's likely Japanese, not Chinese
+        if japanese_kana_pct > 0.1:  # If more than 10% kana
+            japanese_pct = max(japanese_kana_pct, japanese_total_pct)
+            chinese_pct = chinese_base_pct * 0.3  # Heavily penalize Chinese if kana present
+        else:
+            # No kana, so CJK chars are more likely Chinese
+            japanese_pct = japanese_kana_pct
+            chinese_pct = chinese_total_pct
+
+        # Determine language based on highest percentage
+        language_scores = {
+            'ko': korean_pct,
+            'ja': japanese_pct,
+            'ch_sim': chinese_pct,
+            'vi': vietnamese_pct,
+            'en': english_pct
+        }
+
+        # Find the language with highest score
+        detected_lang = max(language_scores, key=language_scores.get)
+        confidence = language_scores[detected_lang]
+
+        # If confidence is too low, return unknown
+        if confidence < 0.1:
+            return 'unknown', 0.0
+
+        return detected_lang, confidence
+
+    def _get_adaptive_confidence_threshold(self, text: str) -> float:
+        """
+        Get adaptive confidence threshold based on text characteristics
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            Minimum confidence threshold for this text
+        """
+        if not text or not text.strip():
+            return 0.5
+
+        # Check for Asian characters (typically have lower OCR confidence)
+        has_korean = any('\uAC00' <= char <= '\uD7AF' or '\u1100' <= char <= '\u11FF' or '\u3130' <= char <= '\u318F' for char in text)
+        has_japanese = any('\u3040' <= char <= '\u309F' or '\u30A0' <= char <= '\u30FF' for char in text)
+        has_chinese = any('\u4E00' <= char <= '\u9FFF' for char in text)
+
+        # Lower threshold for Asian languages
+        if has_korean or has_japanese or has_chinese:
+            return 0.2  # More lenient for Asian languages
+
+        # Standard threshold for Latin scripts
+        return 0.3
+
+    def _process_with_multiple_readers(self, opencv_image) -> list:
+        """
+        Process image with multiple specialized readers for better accuracy
+
+        Args:
+            opencv_image: OpenCV image array
+
+        Returns:
+            List of OCR results from the best performing reader
+        """
+        # Define specialized language combinations to try
+        specialized_combinations = [
+            ['ko', 'en'],     # Korean + English
+            ['ja', 'en'],     # Japanese + English
+            ['ch_sim', 'en'], # Chinese + English
+            ['vi', 'en'],     # Vietnamese + English
+        ]
+
+        best_results = []
+        best_confidence = 0.0
+
+        # Try main reader first
+        try:
+            main_results = self.reader.readtext(opencv_image)
+            if main_results:
+                main_avg_confidence = sum(conf for _, _, conf in main_results) / len(main_results)
+                if main_avg_confidence > best_confidence:
+                    best_results = main_results
+                    best_confidence = main_avg_confidence
+        except Exception as e:
+            print(f"⚠️ Main reader failed: {str(e)}")
+
+        # Try specialized readers
+        for lang_combo in specialized_combinations:
+            try:
+                specialized_reader = self._get_specialized_reader(lang_combo)
+                results = specialized_reader.readtext(opencv_image)
+
+                if results:
+                    avg_confidence = sum(conf for _, _, conf in results) / len(results)
+                    if avg_confidence > best_confidence:
+                        best_results = results
+                        best_confidence = avg_confidence
+                        print(f"🎯 Better results from {', '.join(lang_combo)} reader (confidence: {avg_confidence:.3f})")
+
+            except Exception as e:
+                print(f"⚠️ Specialized reader {lang_combo} failed: {str(e)}")
+                continue
+
+        return best_results
+
     def process_image(self, image_data: str) -> OCRResponse:
         """
         Process base64 image data and extract text using OCR
@@ -81,31 +322,51 @@ class OCRService:
                 print(f"❌ Error processing image: {str(img_error)}")
                 raise Exception(f"Image processing failed: {str(img_error)}")
             
-            # Perform OCR using EasyOCR
-            results = self.reader.readtext(opencv_image)
+            # Perform OCR using multiple specialized readers for better accuracy
+            try:
+                if self.reader is None:
+                    raise Exception("OCR reader not initialized")
+                results = self._process_with_multiple_readers(opencv_image)
+            except Exception as ocr_error:
+                print(f"❌ Error in OCR processing: {str(ocr_error)}")
+                return OCRResponse(
+                    success=False,
+                    text="",
+                    confidence=0.0,
+                    processing_time=time.time() - start_time,
+                    detected_language=None,
+                    language_confidence=None
+                )
             
             # Extract text and calculate average confidence
             extracted_texts = []
             confidences = []
             
             for (bbox, text, confidence) in results:
-                if confidence > 0.3:  # Filter out low-confidence results
+                # Use adaptive confidence threshold based on text characteristics
+                min_confidence = self._get_adaptive_confidence_threshold(text)
+                if confidence > min_confidence:
                     extracted_texts.append(text.strip())
                     confidences.append(confidence)
             
             # Combine all extracted text
             combined_text = ' '.join(extracted_texts)
-            
+
             # Calculate average confidence
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-            
+
+            # Detect language from extracted text
+            detected_language, language_confidence = self._detect_language_from_text(combined_text)
+
             processing_time = time.time() - start_time
-            
+
             return OCRResponse(
                 success=True,
                 text=combined_text,
                 confidence=avg_confidence,
-                processing_time=processing_time
+                processing_time=processing_time,
+                detected_language=detected_language,
+                language_confidence=language_confidence
             )
             
         except Exception as e:
@@ -114,7 +375,9 @@ class OCRService:
                 success=False,
                 text="",
                 confidence=0.0,
-                processing_time=0.0
+                processing_time=0.0,
+                detected_language=None,
+                language_confidence=None
             )
     
     def preprocess_image(self, opencv_image: np.ndarray) -> np.ndarray:
@@ -178,9 +441,22 @@ class OCRService:
             # Preprocess image
             processed_image = self.preprocess_image(opencv_image)
             
-            # Perform OCR on both original and preprocessed images
-            original_results = self.reader.readtext(opencv_image)
-            processed_results = self.reader.readtext(processed_image)
+            # Perform OCR on both original and preprocessed images using multiple readers
+            try:
+                if self.reader is None:
+                    raise Exception("OCR reader not initialized")
+                original_results = self._process_with_multiple_readers(opencv_image)
+                processed_results = self._process_with_multiple_readers(processed_image)
+            except Exception as ocr_error:
+                print(f"❌ Error in OCR processing with preprocessing: {str(ocr_error)}")
+                return OCRResponse(
+                    success=False,
+                    text="",
+                    confidence=0.0,
+                    processing_time=time.time() - start_time,
+                    detected_language=None,
+                    language_confidence=None
+                )
             
             # Choose the best results based on confidence
             best_results = self._choose_best_results(original_results, processed_results)
@@ -190,23 +466,30 @@ class OCRService:
             confidences = []
             
             for (bbox, text, confidence) in best_results:
-                if confidence > 0.3:  # Filter out low-confidence results
+                # Use adaptive confidence threshold based on text characteristics
+                min_confidence = self._get_adaptive_confidence_threshold(text)
+                if confidence > min_confidence:
                     extracted_texts.append(text.strip())
                     confidences.append(confidence)
             
             # Combine all extracted text
             combined_text = ' '.join(extracted_texts)
-            
+
             # Calculate average confidence
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-            
+
+            # Detect language from extracted text
+            detected_language, language_confidence = self._detect_language_from_text(combined_text)
+
             processing_time = time.time() - start_time
-            
+
             return OCRResponse(
                 success=True,
                 text=combined_text,
                 confidence=avg_confidence,
-                processing_time=processing_time
+                processing_time=processing_time,
+                detected_language=detected_language,
+                language_confidence=language_confidence
             )
             
         except Exception as e:
@@ -215,7 +498,9 @@ class OCRService:
                 success=False,
                 text="",
                 confidence=0.0,
-                processing_time=0.0
+                processing_time=0.0,
+                detected_language=None,
+                language_confidence=None
             )
     
     def _choose_best_results(self, original_results, processed_results):
@@ -241,18 +526,18 @@ class OCRService:
 
     async def process_image_with_translation(self, image_data: str) -> OCRWithTranslationResponse:
         """
-        Process image with OCR (Vietnamese) and translate to English
+        Process image with OCR (multi-language) and translate to English
 
         Args:
             image_data: Base64 encoded image data
 
         Returns:
-            OCRWithTranslationResponse with Vietnamese text and English translation
+            OCRWithTranslationResponse with original text and English translation
         """
         try:
             start_time = time.time()
 
-            # First, perform OCR to extract Vietnamese text
+            # First, perform OCR to extract text in any supported language
             ocr_result = self.process_image(image_data)
 
             if not ocr_result.success or not ocr_result.text.strip():
@@ -263,15 +548,22 @@ class OCRService:
                     confidence=0.0,
                     processing_time=ocr_result.processing_time,
                     translation_time=0.0,
-                    total_time=time.time() - start_time
+                    total_time=time.time() - start_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
 
-            # Translate Vietnamese text to English
+            # Translate extracted text to English
             translation_start = time.time()
+
+            # Create context based on detected language
+            detected_lang_name = self.language_names.get(ocr_result.detected_language, 'unknown')
+            context = f"This is text extracted from a {detected_lang_name} comic/manhwa image."
+
             translation_result = await self.translation_service.translate_text(
                 source_text=ocr_result.text,
                 target_language="English",
-                context="This is text extracted from a Vietnamese comic/manhwa image."
+                context=context
             )
             translation_time = time.time() - translation_start
 
@@ -285,7 +577,9 @@ class OCRService:
                     confidence=ocr_result.confidence,
                     processing_time=ocr_result.processing_time,
                     translation_time=translation_time,
-                    total_time=total_time
+                    total_time=total_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
             else:
                 # If translation fails, return OCR result with empty translation
@@ -296,7 +590,9 @@ class OCRService:
                     confidence=ocr_result.confidence,
                     processing_time=ocr_result.processing_time,
                     translation_time=translation_time,
-                    total_time=total_time
+                    total_time=total_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
 
         except Exception as e:
@@ -308,23 +604,25 @@ class OCRService:
                 confidence=0.0,
                 processing_time=0.0,
                 translation_time=0.0,
-                total_time=time.time() - start_time
+                total_time=time.time() - start_time,
+                detected_language=None,
+                language_confidence=None
             )
 
     async def process_image_with_preprocessing_and_translation(self, image_data: str) -> OCRWithTranslationResponse:
         """
-        Process image with enhanced OCR (preprocessing + Vietnamese) and translate to English
+        Process image with enhanced OCR (preprocessing + multi-language) and translate to English
 
         Args:
             image_data: Base64 encoded image data
 
         Returns:
-            OCRWithTranslationResponse with Vietnamese text and English translation
+            OCRWithTranslationResponse with original text and English translation
         """
         try:
             start_time = time.time()
 
-            # First, perform enhanced OCR to extract Vietnamese text
+            # First, perform enhanced OCR to extract text in any supported language
             ocr_result = self.process_image_with_preprocessing(image_data)
 
             if not ocr_result.success or not ocr_result.text.strip():
@@ -335,15 +633,22 @@ class OCRService:
                     confidence=0.0,
                     processing_time=ocr_result.processing_time,
                     translation_time=0.0,
-                    total_time=time.time() - start_time
+                    total_time=time.time() - start_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
 
-            # Translate Vietnamese text to English
+            # Translate extracted text to English
             translation_start = time.time()
+
+            # Create context based on detected language
+            detected_lang_name = self.language_names.get(ocr_result.detected_language, 'unknown')
+            context = f"This is text extracted from a {detected_lang_name} comic/manhwa image using enhanced OCR preprocessing."
+
             translation_result = await self.translation_service.translate_text(
                 source_text=ocr_result.text,
                 target_language="English",
-                context="This is text extracted from a Vietnamese comic/manhwa image using enhanced OCR preprocessing."
+                context=context
             )
             translation_time = time.time() - translation_start
 
@@ -357,7 +662,9 @@ class OCRService:
                     confidence=ocr_result.confidence,
                     processing_time=ocr_result.processing_time,
                     translation_time=translation_time,
-                    total_time=total_time
+                    total_time=total_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
             else:
                 # If translation fails, return OCR result with empty translation
@@ -368,7 +675,9 @@ class OCRService:
                     confidence=ocr_result.confidence,
                     processing_time=ocr_result.processing_time,
                     translation_time=translation_time,
-                    total_time=total_time
+                    total_time=total_time,
+                    detected_language=ocr_result.detected_language,
+                    language_confidence=ocr_result.language_confidence
                 )
 
         except Exception as e:
@@ -380,5 +689,7 @@ class OCRService:
                 confidence=0.0,
                 processing_time=0.0,
                 translation_time=0.0,
-                total_time=time.time() - start_time
+                total_time=time.time() - start_time,
+                detected_language=None,
+                language_confidence=None
             )

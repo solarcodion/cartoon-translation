@@ -313,6 +313,8 @@ class OCRResponse(BaseModel):
     text: str
     confidence: Optional[float] = None
     processing_time: Optional[float] = None
+    detected_language: Optional[str] = None  # Language code detected by OCR
+    language_confidence: Optional[float] = None  # Confidence of language detection
 
     class Config:
         from_attributes = True
@@ -321,12 +323,14 @@ class OCRResponse(BaseModel):
 class OCRWithTranslationResponse(BaseModel):
     """OCR response model with translation"""
     success: bool
-    original_text: str  # Vietnamese text from OCR
+    original_text: str  # Original text from OCR (any supported language)
     translated_text: str  # English translation
     confidence: Optional[float] = None
     processing_time: Optional[float] = None
     translation_time: Optional[float] = None
     total_time: Optional[float] = None
+    detected_language: Optional[str] = None  # Language code detected by OCR
+    language_confidence: Optional[float] = None  # Confidence of language detection
 
     class Config:
         from_attributes = True

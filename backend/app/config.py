@@ -28,6 +28,11 @@ class Settings:
         self.supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY")
         self.supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY")
 
+        # OCR Settings
+        ocr_languages_str = os.getenv("OCR_LANGUAGES")
+        self.ocr_languages: List[str] = [lang.strip() for lang in ocr_languages_str.split(',')]
+        self.ocr_auto_detect_language: bool = os.getenv("OCR_AUTO_DETECT_LANGUAGE", "true").lower() == "true"
+
         # OpenAI Settings
         self.openai_api_key: str = os.getenv("OPENAI_API_KEY")
         self.translation_target_language: str = os.getenv("TRANSLATION_TARGET_LANGUAGE", "Vietnamese")
