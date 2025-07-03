@@ -11,16 +11,20 @@ export interface OCRResponse {
   text: string;
   confidence?: number;
   processing_time?: number;
+  detected_language?: string; // Language code detected by OCR
+  language_confidence?: number; // Confidence of language detection
 }
 
 export interface OCRWithTranslationResponse {
   success: boolean;
-  original_text: string; // Vietnamese text from OCR
+  original_text: string; // Original text from OCR (any supported language)
   translated_text: string; // English translation
   confidence?: number;
   processing_time?: number;
   translation_time?: number;
   total_time?: number;
+  detected_language?: string; // Language code detected by OCR
+  language_confidence?: number; // Confidence of language detection
 }
 
 export interface ApiResponse {
