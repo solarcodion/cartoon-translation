@@ -15,7 +15,14 @@ def get_ocr_service() -> OCRService:
     """Dependency to get OCR service (singleton pattern)"""
     global ocr_service
     if ocr_service is None:
-        ocr_service = OCRService()
+        try:
+            ocr_service = OCRService()
+        except Exception as e:
+            print(f"❌ Failed to initialize OCR service: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"OCR service initialization failed: {str(e)}"
+            )
     return ocr_service
 
 

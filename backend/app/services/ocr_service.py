@@ -1,7 +1,6 @@
 import base64
 import io
 import time
-from typing import Optional
 import easyocr
 import cv2
 import numpy as np
@@ -25,22 +24,25 @@ class OCRService:
 
     def __init__(self):
         """Initialize OCR service with EasyOCR reader"""
-        # Initialize EasyOCR reader for Vietnamese
-        # Using GPU if available, fallback to CPU
-        try:
-            # Fix PIL compatibility issue
-            self._fix_pil_compatibility()
-            self.reader = easyocr.Reader(['vi'], gpu=True)
-        except Exception as e:
-            print(f"⚠️ GPU not available, falling back to CPU: {str(e)}")
-            try:
-                self.reader = easyocr.Reader(['vi'], gpu=False)
-            except Exception as cpu_error:
-                print(f"❌ Failed to initialize EasyOCR: {str(cpu_error)}")
-                raise Exception(f"OCR initialization failed: {str(cpu_error)}")
+        # Fix PIL compatibility issue first
+        self._fix_pil_compatibility()
+
+        # Initialize EasyOCR reader for Vietnamese (CPU only)
+        self.reader = None
+        self._initialize_reader()
 
         # Initialize translation service for Vietnamese to English translation
         self.translation_service = TranslationService()
+
+    def _initialize_reader(self):
+        """Initialize EasyOCR reader with CPU-only mode"""
+        print("🔧 Initializing EasyOCR with CPU-only mode")
+        try:
+            self.reader = easyocr.Reader(['vi'], gpu=False, verbose=False)
+            print("✅ EasyOCR initialized successfully with CPU")
+        except Exception as e:
+            print(f"❌ Failed to initialize EasyOCR with CPU: {str(e)}")
+            raise Exception(f"OCR initialization failed: {str(e)}")
 
     def _fix_pil_compatibility(self):
         """Fix PIL compatibility issues with newer versions"""
@@ -82,7 +84,18 @@ class OCRService:
                 raise Exception(f"Image processing failed: {str(img_error)}")
             
             # Perform OCR using EasyOCR
-            results = self.reader.readtext(opencv_image)
+            try:
+                if self.reader is None:
+                    raise Exception("OCR reader not initialized")
+                results = self.reader.readtext(opencv_image)
+            except Exception as ocr_error:
+                print(f"❌ Error in OCR processing: {str(ocr_error)}")
+                return OCRResponse(
+                    success=False,
+                    text="",
+                    confidence=0.0,
+                    processing_time=time.time() - start_time
+                )
             
             # Extract text and calculate average confidence
             extracted_texts = []
@@ -179,8 +192,19 @@ class OCRService:
             processed_image = self.preprocess_image(opencv_image)
             
             # Perform OCR on both original and preprocessed images
-            original_results = self.reader.readtext(opencv_image)
-            processed_results = self.reader.readtext(processed_image)
+            try:
+                if self.reader is None:
+                    raise Exception("OCR reader not initialized")
+                original_results = self.reader.readtext(opencv_image)
+                processed_results = self.reader.readtext(processed_image)
+            except Exception as ocr_error:
+                print(f"❌ Error in OCR processing with preprocessing: {str(ocr_error)}")
+                return OCRResponse(
+                    success=False,
+                    text="",
+                    confidence=0.0,
+                    processing_time=time.time() - start_time
+                )
             
             # Choose the best results based on confidence
             best_results = self._choose_best_results(original_results, processed_results)
