@@ -111,7 +111,6 @@ class PageService:
 
                             if ocr_result.success and ocr_result.text.strip():
                                 ocr_context = ocr_result.text.strip()
-                                print(f"✅ OCR processed for page {page_number}: {len(ocr_context)} characters extracted")
                             else:
                                 print(f"⚠️ OCR failed for page {page_number}: No text extracted")
 
@@ -322,7 +321,6 @@ class PageService:
                 print(f"⚠️ Supabase client method failed: {client_error}")
 
             # Fallback to constructed URL
-            print(f"🔗 Using constructed URL: {public_url}")
             return public_url
 
         except Exception as e:

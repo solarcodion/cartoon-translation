@@ -53,8 +53,6 @@ class OCRService:
 
     def _initialize_reader(self):
         """Initialize EasyOCR reader with multiple languages in CPU-only mode"""
-        print(f"🔧 Initializing EasyOCR with languages: {', '.join(self.ocr_languages)} (CPU-only mode)")
-
         # Define compatible language combinations using environment configurations
         # Each language is paired only with English for optimal performance
         compatible_combinations = [
@@ -69,14 +67,8 @@ class OCRService:
 
         for i, lang_combo in enumerate(compatible_combinations):
             try:
-                if i == 0:
-                    print(f"🔧 Trying original configuration: {', '.join(lang_combo)}")
-                else:
-                    print(f"🔄 Fallback attempt {i}: {', '.join(lang_combo)}")
-
                 self.reader = easyocr.Reader(lang_combo, gpu=False, verbose=False)
                 self.ocr_languages = lang_combo
-                print(f"✅ EasyOCR initialized successfully with languages: {', '.join(lang_combo)}")
                 return
 
             except Exception as e:
@@ -108,7 +100,7 @@ class OCRService:
 
             reader = easyocr.Reader(target_languages, gpu=False, verbose=False)
             self.specialized_readers[cache_key] = reader
-            print(f"🔧 Created specialized reader for: {', '.join(target_languages)}")
+
             return reader
         except Exception as e:
             print(f"❌ Failed to create specialized reader for {target_languages}: {str(e)}")
@@ -283,7 +275,6 @@ class OCRService:
                     if avg_confidence > best_confidence:
                         best_results = results
                         best_confidence = avg_confidence
-                        print(f"🎯 Better results from {', '.join(lang_combo)} reader (confidence: {avg_confidence:.3f})")
 
             except Exception as e:
                 print(f"⚠️ Specialized reader {lang_combo} failed: {str(e)}")

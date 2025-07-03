@@ -72,8 +72,6 @@ class DashboardService {
         {},
         token || undefined
       );
-
-      console.log("✅ Dashboard statistics refreshed successfully");
     } catch (error) {
       console.error("❌ Error refreshing dashboard statistics:", error);
       throw new Error(
