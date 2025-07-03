@@ -13,10 +13,4 @@ export interface ActivityItem {
 }
 
 // API Dashboard types (from dashboardService)
-export type {
-  DashboardStats,
-  ChapterStatusStats,
-  UserRoleStats,
-  RecentActivityItem,
-  DashboardResponse,
-} from "../services/dashboardService";
+export type { DashboardResponse } from "../services/dashboardService";

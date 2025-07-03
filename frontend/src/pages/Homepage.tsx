@@ -38,27 +38,27 @@ export default function Homepage() {
     fetchDashboardData();
   }, []);
 
-  // Create stats data from API response - keeping original 4 cards only
+  // Create stats data from API response - using new dashboard table fields
   const statsData: StatsData[] = dashboardData
     ? [
         {
           title: "Total Series",
-          value: dashboardData.stats.total_series.toString(),
+          value: dashboardData.total_series.toString(),
           icon: FiBookOpen,
         },
         {
           title: "Chapters in Progress",
-          value: dashboardData.chapter_status_stats.in_progress.toString(),
+          value: dashboardData.progress_chapters.toString(),
           icon: FiBook,
         },
         {
           title: "Pages Processed",
-          value: dashboardData.stats.total_pages.toString(),
+          value: dashboardData.processed_pages.toString(),
           icon: FiFileText,
         },
         {
           title: "Text Boxes Translated",
-          value: dashboardData.stats.total_text_boxes.toString(),
+          value: dashboardData.translated_textbox.toString(),
           icon: FiMessageSquare,
         },
       ]

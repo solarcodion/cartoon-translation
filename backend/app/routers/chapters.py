@@ -7,6 +7,7 @@ from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.chapter_service import ChapterService
 from app.services.chapter_analysis_service import ChapterAnalysisService
+from app.services.dashboard_service import DashboardService
 from app.models import (
     ChapterResponse,
     ChapterCreate,
@@ -27,6 +28,11 @@ def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterServ
 def get_chapter_analysis_service(supabase: Client = Depends(get_supabase)) -> ChapterAnalysisService:
     """Dependency to get chapter analysis service with TM support"""
     return ChapterAnalysisService(supabase)
+
+
+def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
+    """Dependency to get dashboard service"""
+    return DashboardService(supabase)
 
 
 
@@ -134,7 +140,8 @@ async def update_chapter(
     request: Request,
     chapter_id: str = Path(..., description="ID of the chapter to update"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    chapter_service: ChapterService = Depends(get_chapter_service)
+    chapter_service: ChapterService = Depends(get_chapter_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Update a specific chapter.
@@ -154,13 +161,22 @@ async def update_chapter(
         chapter_data = ChapterUpdate(**body_json)
 
         chapter = await chapter_service.update_chapter(chapter_id, chapter_data)
-        
+
         if not chapter:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Chapter with ID {chapter_id} not found"
             )
-        
+
+        # Update dashboard statistics if status was changed
+        if hasattr(chapter_data, 'status') and chapter_data.status is not None:
+            try:
+                await dashboard_service.update_progress_chapters_count()
+                await dashboard_service.add_recent_activity(f"Chapter {chapter.chapter_number} status updated to {chapter.status}")
+            except Exception as dashboard_error:
+                print(f"⚠️ Failed to update dashboard after chapter status change: {dashboard_error}")
+                # Don't fail the request if dashboard update fails
+
         return chapter
         
     except HTTPException:

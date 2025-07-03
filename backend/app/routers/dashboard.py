@@ -7,10 +7,7 @@ from app.auth import get_current_user
 from app.services.dashboard_service import DashboardService
 from app.models import (
     DashboardResponse,
-    DashboardStats,
-    ChapterStatusStats,
-    UserRoleStats,
-    RecentActivityItem
+    ApiResponse
 )
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -47,7 +44,7 @@ async def get_dashboard_data(
         )
 
 
-@router.get("/stats", response_model=DashboardStats)
+@router.get("/stats", response_model=DashboardResponse)
 async def get_dashboard_stats(
     current_user: Dict[str, Any] = Depends(get_current_user),
     dashboard_service: DashboardService = Depends(get_dashboard_service)
@@ -75,80 +72,30 @@ async def get_dashboard_stats(
         )
 
 
-@router.get("/stats/chapters", response_model=ChapterStatusStats)
-async def get_chapter_status_stats(
+
+
+
+@router.post("/refresh", response_model=ApiResponse)
+async def refresh_dashboard_stats(
     current_user: Dict[str, Any] = Depends(get_current_user),
     dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
-    Get chapter status statistics
-    
-    Returns counts by status:
-    - Draft
-    - In Progress
-    - Translated
+    Refresh dashboard statistics by recalculating from source tables
+
+    This endpoint recalculates all dashboard statistics from the source tables
+    and updates the dashboard table. Useful for ensuring data consistency.
     """
     try:
-        stats = await dashboard_service.get_chapter_status_stats()
-        return stats
-        
-    except Exception as e:
-        print(f"❌ Error fetching chapter status statistics: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch chapter status statistics: {str(e)}"
+        await dashboard_service.refresh_dashboard_stats()
+        return ApiResponse(
+            success=True,
+            message="Dashboard statistics refreshed successfully"
         )
 
-
-@router.get("/stats/users", response_model=UserRoleStats)
-async def get_user_role_stats(
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
-):
-    """
-    Get user role statistics
-    
-    Returns counts by role:
-    - Admin
-    - Editor
-    - Translator
-    """
-    try:
-        stats = await dashboard_service.get_user_role_stats()
-        return stats
-        
     except Exception as e:
-        print(f"❌ Error fetching user role statistics: {str(e)}")
+        print(f"❌ Error refreshing dashboard statistics: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch user role statistics: {str(e)}"
-        )
-
-
-@router.get("/activities", response_model=list[RecentActivityItem])
-async def get_recent_activities(
-    limit: int = 10,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
-):
-    """
-    Get recent activities
-    
-    Parameters:
-    - limit: Maximum number of activities to return (default: 10)
-    
-    Returns recent activities including:
-    - New series created
-    - New chapters added
-    - New pages uploaded
-    """
-    try:
-        activities = await dashboard_service.get_recent_activities(limit=limit)
-        return activities
-        
-    except Exception as e:
-        print(f"❌ Error fetching recent activities: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch recent activities: {str(e)}"
+            detail=f"Failed to refresh dashboard statistics: {str(e)}"
         )

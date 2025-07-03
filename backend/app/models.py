@@ -619,62 +619,43 @@ class TextBoxInDB(TextBoxResponse):
 
 
 # Dashboard Models
-class DashboardStats(BaseModel):
-    """Dashboard statistics model"""
+class DashboardTableRecord(BaseModel):
+    """Dashboard table record model"""
+    id: int
     total_series: int
-    total_chapters: int
-    total_pages: int
-    total_text_boxes: int
-    total_users: int
-    total_glossary_entries: int
+    progress_chapters: int
+    processed_pages: int
+    translated_textbox: int
+    recent_activities: list[str]
 
     class Config:
         str_strip_whitespace = True
         validate_assignment = True
 
 
-class ChapterStatusStats(BaseModel):
-    """Chapter status statistics model"""
-    draft: int
-    in_progress: int
-    translated: int
+class DashboardUpdateRequest(BaseModel):
+    """Dashboard update request model"""
+    total_series: Optional[int] = None
+    progress_chapters: Optional[int] = None
+    processed_pages: Optional[int] = None
+    translated_textbox: Optional[int] = None
+    recent_activities: Optional[list[str]] = None
 
     class Config:
         str_strip_whitespace = True
         validate_assignment = True
 
 
-class UserRoleStats(BaseModel):
-    """User role statistics model"""
-    admin: int
-    editor: int
-    translator: int
 
-    class Config:
-        str_strip_whitespace = True
-        validate_assignment = True
-
-
-class RecentActivityItem(BaseModel):
-    """Recent activity item model"""
-    id: str
-    type: str  # 'series', 'chapter', 'page', 'user'
-    action: str
-    entity_name: str
-    user_name: Optional[str] = None
-    timestamp: datetime
-
-    class Config:
-        str_strip_whitespace = True
-        validate_assignment = True
 
 
 class DashboardResponse(BaseModel):
     """Complete dashboard response model"""
-    stats: DashboardStats
-    chapter_status_stats: ChapterStatusStats
-    user_role_stats: UserRoleStats
-    recent_activities: list[RecentActivityItem]
+    total_series: int
+    progress_chapters: int
+    processed_pages: int
+    translated_textbox: int
+    recent_activities: list[str]
 
     class Config:
         str_strip_whitespace = True

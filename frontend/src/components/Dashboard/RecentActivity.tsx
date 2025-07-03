@@ -1,8 +1,5 @@
-import type { RecentActivityItem } from "../../types";
-import { dashboardService } from "../../services/dashboardService";
-
 interface RecentActivityProps {
-  activities: RecentActivityItem[];
+  activities: string[];
 }
 
 export default function RecentActivity({ activities }: RecentActivityProps) {
@@ -17,17 +14,11 @@ export default function RecentActivity({ activities }: RecentActivityProps) {
 
       <div className="space-y-4">
         {activities.length > 0 ? (
-          activities.map((activity) => (
-            <div
-              key={activity.id}
-              className="flex items-center justify-between"
-            >
+          activities.map((activity, index) => (
+            <div key={index} className="flex items-center justify-between">
               <p className="text-gray-900 text-sm font-medium flex-1 pr-4">
-                {dashboardService.formatActivityAction(activity)}
+                {activity}
               </p>
-              <span className="text-gray-500 text-xs font-normal whitespace-nowrap">
-                {dashboardService.formatActivityTimestamp(activity.timestamp)}
-              </span>
             </div>
           ))
         ) : (

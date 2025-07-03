@@ -6,6 +6,7 @@ from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.page_service import PageService
 from app.services.ocr_service import OCRService
+from app.services.dashboard_service import DashboardService
 from app.models import (
     PageResponse,
     PageCreate,
@@ -27,6 +28,11 @@ def get_page_service(
 ) -> PageService:
     """Dependency to get page service with OCR support"""
     return PageService(supabase, ocr_service)
+
+
+def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
+    """Dependency to get dashboard service"""
+    return DashboardService(supabase)
 
 
 
@@ -76,7 +82,8 @@ async def create_page(
     height: int = Form(None),
     context: str = Form(None),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Create a new page with file upload
@@ -123,6 +130,14 @@ async def create_page(
         # Update chapter status and page count (but don't analyze)
         await update_chapter_status_and_count(chapter_id)
 
+        # Update dashboard statistics
+        try:
+            await dashboard_service.increment_pages_count()
+            await dashboard_service.add_recent_activity(f"New page {page.page_number} added to chapter")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after page creation: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
         return page
         
     except HTTPException:
@@ -141,7 +156,8 @@ async def create_pages_batch(
     start_page_number: int = Form(...),
     files: List[UploadFile] = File(...),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Create multiple pages with batch file upload
@@ -186,6 +202,17 @@ async def create_pages_batch(
 
         # Update chapter status and page count
         await update_chapter_status_and_count(chapter_id)
+
+        # Update dashboard statistics for batch upload
+        try:
+            pages_created = len(result.created_pages)
+            # Increment pages count by the number of successfully created pages
+            for _ in range(pages_created):
+                await dashboard_service.increment_pages_count()
+            await dashboard_service.add_recent_activity(f"Batch upload: {pages_created} pages added to chapter")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after batch page creation: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
 
         return result
 
@@ -310,7 +337,8 @@ async def update_page(
 async def delete_page(
     page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service)
+    page_service: PageService = Depends(get_page_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Delete a page
@@ -339,6 +367,14 @@ async def delete_page(
 
         # Update chapter status and page count after deletion
         await update_chapter_status_and_count(chapter_id)
+
+        # Update dashboard statistics
+        try:
+            await dashboard_service.decrement_pages_count()
+            await dashboard_service.add_recent_activity(f"Page {page.page_number} deleted from chapter")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after page deletion: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
 
         return ApiResponse(
             success=True,
