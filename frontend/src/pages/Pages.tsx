@@ -24,6 +24,7 @@ import EditPageModal from "../components/Modals/EditPageModal";
 import DeletePageModal from "../components/Modals/DeletePageModal";
 import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 import { useAuth } from "../hooks/useAuth";
+import { useDashboardSync } from "../hooks/useDashboardSync";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -32,6 +33,11 @@ export default function Pages() {
   }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    syncAfterPageCreate,
+    syncAfterPageDelete,
+    syncAfterTextboxTranslate,
+  } = useDashboardSync();
   const [pages, setPages] = useState<Page[]>([]);
   const [chapterInfo, setChapterInfo] = useState<ChapterInfo | null>(null);
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
@@ -161,6 +167,13 @@ export default function Pages() {
         setPages((prev) =>
           [...prev, ...newPages].sort((a, b) => a.number - b.number)
         );
+
+        // Update dashboard stats for each successfully uploaded page
+        const chapterTitle =
+          chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
+        newPages.forEach((page) => {
+          syncAfterPageCreate(page.number, chapterTitle);
+        });
       }
 
       // Show any failed uploads
@@ -277,6 +290,14 @@ export default function Pages() {
 
       // Trigger refresh of text boxes list
       setRefreshTrigger((prev) => prev + 1);
+
+      // Update dashboard stats if textbox has translation
+      if (textBoxData.correctedText && textBoxData.correctedText.trim()) {
+        const pageNumber = textBoxData.pageNumber || 0;
+        const chapterTitle =
+          chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
+        syncAfterTextboxTranslate(pageNumber, chapterTitle);
+      }
     } catch (error) {
       console.error("❌ Error adding text box:", error);
       throw error;
@@ -285,11 +306,20 @@ export default function Pages() {
 
   const handleConfirmDeletePage = async (pageId: string) => {
     try {
+      // Get page info before deletion for dashboard update
+      const pageToDelete = pages.find((p) => p.id === pageId);
+      const pageNumber = pageToDelete?.number || 0;
+      const chapterTitle =
+        chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
+
       // Delete from API (pageId is already a UUID string)
       await pageService.deletePage(pageId);
 
       // Remove from local state
       setPages((prev) => prev.filter((page) => page.id !== pageId));
+
+      // Update dashboard stats in real-time
+      syncAfterPageDelete(pageNumber, chapterTitle);
     } catch (error) {
       console.error("Error deleting page:", error);
       throw error;

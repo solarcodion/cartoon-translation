@@ -11,10 +11,12 @@ import type { SeriesItem } from "../types";
 import { seriesService } from "../services/seriesService";
 import { convertApiSeriesToLegacy } from "../types/series";
 import { useAuth } from "../hooks/useAuth";
+import { useDashboardSync } from "../hooks/useDashboardSync";
 
 export default function Series() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { syncAfterSeriesCreate, syncAfterSeriesDelete } = useDashboardSync();
   const [series, setSeries] = useState<SeriesItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,9 @@ export default function Series() {
       // Convert to legacy format and add to list at the beginning
       const newLegacySeries = convertApiSeriesToLegacy(newApiSeries);
       setSeries((prevSeries) => [newLegacySeries, ...prevSeries]);
+
+      // Update dashboard stats in real-time
+      syncAfterSeriesCreate(seriesName);
     } catch (error) {
       console.error("Error adding series:", error);
       throw error; // Re-throw to let the modal handle the error
@@ -116,6 +121,10 @@ export default function Series() {
 
   const handleConfirmDelete = async (seriesId: string) => {
     try {
+      // Get series name before deletion for dashboard update
+      const seriesToDelete = series.find((s) => s.id === seriesId);
+      const seriesName = seriesToDelete?.name || "Unknown Series";
+
       // Delete series via API
       await seriesService.deleteSeries(seriesId);
 
@@ -123,6 +132,9 @@ export default function Series() {
       setSeries((prevSeries) =>
         prevSeries.filter((seriesItem) => seriesItem.id !== seriesId)
       );
+
+      // Update dashboard stats in real-time
+      syncAfterSeriesDelete(seriesName);
     } catch (error) {
       console.error("Error deleting series:", error);
       throw error; // Re-throw to let the modal handle the error

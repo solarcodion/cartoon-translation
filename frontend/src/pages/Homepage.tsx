@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import StatsCard from "../components/Dashboard/StatsCard";
 import RecentActivity from "../components/Dashboard/RecentActivity";
+import { DashboardSkeleton } from "../components/Dashboard/DashboardSkeleton";
 import PageHeader from "../components/Header/PageHeader";
 import {
   FiBookOpen,
@@ -8,35 +9,25 @@ import {
   FiFileText,
   FiMessageSquare,
 } from "react-icons/fi";
-import type { StatsData, DashboardResponse } from "../types";
-import { dashboardService } from "../services/dashboardService";
+import type { StatsData } from "../types";
+import {
+  useDashboardData,
+  useDashboardLoading,
+  useDashboardError,
+  useDashboardActions,
+} from "../stores/dashboardStore";
 
 export default function Homepage() {
-  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use Zustand store hooks
+  const dashboardData = useDashboardData();
+  const isLoading = useDashboardLoading();
+  const error = useDashboardError();
+  const { fetchDashboardData, clearError } = useDashboardActions();
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await dashboardService.getDashboardData();
-        setDashboardData(data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load dashboard data"
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    // Fetch dashboard data on component mount
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   // Create stats data from API response - using new dashboard table fields
   const statsData: StatsData[] = dashboardData
@@ -65,20 +56,7 @@ export default function Homepage() {
     : [];
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Dashboard"
-          subtitle="Welcome to the Manhwa Translation Admin Panel."
-        />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard data...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -89,28 +67,36 @@ export default function Homepage() {
           subtitle="Welcome to the Manhwa Translation Admin Panel."
         />
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center">
-            <div className="text-red-600">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="text-red-600">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error loading dashboard
+                </h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Error loading dashboard
-              </h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-            </div>
+            <button
+              onClick={clearError}
+              className="px-3 py-1 text-sm text-red-700 hover:text-red-900 transition-colors"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       </div>
