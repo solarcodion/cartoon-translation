@@ -5,45 +5,38 @@ from app.models import SeriesCreate, SeriesUpdate, SeriesResponse, SeriesInDB
 
 
 class SeriesService:
-    """Service for handling series operations"""
-    
     def __init__(self, supabase: Client):
         self.supabase = supabase
         self.table_name = "series"
-    
+
     async def check_series_name_exists(self, title: str) -> bool:
-        """Check if a series with the given title already exists"""
         try:
             response = (
                 self.supabase.table(self.table_name)
                 .select("id")
-                .ilike("title", title)  # Case-insensitive search
+                .ilike("title", title)
                 .execute()
             )
 
             return len(response.data) > 0
 
         except Exception as e:
-            print(f"❌ Error checking series name existence: {str(e)}")
+            print(f"Error checking series name existence: {str(e)}")
             raise Exception(f"Failed to check series name: {str(e)}")
 
     async def create_series(self, series_data: SeriesCreate, created_by: str) -> SeriesResponse:
-        """Create a new series"""
         try:
-            # Check if series name already exists
             if await self.check_series_name_exists(series_data.title):
                 raise Exception(f"A series with the name '{series_data.title}' already exists")
 
-            # Prepare data for insertion with defaults
             insert_data = {
                 "title": series_data.title,
-                "total_chapters": 0,  # Default to 0
+                "total_chapters": 0,
                 "user_id": created_by,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
 
-            # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
 
             if not response.data:

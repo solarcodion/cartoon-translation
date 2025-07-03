@@ -304,10 +304,10 @@ export default function AddTextBoxModal({
         if (ocrResult.success && ocrResult.text.trim()) {
           setOcrText(ocrResult.text.trim());
         } else {
-          console.log("⚠️ OCR completed but no text was detected");
+          console.warn("OCR completed but no text was detected");
         }
       } catch (ocrError) {
-        console.error("❌ OCR processing failed:", ocrError);
+        console.error("OCR processing failed:", ocrError);
       }
     } catch (error) {
       console.error("Error cropping image:", error);
@@ -646,11 +646,11 @@ export default function AddTextBoxModal({
       if (result.translated_text) {
         setAiTranslatedText(result.translated_text);
       } else {
-        console.warn("⚠️ Translation completed but no text returned");
+        console.warn("Translation completed but no text returned");
         setAiTranslatedText("Translation completed but no result returned");
       }
     } catch (error) {
-      console.error("❌ Error translating with AI:", error);
+      console.error("Error translating with AI:", error);
       // Show user-friendly error message
       setAiTranslatedText("Translation failed. Please try again.");
     } finally {

@@ -21,26 +21,18 @@ except AttributeError:
 
 
 class OCRService:
-    """Service for OCR operations using EasyOCR"""
-
     def __init__(self):
-        """Initialize OCR service with EasyOCR reader"""
-        # Fix PIL compatibility issue first
         self._fix_pil_compatibility()
 
-        # Get OCR languages from configuration
         self.ocr_languages = settings.ocr_languages
         self.auto_detect_language = settings.ocr_auto_detect_language
 
-        # Initialize EasyOCR reader with multiple languages (CPU only)
         self.reader = None
-        self.specialized_readers = {}  # Cache for specialized language readers
+        self.specialized_readers = {}
         self._initialize_reader()
 
-        # Initialize translation service
         self.translation_service = TranslationService()
 
-        # Language mapping for better language detection
         self.language_names = {
             'ko': 'Korean',
             'ja': 'Japanese',
@@ -52,17 +44,13 @@ class OCRService:
         }
 
     def _initialize_reader(self):
-        """Initialize EasyOCR reader with multiple languages in CPU-only mode"""
-        # Define compatible language combinations using environment configurations
-        # Each language is paired only with English for optimal performance
         compatible_combinations = [
-            self.ocr_languages,  # Try original configuration first
-            # Language-specific combinations from environment
-            settings.ocr_language_korean,     # Korean + English
-            settings.ocr_language_japanese,   # Japanese + English
-            settings.ocr_language_chinese,    # Chinese + English
-            settings.ocr_language_vietnamese, # Vietnamese + English
-            settings.ocr_language_english     # English only as final fallback
+            self.ocr_languages,
+            settings.ocr_language_korean,
+            settings.ocr_language_japanese,
+            settings.ocr_language_chinese,
+            settings.ocr_language_vietnamese,
+            settings.ocr_language_english
         ]
 
         for i, lang_combo in enumerate(compatible_combinations):
@@ -72,29 +60,18 @@ class OCRService:
                 return
 
             except Exception as e:
-                print(f"❌ Failed with {', '.join(lang_combo)}: {str(e)}")
+                print(f"Failed with {', '.join(lang_combo)}: {str(e)}")
                 continue
 
-        # If all attempts failed
         raise Exception("OCR initialization failed: Unable to initialize EasyOCR with any language combination")
 
     def _get_specialized_reader(self, target_languages: list) -> 'easyocr.Reader':
-        """
-        Get or create a specialized reader for specific languages
-
-        Args:
-            target_languages: List of language codes
-
-        Returns:
-            EasyOCR reader optimized for the target languages
-        """
         cache_key = ','.join(sorted(target_languages))
 
         if cache_key in self.specialized_readers:
             return self.specialized_readers[cache_key]
 
         try:
-            # Ensure English is included for compatibility
             if 'en' not in target_languages:
                 target_languages = target_languages + ['en']
 
@@ -103,58 +80,38 @@ class OCRService:
 
             return reader
         except Exception as e:
-            print(f"❌ Failed to create specialized reader for {target_languages}: {str(e)}")
-            return self.reader  # Fallback to main reader
+            print(f"Failed to create specialized reader for {target_languages}: {str(e)}")
+            return self.reader
 
     def _fix_pil_compatibility(self):
-        """Fix PIL compatibility issues with newer versions"""
         try:
-            # Check if ANTIALIAS exists, if not, add it for backward compatibility
             if not hasattr(Image, 'ANTIALIAS'):
                 Image.ANTIALIAS = Image.Resampling.LANCZOS
         except Exception as e:
-            print(f"⚠️ PIL compatibility fix failed: {str(e)}")
-            # Continue anyway, might not be needed
+            print(f"PIL compatibility fix failed: {str(e)}")
 
     def _detect_language_from_text(self, text: str) -> tuple[str, float]:
-        """
-        Detect language from extracted text using character analysis
-
-        Args:
-            text: Extracted text to analyze
-
-        Returns:
-            Tuple of (language_code, confidence)
-        """
         if not text or not text.strip():
             return 'unknown', 0.0
 
-        # Count characters by script type
-        # Korean: Hangul syllables + Hangul Jamo + Hangul compatibility Jamo
         korean_chars = sum(1 for char in text if (
-            '\uAC00' <= char <= '\uD7AF' or  # Hangul Syllables
-            '\u1100' <= char <= '\u11FF' or  # Hangul Jamo
-            '\u3130' <= char <= '\u318F'     # Hangul Compatibility Jamo
+            '\uAC00' <= char <= '\uD7AF' or
+            '\u1100' <= char <= '\u11FF' or
+            '\u3130' <= char <= '\u318F'
         ))
 
-        # Japanese: Hiragana + Katakana + Japanese-specific Kanji patterns
-        japanese_hiragana = sum(1 for char in text if '\u3040' <= char <= '\u309F')  # Hiragana
-        japanese_katakana = sum(1 for char in text if '\u30A0' <= char <= '\u30FF')  # Katakana
-        japanese_kanji = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+        japanese_hiragana = sum(1 for char in text if '\u3040' <= char <= '\u309F')
+        japanese_katakana = sum(1 for char in text if '\u30A0' <= char <= '\u30FF')
+        japanese_kanji = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')
 
-        # Chinese: CJK Unified Ideographs (but exclude if Japanese kana present)
-        chinese_chars = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+        chinese_chars = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')
 
-        # Additional Japanese indicators
-        japanese_punctuation = sum(1 for char in text if char in '。、！？')  # Japanese punctuation
+        japanese_punctuation = sum(1 for char in text if char in '。、！？')
 
-        # Additional Chinese indicators
-        chinese_punctuation = sum(1 for char in text if char in '。，！？；：')  # Chinese punctuation
+        chinese_punctuation = sum(1 for char in text if char in '。，！？；：')
 
-        # Vietnamese: Latin characters with Vietnamese diacritics
         vietnamese_chars = sum(1 for char in text if any(c in char for c in 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ'))
 
-        # English: Basic Latin characters (excluding Vietnamese diacritics)
         english_chars = sum(1 for char in text if (
             char.isalpha() and
             ord(char) < 256 and

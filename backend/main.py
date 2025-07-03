@@ -5,14 +5,14 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.routers import users, series, chapters, translation_memory, pages, ocr, translation, text_boxes, ai_glossary, dashboard
 
-# Create FastAPI instance
+
 app = FastAPI(
     title=settings.api_title,
     description=settings.api_description,
     version=settings.api_version
 )
 
-# Configure CORS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -48,7 +48,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-# Include routers
+
 app.include_router(users.router, prefix="/api")
 app.include_router(series.router, prefix="/api")
 app.include_router(chapters.router, prefix="/api")
@@ -62,7 +62,6 @@ app.include_router(dashboard.router, prefix="/api")
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {"message": "ManhwaTrans API is running!"}
 
 @app.get("/health")

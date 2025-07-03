@@ -89,11 +89,11 @@ export default function EditTextBoxModal({
       if (result.translated_text) {
         setAiTranslatedText(result.translated_text);
       } else {
-        console.warn("⚠️ Translation completed but no text returned");
+        console.warn("Translation completed but no text returned");
         setAiTranslatedText("Translation completed but no result returned");
       }
     } catch (error) {
-      console.error("❌ Error translating with AI:", error);
+      console.error("Error translating with AI:", error);
       // Show user-friendly error message
       setAiTranslatedText("Translation failed. Please try again.");
     } finally {

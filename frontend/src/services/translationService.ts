@@ -58,9 +58,6 @@ class TranslationService {
     };
   }
 
-  /**
-   * Translate text using OpenAI GPT
-   */
   async translateText(
     request: TranslationRequest
   ): Promise<TranslationResponse> {
@@ -88,14 +85,11 @@ class TranslationService {
 
       return data.data as TranslationResponse;
     } catch (error) {
-      console.error("❌ Translation error:", error);
+      console.error("Translation error:", error);
       throw error;
     }
   }
 
-  /**
-   * Translate text with enhanced context (series info, character names)
-   */
   async translateTextEnhanced(
     request: EnhancedTranslationRequest
   ): Promise<TranslationResponse> {
@@ -126,14 +120,11 @@ class TranslationService {
 
       return data.data as TranslationResponse;
     } catch (error) {
-      console.error("❌ Enhanced translation error:", error);
+      console.error("Enhanced translation error:", error);
       throw error;
     }
   }
 
-  /**
-   * Quick translation for simple text
-   */
   async quickTranslate(text: string): Promise<QuickTranslationResponse> {
     try {
       const headers = await this.getAuthHeaders();
@@ -162,14 +153,11 @@ class TranslationService {
 
       return data.data as QuickTranslationResponse;
     } catch (error) {
-      console.error("❌ Quick translation error:", error);
+      console.error("Quick translation error:", error);
       throw error;
     }
   }
 
-  /**
-   * Get supported languages
-   */
   async getSupportedLanguages(): Promise<{
     languages: string[];
     default_language: string;
@@ -197,14 +185,11 @@ class TranslationService {
 
       return data.data;
     } catch (error) {
-      console.error("❌ Get supported languages error:", error);
+      console.error("Get supported languages error:", error);
       throw error;
     }
   }
 
-  /**
-   * Health check for translation service
-   */
   async healthCheck(): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();
@@ -225,7 +210,7 @@ class TranslationService {
 
       return data;
     } catch (error) {
-      console.error("❌ Translation service health check error:", error);
+      console.error("Translation service health check error:", error);
       throw error;
     }
   }

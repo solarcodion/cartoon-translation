@@ -8,10 +8,7 @@ import requests
 
 
 class AvatarExtractionService:
-    """Service for extracting character avatars from manga/manhwa images"""
-    
     def __init__(self):
-        """Initialize avatar extraction service"""
         # Load pre-trained face detection model
         try:
             # Using OpenCV's DNN face detector (more accurate than Haar cascades)
@@ -92,24 +89,14 @@ class AvatarExtractionService:
             return faces
             
         except Exception as e:
-            print(f"❌ Error extracting faces from {image_url}: {str(e)}")
+            print(f"Error extracting faces from {image_url}: {str(e)}")
             return []
     
     def extract_character_avatars(
-        self, 
-        chapters_data: List[dict], 
+        self,
+        chapters_data: List[dict],
         max_avatars_per_character: int = 3
     ) -> dict:
-        """
-        Extract character avatars from all chapter pages
-        
-        Args:
-            chapters_data: List of chapter data with pages
-            max_avatars_per_character: Maximum number of avatar candidates per character
-            
-        Returns:
-            Dictionary mapping character descriptions to avatar image data
-        """
         if not self.face_detection_available:
             return {}
         
@@ -180,16 +167,10 @@ class AvatarExtractionService:
             return f"data:image/png;base64,{image_base64}"
             
         except Exception as e:
-            print(f"❌ Error converting face to base64: {str(e)}")
+            print(f"Error converting face to base64: {str(e)}")
             return ""
     
     def create_avatar_url(self, face_base64: str, character_id: str) -> str:
-        """
-        Create a URL for the extracted avatar
-        This could upload to cloud storage and return a URL
-        """
-        # For now, return the base64 data URL
-        # In production, you'd upload to cloud storage (S3, Supabase Storage, etc.)
         return face_base64
     
     async def health_check(self) -> dict:

@@ -12,17 +12,14 @@ from app.services.translation_memory_service import TranslationMemoryService
 
 
 class TerminologyAnalysisService:
-    """Service for AI-powered terminology analysis using OpenAI GPT"""
-
     def __init__(self, supabase: Client = None):
-        """Initialize terminology analysis service with OpenAI client and optional Supabase client"""
         self.target_language = settings.translation_target_language
         self.supabase = supabase
         self.ai_glossary_service = AIGlossaryService(supabase) if supabase else None
         self.tm_service = TranslationMemoryService(supabase) if supabase else None
 
         if not settings.openai_api_key:
-            print("⚠️ Warning: OpenAI API key not configured. Terminology analysis service will not work.")
+            print("Warning: OpenAI API key not configured. Terminology analysis service will not work.")
             self.client = None
             return
 
@@ -30,22 +27,11 @@ class TerminologyAnalysisService:
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
     
     async def analyze_terminology_in_series(
-        self, 
-        series_id: str, 
-        chapters_data: List[Dict[str, Any]], 
+        self,
+        series_id: str,
+        chapters_data: List[Dict[str, Any]],
         force_refresh: bool = False
     ) -> TerminologyAnalysisResponse:
-        """
-        Analyze manhwa-specific terminology across all chapters in a series
-        
-        Args:
-            series_id: ID of the series to analyze
-            chapters_data: List of chapter data with pages and contexts
-            force_refresh: Whether to force re-analysis
-            
-        Returns:
-            TerminologyAnalysisResponse with terminology data and metadata
-        """
         try:
             start_time = time.time()
 
@@ -61,7 +47,7 @@ class TerminologyAnalysisService:
                 try:
                     tm_data = await self.tm_service.get_all_tm_entries_for_analysis(series_id)
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Could not fetch TM data: {str(tm_error)}")
+                    print(f"Warning: Could not fetch TM data: {str(tm_error)}")
 
             # Build the analysis prompt with TM data
             system_prompt = self._build_system_prompt_with_tm()
@@ -92,9 +78,9 @@ class TerminologyAnalysisService:
                     for tm_id in useful_tm_ids:
                         result = await self.tm_service.increment_usage_count(tm_id)
                         if not result:
-                            print(f"❌ Failed to increment usage count for TM ID: {tm_id}")
+                            print(f"Failed to increment usage count for TM ID: {tm_id}")
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Failed to update TM usage counts: {str(tm_error)}")
+                    print(f"Warning: Failed to update TM usage counts: {str(tm_error)}")
 
             # Save results to database if AI glossary service is available
             if self.ai_glossary_service and terminology_list:
@@ -105,7 +91,7 @@ class TerminologyAnalysisService:
                         clear_existing=True
                     )
                 except Exception as db_error:
-                    print(f"⚠️ Warning: Failed to save to database: {str(db_error)}")
+                    print(f"Warning: Failed to save to database: {str(db_error)}")
                     # Continue without failing the analysis
 
             return TerminologyAnalysisResponse(
@@ -270,13 +256,13 @@ Only return the JSON object, no additional text."""
         else:
             prompt_parts.append(f"\n--- No Translation Memory Data Available ---")
 
-        prompt_parts.append("\n🎯 CRITICAL INSTRUCTION: You MUST find terminology from MULTIPLE categories, not just characters!")
+        prompt_parts.append("\nCRITICAL INSTRUCTION: You MUST find terminology from MULTIPLE categories, not just characters!")
         prompt_parts.append("\nAnalyze the text carefully and extract ALL manhwa-specific terminology from these 5 categories:")
-        prompt_parts.append("👤 CHARACTER: Any named people or characters")
-        prompt_parts.append("⚔️ ITEM: Any objects mentioned (weapons, tools, food, equipment, artifacts)")
-        prompt_parts.append("📍 PLACE: Any location names (cities, buildings, areas, regions, schools)")
-        prompt_parts.append("✨ TERM: Any skills, abilities, techniques, magic spells, powers, fighting styles")
-        prompt_parts.append("🔄 OTHER: Organizations, groups, guilds, concepts, systems, rules, anything else")
+        prompt_parts.append("CHARACTER: Any named people or characters")
+        prompt_parts.append("ITEM: Any objects mentioned (weapons, tools, food, equipment, artifacts)")
+        prompt_parts.append("PLACE: Any location names (cities, buildings, areas, regions, schools)")
+        prompt_parts.append("TERM: Any skills, abilities, techniques, magic spells, powers, fighting styles")
+        prompt_parts.append("OTHER: Organizations, groups, guilds, concepts, systems, rules, anything else")
         prompt_parts.append("\nIMPORTANT: Use EXACTLY these 5 categories: character, item, place, term, other")
         prompt_parts.append("If something doesn't fit character/item/place/term, put it in 'other' category.")
 
@@ -338,12 +324,11 @@ Only return the JSON object, no additional text."""
                 return self._create_fallback_terminology(len(chapters_data)), []
 
         except Exception as e:
-            print(f"⚠️ Warning: Could not parse terminology analysis result with TM: {str(e)}")
+            print(f"Warning: Could not parse terminology analysis result with TM: {str(e)}")
             # Fallback: create generic terminology
             return self._create_fallback_terminology(len(chapters_data)), []
     
     def _create_fallback_terminology(self, num_chapters: int) -> List[TerminologyInfo]:
-        """Create fallback terminology when AI analysis fails"""
         fallback_terms = []
         
         # Create generic terms based on common manhwa patterns using the 5 categories

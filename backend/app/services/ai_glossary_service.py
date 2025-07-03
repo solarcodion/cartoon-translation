@@ -16,7 +16,6 @@ class AIGlossaryService:
         glossary_data: AIGlossaryCreate,
         created_by: str
     ) -> AIGlossaryResponse:
-        """Create a new AI glossary entry"""
         try:
             # Prepare data for insertion with new terminology fields
             insert_data = {
@@ -91,12 +90,11 @@ class AIGlossaryService:
             raise Exception(f"Failed to fetch AI glossary entry: {str(e)}")
     
     async def update_glossary_entry(
-        self, 
-        entry_id: str, 
-        glossary_data: AIGlossaryUpdate, 
+        self,
+        entry_id: str,
+        glossary_data: AIGlossaryUpdate,
         updated_by: str
     ) -> Optional[AIGlossaryResponse]:
-        """Update an existing AI glossary entry"""
         try:
             # Prepare update data (only include non-None values)
             update_data = {}
@@ -204,7 +202,7 @@ class AIGlossaryService:
             return created_entries
 
         except Exception as e:
-            print(f"❌ Error saving people analysis results: {str(e)}")
+            print(f"Error saving people analysis results: {str(e)}")
             raise Exception(f"Failed to save people analysis results: {str(e)}")
 
     async def save_terminology_analysis_results(

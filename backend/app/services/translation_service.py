@@ -5,37 +5,22 @@ from app.config import settings
 
 
 class TranslationService:
-    """Service for AI translation using OpenAI GPT"""
-    
     def __init__(self):
-        """Initialize translation service with OpenAI client"""
         self.target_language = settings.translation_target_language
 
         if not settings.openai_api_key:
-            print("⚠️ Warning: OpenAI API key not configured. Translation service will not work.")
+            print("Warning: OpenAI API key not configured. Translation service will not work.")
             self.client = None
             return
 
-        # Initialize OpenAI client
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
-    
+
     async def translate_text(
-        self, 
-        source_text: str, 
+        self,
+        source_text: str,
         target_language: Optional[str] = None,
         context: Optional[str] = None
     ) -> dict:
-        """
-        Translate text using OpenAI GPT
-        
-        Args:
-            source_text: Text to translate
-            target_language: Target language (defaults to configured language)
-            context: Additional context for better translation
-            
-        Returns:
-            Dictionary with translation result and metadata
-        """
         try:
             start_time = time.time()
 
@@ -45,7 +30,6 @@ class TranslationService:
             if not self.client:
                 raise ValueError("Translation service is not properly configured. Please check OpenAI API key.")
 
-            # Use provided target language or default
             target_lang = target_language or self.target_language
             
             # Build the translation prompt
@@ -81,23 +65,22 @@ class TranslationService:
             }
             
         except openai.RateLimitError as e:
-            print(f"❌ OpenAI rate limit exceeded: {str(e)}")
+            print(f"OpenAI rate limit exceeded: {str(e)}")
             raise Exception("Translation service is currently busy. Please try again later.")
-        
+
         except openai.AuthenticationError as e:
-            print(f"❌ OpenAI authentication error: {str(e)}")
+            print(f"OpenAI authentication error: {str(e)}")
             raise Exception("Translation service authentication failed.")
-        
+
         except openai.APIError as e:
-            print(f"❌ OpenAI API error: {str(e)}")
+            print(f"OpenAI API error: {str(e)}")
             raise Exception(f"Translation service error: {str(e)}")
-        
+
         except Exception as e:
-            print(f"❌ Translation error: {str(e)}")
+            print(f"Translation error: {str(e)}")
             raise Exception(f"Translation failed: {str(e)}")
     
     def _build_system_prompt(self, target_language: str, context: Optional[str] = None) -> str:
-        """Build system prompt for translation"""
         base_prompt = f"""You are a professional translator specializing in manga/manhwa translation.
         
 Your task is to translate text from images (likely Korean or Japanese) to {target_language}.
@@ -159,7 +142,6 @@ Guidelines:
             raise Exception(f"Enhanced translation failed: {str(e)}")
     
     def get_supported_languages(self) -> list:
-        """Get list of supported target languages"""
         return [
             "Vietnamese",
             "English", 
@@ -179,7 +161,6 @@ Guidelines:
         ]
     
     async def health_check(self) -> dict:
-        """Check if translation service is working"""
         try:
             # Simple test translation
             test_result = await self.translate_text("Hello", "Vietnamese")
