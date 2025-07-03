@@ -3,6 +3,7 @@
 import type { SeriesItem } from "../../types";
 import { NoSeriesFound } from "../common";
 import { SeriesItemRow } from "./Items";
+import { InlineLoadingSpinner } from "../common";
 
 interface SeriesTableProps {
   /** Array of series to display */
@@ -15,6 +16,8 @@ interface SeriesTableProps {
   onDeleteSeries?: (seriesId: string) => void;
   /** Whether user can modify (edit/delete) series */
   canModify?: boolean;
+  /** Whether data is currently loading */
+  isLoading?: boolean;
 }
 
 export default function SeriesTable({
@@ -23,6 +26,7 @@ export default function SeriesTable({
   onEditSeries,
   onDeleteSeries,
   canModify = true,
+  isLoading = false,
 }: SeriesTableProps) {
   return (
     <div className="bg-white">
@@ -41,29 +45,39 @@ export default function SeriesTable({
           </tr>
         </thead>
         <tbody>
-          {series.map((seriesItem) => (
-            <SeriesItemRow
-              key={seriesItem.id}
-              series={seriesItem}
-              onClick={() => onSeriesClick(seriesItem.id)}
-              onEdit={
-                canModify && onEditSeries
-                  ? () => onEditSeries(seriesItem.id)
-                  : undefined
-              }
-              onDelete={
-                canModify && onDeleteSeries
-                  ? () => onDeleteSeries(seriesItem.id)
-                  : undefined
-              }
-              canModify={canModify}
-            />
-          ))}
+          {isLoading ? (
+            <tr>
+              <td colSpan={3} className="px-6 py-12">
+                <div className="flex items-center justify-center">
+                  <InlineLoadingSpinner text="Loading series..." color="blue" />
+                </div>
+              </td>
+            </tr>
+          ) : (
+            series.map((seriesItem) => (
+              <SeriesItemRow
+                key={seriesItem.id}
+                series={seriesItem}
+                onClick={() => onSeriesClick(seriesItem.id)}
+                onEdit={
+                  canModify && onEditSeries
+                    ? () => onEditSeries(seriesItem.id)
+                    : undefined
+                }
+                onDelete={
+                  canModify && onDeleteSeries
+                    ? () => onDeleteSeries(seriesItem.id)
+                    : undefined
+                }
+                canModify={canModify}
+              />
+            ))
+          )}
         </tbody>
       </table>
 
-      {/* Empty state */}
-      {series.length === 0 && <NoSeriesFound />}
+      {/* Empty state - only show when not loading and no series */}
+      {!isLoading && series.length === 0 && <NoSeriesFound />}
     </div>
   );
 }

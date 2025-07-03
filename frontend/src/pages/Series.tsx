@@ -155,31 +155,6 @@ export default function Series() {
     navigate(`/series/${seriesId}/chapters`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        {/* Page Header */}
-        <SimplePageHeader
-          title="Series"
-          action={
-            <button
-              onClick={handleAddSeries}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-            >
-              <FiPlus className="text-sm" />
-              Add Series
-            </button>
-          }
-        />
-
-        {/* Loading State */}
-        <div className="bg-white">
-          <SectionLoadingSpinner text="Loading series..." />
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="space-y-8">
@@ -225,6 +200,7 @@ export default function Series() {
         onEditSeries={canModify ? handleEditSeries : undefined}
         onDeleteSeries={canModify ? handleDeleteSeries : undefined}
         canModify={canModify}
+        isLoading={isLoading}
       />
 
       {/* Add Series Modal */}
