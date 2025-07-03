@@ -5,6 +5,10 @@ interface UploadPageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (files: File[], startPageNumber: number) => Promise<void>;
+  onUploadWithAutoTextBoxes?: (
+    files: File[],
+    startPageNumber: number
+  ) => Promise<void>;
   chapterNumber?: number;
 }
 
@@ -12,6 +16,7 @@ export default function UploadPageModal({
   isOpen,
   onClose,
   onUpload,
+  onUploadWithAutoTextBoxes,
 }: UploadPageModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [startPageNumber, setStartPageNumber] = useState("1");
@@ -20,6 +25,7 @@ export default function UploadPageModal({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [autoDetectText, setAutoDetectText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async () => {
@@ -42,7 +48,12 @@ export default function UploadPageModal({
         });
       }, 200);
 
-      await onUpload(selectedFiles, startNumber);
+      // Use auto text detection if enabled and available
+      if (autoDetectText && onUploadWithAutoTextBoxes) {
+        await onUploadWithAutoTextBoxes(selectedFiles, startNumber);
+      } else {
+        await onUpload(selectedFiles, startNumber);
+      }
 
       // Complete the progress
       clearInterval(progressInterval);
@@ -272,6 +283,35 @@ export default function UploadPageModal({
               </div>
             </div>
 
+            {/* Auto Text Detection Option */}
+            {onUploadWithAutoTextBoxes && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <input
+                    id="autoDetectText"
+                    type="checkbox"
+                    checked={autoDetectText}
+                    onChange={(e) => setAutoDetectText(e.target.checked)}
+                    disabled={isLoading}
+                    className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <div className="flex-1">
+                    <label
+                      htmlFor="autoDetectText"
+                      className="block text-sm font-medium text-green-800 cursor-pointer"
+                    >
+                      Auto-detect text regions and create text boxes
+                    </label>
+                    <p className="text-xs text-green-700 mt-1">
+                      Automatically analyze each image to detect text areas and
+                      create text boxes with extracted text. This will save time
+                      by eliminating the need to manually create text boxes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -388,7 +428,9 @@ export default function UploadPageModal({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">
-                          Uploading & Processing OCR...
+                          {autoDetectText
+                            ? "Uploading & Auto-creating Text Boxes..."
+                            : "Uploading & Processing OCR..."}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-gray-500">
@@ -436,12 +478,14 @@ export default function UploadPageModal({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Uploading & Processing OCR...
+                {autoDetectText
+                  ? "Uploading & Auto-creating Text Boxes..."
+                  : "Uploading & Processing OCR..."}
               </>
             ) : (
               `Upload ${selectedFiles.length} Page${
                 selectedFiles.length !== 1 ? "s" : ""
-              } & Run OCR`
+              }${autoDetectText ? " & Auto-create Text Boxes" : " & Run OCR"}`
             )}
           </button>
         </div>

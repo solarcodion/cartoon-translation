@@ -21,7 +21,6 @@ import AIInsightPanel from "../components/AIInsightPanel";
 import UploadPageModal from "../components/Modals/UploadPageModal";
 import EditPageModal from "../components/Modals/EditPageModal";
 import DeletePageModal from "../components/Modals/DeletePageModal";
-import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
 import {
@@ -34,6 +33,7 @@ import {
   usePagesIsStale,
   useTextBoxesActions,
 } from "../stores";
+import TextBoxModal from "../components/Modals/TextBoxModal";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -54,8 +54,13 @@ export default function Pages() {
   const pagesError = usePagesErrorByChapterId(chapterId || "");
   const hasCachedPages = useHasCachedPages(chapterId || "");
   const isPagesStale = usePagesIsStale(chapterId || "");
-  const { fetchPagesByChapterId, batchCreatePages, updatePage, deletePage } =
-    usePagesActions();
+  const {
+    fetchPagesByChapterId,
+    batchCreatePages,
+    batchCreatePagesWithAutoTextBoxes,
+    updatePage,
+    deletePage,
+  } = usePagesActions();
 
   // Use text boxes store actions
   const { createTextBox: createTextBoxInStore } = useTextBoxesActions();
@@ -229,6 +234,42 @@ export default function Pages() {
       }
     } catch (error) {
       console.error("Error uploading pages:", error);
+      throw error;
+    }
+  };
+
+  const handleConfirmUploadWithAutoTextBoxes = async (
+    files: File[],
+    startPageNumber: number
+  ) => {
+    try {
+      if (!chapterId) {
+        throw new Error("Chapter ID is required");
+      }
+
+      // Upload all files in batch with auto text box creation using store
+      const result = await batchCreatePagesWithAutoTextBoxes(chapterId, {
+        chapter_id: chapterId,
+        files,
+        start_page_number: startPageNumber,
+      });
+
+      if (result.success) {
+        // Update dashboard stats for each successfully uploaded page
+        const chapterTitle =
+          chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
+        const newPages = result.pages.map(convertApiPageToLegacy);
+        newPages.forEach((page) => {
+          syncAfterPageCreate(page.number, chapterTitle);
+        });
+      }
+
+      // Show any failed uploads
+      if (result.failed_uploads.length > 0) {
+        console.warn("Some uploads failed:", result.failed_uploads);
+      }
+    } catch (error) {
+      console.error("Error uploading pages with auto text boxes:", error);
       throw error;
     }
   };
@@ -633,6 +674,7 @@ export default function Pages() {
         isOpen={isUploadModalOpen}
         onClose={handleCloseUploadModal}
         onUpload={handleConfirmUpload}
+        onUploadWithAutoTextBoxes={handleConfirmUploadWithAutoTextBoxes}
         chapterNumber={chapterInfo?.number}
       />
 
@@ -653,7 +695,7 @@ export default function Pages() {
       />
 
       {/* Add Text Box Modal */}
-      <AddTextBoxModal
+      <TextBoxModal
         isOpen={isAddTextBoxModalOpen}
         onClose={handleCloseAddTextBoxModal}
         onAdd={handleConfirmAddTextBox}

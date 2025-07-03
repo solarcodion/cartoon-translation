@@ -493,8 +493,9 @@ export const useTMStore = create<TMStore>()(
 );
 
 // Cached selectors to prevent infinite loops
+const emptyTMEntries: TranslationMemory[] = [];
 const selectTMBySeriesId = (seriesId: string) => (state: TMStore) =>
-  state.data[seriesId]?.entries || [];
+  state.data[seriesId]?.entries || emptyTMEntries;
 
 const selectTMLoadingBySeriesId = (seriesId: string) => (state: TMStore) =>
   state.data[seriesId]?.isLoading || false;

@@ -6,11 +6,13 @@ from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.text_box_service import TextBoxService
 from app.services.dashboard_service import DashboardService
+from app.services.ocr_service import OCRService
 from app.models import (
     TextBoxResponse,
     TextBoxCreate,
     TextBoxUpdate,
-    ApiResponse
+    ApiResponse,
+    OCRRequest
 )
 
 router = APIRouter(prefix="/text-boxes", tags=["text-boxes"])
@@ -26,6 +28,18 @@ def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> Dashboard
     return DashboardService(supabase)
 
 
+# Global OCR service instance (initialized once)
+ocr_service = None
+
+
+def get_ocr_service() -> OCRService:
+    """Dependency to get OCR service (singleton pattern)"""
+    global ocr_service
+    if ocr_service is None:
+        ocr_service = OCRService()
+    return ocr_service
+
+
 @router.post("/", response_model=TextBoxResponse, status_code=status.HTTP_201_CREATED)
 async def create_text_box(
     text_box_data: TextBoxCreate,
@@ -35,9 +49,9 @@ async def create_text_box(
 ):
     """
     Create a new text box
-    
+
     - **page_id**: ID of the page this text box belongs to
-    - **image**: Base64 encoded cropped image (optional)
+    - **image**: URL of the original page image (optional)
     - **x**: X coordinate of the bounding box
     - **y**: Y coordinate of the bounding box
     - **w**: Width of the bounding box
@@ -163,9 +177,9 @@ async def update_text_box(
 ):
     """
     Update a text box
-    
+
     - **text_box_id**: ID of the text box to update
-    - **image**: Base64 encoded cropped image (optional)
+    - **image**: URL of the original page image (optional)
     - **x**: X coordinate of the bounding box (optional)
     - **y**: Y coordinate of the bounding box (optional)
     - **w**: Width of the bounding box (optional)
@@ -237,4 +251,72 @@ async def delete_text_box(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete text box: {str(e)}"
+        )
+
+
+@router.post("/auto-create/{page_id}", response_model=List[TextBoxResponse], status_code=status.HTTP_201_CREATED)
+async def auto_create_text_boxes(
+    page_id: str = Path(..., description="Page ID"),
+    request: OCRRequest = ...,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    text_box_service: TextBoxService = Depends(get_text_box_service),
+    ocr_service: OCRService = Depends(get_ocr_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
+):
+    """
+    Automatically create text boxes for a page by detecting text regions
+
+    This endpoint analyzes the page image to detect text regions and automatically
+    creates text boxes for each detected region with the extracted text.
+
+    - **page_id**: ID of the page to create text boxes for
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns a list of created text boxes with their bounding boxes and extracted text.
+    """
+    try:
+        # Validate input
+        if not request.image_data or not request.image_data.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required and cannot be empty"
+            )
+
+        # Detect text regions in the image
+        detection_result = ocr_service.detect_text_regions(request.image_data)
+
+        if not detection_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to detect text regions in image"
+            )
+
+        # Create text boxes from detected regions
+        created_text_boxes = await text_box_service.create_text_boxes_from_detection(
+            page_id, detection_result
+        )
+
+        # Update dashboard statistics
+        try:
+            if created_text_boxes:
+                # Increment textbox count for each created text box
+                for _ in created_text_boxes:
+                    await dashboard_service.increment_textbox_count()
+
+                await dashboard_service.add_recent_activity(
+                    f"Auto-created {len(created_text_boxes)} text boxes on page"
+                )
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after auto text box creation: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
+        return created_text_boxes
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in auto_create_text_boxes endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to auto-create text boxes: {str(e)}"
         )

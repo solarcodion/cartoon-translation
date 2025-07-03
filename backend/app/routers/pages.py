@@ -7,6 +7,7 @@ from app.auth import get_current_user
 from app.services.page_service import PageService
 from app.services.ocr_service import OCRService
 from app.services.dashboard_service import DashboardService
+from app.services.text_box_service import TextBoxService
 from app.models import (
     PageResponse,
     PageCreate,
@@ -33,6 +34,11 @@ def get_page_service(
 def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
     """Dependency to get dashboard service"""
     return DashboardService(supabase)
+
+
+def get_text_box_service(supabase: Client = Depends(get_supabase)) -> TextBoxService:
+    """Dependency to get text box service"""
+    return TextBoxService(supabase)
 
 
 
@@ -388,6 +394,92 @@ async def delete_page(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete page: {str(e)}"
+        )
+
+
+@router.post("/batch-upload-with-auto-textboxes", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
+async def batch_upload_pages_with_auto_textboxes(
+    chapter_id: str = Form(...),
+    start_page_number: int = Form(...),
+    files: List[UploadFile] = File(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    page_service: PageService = Depends(get_page_service),
+    text_box_service: TextBoxService = Depends(get_text_box_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
+):
+    """
+    Upload multiple pages with automatic text box creation
+
+    This endpoint uploads multiple image files as pages and automatically
+    detects text regions to create text boxes for each detected region.
+
+    - **chapter_id**: ID of the chapter these pages belong to
+    - **start_page_number**: Starting page number for the batch
+    - **files**: List of image files to upload
+
+    Returns information about successfully uploaded pages and any failures,
+    along with the number of automatically created text boxes.
+    """
+    try:
+        # Validate files
+        if not files:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one file is required"
+            )
+
+        # Validate file types and prepare file data
+        files_data = []
+        for file in files:
+            if not file.content_type or not file.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File {file.filename} must be an image"
+                )
+
+            # Get file extension
+            file_extension = file.filename.split('.')[-1].lower() if file.filename else 'jpg'
+            if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unsupported file format for {file.filename}. Use JPG, PNG, or WebP"
+                )
+
+            # Read file content
+            file_content = await file.read()
+            files_data.append((file_content, file_extension, file.filename))
+
+        # Upload pages with auto text box creation
+        result = await page_service.create_pages_batch_with_auto_textboxes(
+            chapter_id, files_data, start_page_number, text_box_service
+        )
+
+        # Update chapter status and count
+        await update_chapter_status_and_count(chapter_id)
+
+        # Update dashboard statistics
+        try:
+            if result.pages:
+                # Increment page count for each successfully uploaded page
+                for _ in result.pages:
+                    await dashboard_service.increment_page_count()
+
+                await dashboard_service.add_recent_activity(
+                    f"Batch uploaded {len(result.pages)} pages with auto text detection"
+                )
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after batch upload: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in batch_upload_pages_with_auto_textboxes endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload pages with auto text boxes: {str(e)}"
         )
 
 

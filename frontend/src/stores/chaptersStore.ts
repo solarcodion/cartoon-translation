@@ -439,8 +439,9 @@ export const useChaptersStore = create<ChaptersStore>()(
 );
 
 // Cached selectors to prevent infinite loops
+const emptyChapters: Chapter[] = [];
 const selectChaptersBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
-  state.data[seriesId]?.chapters || [];
+  state.data[seriesId]?.chapters || emptyChapters;
 
 const selectLoadingBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
   state.data[seriesId]?.isLoading || false;

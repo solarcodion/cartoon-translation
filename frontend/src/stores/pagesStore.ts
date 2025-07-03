@@ -36,6 +36,10 @@ export interface PagesActions {
     chapterId: string,
     data: BatchCreatePageData
   ) => Promise<BatchPageUploadResponse>;
+  batchCreatePagesWithAutoTextBoxes: (
+    chapterId: string,
+    data: BatchCreatePageData
+  ) => Promise<BatchPageUploadResponse>;
   updatePage: (pageId: string, data: Partial<CreatePageData>) => Promise<Page>;
   deletePage: (chapterId: string, pageId: string) => Promise<void>;
   clearError: (chapterId?: string) => void;
@@ -224,7 +228,7 @@ export const usePagesStore = create<PagesStore>()(
         );
 
         try {
-          const response = await pageService.batchCreatePages(data);
+          const response = await pageService.createPagesBatch(data);
           const newPages = response.pages.map(convertApiPageToLegacy);
 
           // Optimistically update the store
@@ -272,6 +276,84 @@ export const usePagesStore = create<PagesStore>()(
             },
             false,
             "pages/batchCreateError"
+          );
+          throw error;
+        }
+      },
+
+      batchCreatePagesWithAutoTextBoxes: async (
+        chapterId: string,
+        data: BatchCreatePageData
+      ) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        set(
+          {
+            data: {
+              ...state.data,
+              [chapterId]: {
+                ...chapterData,
+                error: null,
+              },
+            },
+            globalError: null,
+          },
+          false,
+          "pages/batchCreateWithAutoTextBoxesStart"
+        );
+
+        try {
+          const response = await pageService.batchCreatePagesWithAutoTextBoxes(
+            data
+          );
+          const newPages = response.pages.map(convertApiPageToLegacy);
+
+          // Optimistically update the store
+          const currentState = get();
+          const currentChapterData = currentState.data[chapterId];
+          const updatedPages = [
+            ...(currentChapterData?.pages || []),
+            ...newPages,
+          ];
+          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
+
+          set(
+            {
+              data: {
+                ...currentState.data,
+                [chapterId]: {
+                  pages: sortedPages,
+                  lastFetched: Date.now(),
+                  isLoading: false,
+                  error: null,
+                },
+              },
+            },
+            false,
+            "pages/batchCreateWithAutoTextBoxesSuccess"
+          );
+
+          return response;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to batch create pages with auto text boxes";
+
+          set(
+            {
+              data: {
+                ...get().data,
+                [chapterId]: {
+                  ...chapterData,
+                  error: errorMessage,
+                },
+              },
+              globalError: errorMessage,
+            },
+            false,
+            "pages/batchCreateWithAutoTextBoxesError"
           );
           throw error;
         }
@@ -499,8 +581,9 @@ export const usePagesStore = create<PagesStore>()(
 );
 
 // Cached selectors to prevent infinite loops
+const emptyPages: Page[] = [];
 const selectPagesByChapterId = (chapterId: string) => (state: PagesStore) =>
-  state.data[chapterId]?.pages || [];
+  state.data[chapterId]?.pages || emptyPages;
 
 const selectLoadingByChapterId = (chapterId: string) => (state: PagesStore) =>
   state.data[chapterId]?.isLoading || false;
@@ -549,6 +632,9 @@ export const usePagesActions = () => {
   );
   const createPage = usePagesStore((state) => state.createPage);
   const batchCreatePages = usePagesStore((state) => state.batchCreatePages);
+  const batchCreatePagesWithAutoTextBoxes = usePagesStore(
+    (state) => state.batchCreatePagesWithAutoTextBoxes
+  );
   const updatePage = usePagesStore((state) => state.updatePage);
   const deletePage = usePagesStore((state) => state.deletePage);
   const clearError = usePagesStore((state) => state.clearError);
@@ -560,6 +646,7 @@ export const usePagesActions = () => {
       fetchPagesByChapterId,
       createPage,
       batchCreatePages,
+      batchCreatePagesWithAutoTextBoxes,
       updatePage,
       deletePage,
       clearError,
@@ -570,6 +657,7 @@ export const usePagesActions = () => {
       fetchPagesByChapterId,
       createPage,
       batchCreatePages,
+      batchCreatePagesWithAutoTextBoxes,
       updatePage,
       deletePage,
       clearError,

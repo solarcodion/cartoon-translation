@@ -441,9 +441,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
 );
 
 // Cached selectors to prevent infinite loops
+const emptyTextBoxes: TextBoxApiItem[] = [];
 const selectTextBoxesByChapterId =
   (chapterId: string) => (state: TextBoxesStore) =>
-    state.data[chapterId]?.textBoxes || [];
+    state.data[chapterId]?.textBoxes || emptyTextBoxes;
 
 const selectLoadingByChapterId =
   (chapterId: string) => (state: TextBoxesStore) =>

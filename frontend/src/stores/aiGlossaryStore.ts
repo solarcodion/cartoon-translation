@@ -559,9 +559,10 @@ export const useAIGlossaryStore = create<AIGlossaryStore>()(
 );
 
 // Cached selectors to prevent infinite loops
+const emptyGlossaryEntries: GlossaryCharacter[] = [];
 const selectGlossaryBySeriesId =
   (seriesId: string) => (state: AIGlossaryStore) =>
-    state.data[seriesId]?.entries || [];
+    state.data[seriesId]?.entries || emptyGlossaryEntries;
 
 const selectGlossaryLoadingBySeriesId =
   (seriesId: string) => (state: AIGlossaryStore) =>

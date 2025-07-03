@@ -10,27 +10,35 @@ import {
   FiMousePointer,
   FiTrash2,
   FiCrop,
+  FiSave,
 } from "react-icons/fi";
 import { MdGTranslate } from "react-icons/md";
 import type { Page, TextBoxCreate, BoundingBox } from "../../types";
+import type { TextBoxApiItem, TextBoxApiUpdate } from "../../types/textbox";
 import { ocrService } from "../../services/ocrService";
 import { translationService } from "../../services/translationService";
 
-interface AddTextBoxModalProps {
+interface TextBoxModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (textBoxData: TextBoxCreate, croppedImage?: string) => Promise<void>;
+  onAdd?: (textBoxData: TextBoxCreate, croppedImage?: string) => Promise<void>;
+  onEdit?: (textBoxId: string, textBoxData: TextBoxApiUpdate) => Promise<void>;
   pages: Page[];
   selectedPageId?: string;
+  textBox?: TextBoxApiItem | null; // For edit mode
 }
 
-export default function AddTextBoxModal({
+export default function TextBoxModal({
   isOpen,
   onClose,
   onAdd,
+  onEdit,
   pages,
   selectedPageId,
-}: AddTextBoxModalProps) {
+  textBox,
+}: TextBoxModalProps) {
+  // Determine if we're in edit mode
+  const isEditMode = !!textBox;
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [boundingBox, setBoundingBox] = useState<BoundingBox>({
     x: 0,
@@ -586,7 +594,7 @@ export default function AddTextBoxModal({
     }
   }, [isResizing, handleResizeMouseMove, handleMouseUp]);
 
-  // Reset form when modal opens/closes
+  // Reset form when modal opens/closes or populate with textBox data for edit mode
   useEffect(() => {
     if (!isOpen) {
       setBoundingBox({ x: 0, y: 0, width: 0, height: 0 });
@@ -598,8 +606,27 @@ export default function AddTextBoxModal({
       setPan({ x: 0, y: 0 });
       setIsCropped(false);
       setCroppedImageData("");
+      setSelectedPage(null);
+    } else if (isEditMode && textBox) {
+      // Populate form with textBox data for edit mode
+      setBoundingBox({
+        x: textBox.x,
+        y: textBox.y,
+        width: textBox.w,
+        height: textBox.h,
+      });
+      setOcrText(textBox.ocr || "");
+      setAiTranslatedText(""); // AI translation not stored in DB, start fresh
+      setCorrectedText(textBox.corrected || "");
+      setCorrectionReason(textBox.reason || "");
+
+      // Find and set the page for this textBox
+      const page = pages.find((p) => p.id === textBox.page_id);
+      if (page) {
+        setSelectedPage(page);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isEditMode, textBox, pages]);
 
   // Reset zoom and pan when page changes
   useEffect(() => {
@@ -609,26 +636,45 @@ export default function AddTextBoxModal({
     }
   }, [selectedPage]);
 
-  const handleAdd = async () => {
+  const handleSubmit = async () => {
     if (!selectedPage || !ocrText.trim()) return;
 
     try {
       setIsLoading(true);
-      await onAdd(
-        {
-          pageId: selectedPage.id,
-          pageNumber: selectedPage.number,
-          boundingBox,
-          ocrText: ocrText.trim(),
-          aiTranslatedText: aiTranslatedText.trim() || undefined,
-          correctedText: correctedText.trim() || undefined,
-          correctionReason: correctionReason.trim() || undefined,
-        },
-        croppedImageData || undefined
-      );
+
+      if (isEditMode && textBox && onEdit) {
+        // Edit mode - update existing text box
+        const updateData: TextBoxApiUpdate = {
+          x: boundingBox.x,
+          y: boundingBox.y,
+          w: boundingBox.width,
+          h: boundingBox.height,
+          ocr: ocrText.trim() || undefined,
+          corrected: correctedText.trim() || undefined,
+          reason: correctionReason.trim() || undefined,
+        };
+        await onEdit(textBox.id, updateData);
+      } else if (!isEditMode && onAdd) {
+        // Add mode - create new text box
+        await onAdd(
+          {
+            pageId: selectedPage.id,
+            pageNumber: selectedPage.number,
+            boundingBox,
+            ocrText: ocrText.trim(),
+            aiTranslatedText: aiTranslatedText.trim() || undefined,
+            correctedText: correctedText.trim() || undefined,
+            correctionReason: correctionReason.trim() || undefined,
+          },
+          croppedImageData || undefined
+        );
+      }
       onClose();
     } catch (error) {
-      console.error("Error adding text box:", error);
+      console.error(
+        `Error ${isEditMode ? "updating" : "adding"} text box:`,
+        error
+      );
     } finally {
       setIsLoading(false);
     }
@@ -703,10 +749,12 @@ export default function AddTextBoxModal({
           <div className="flex items-center justify-between w-full">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Add New Text Box
+                {isEditMode ? "Edit Text Box" : "Add New Text Box"}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Manually define a text area. Use zoom/pan for precision.
+                {isEditMode
+                  ? "Edit the text area and content. Use zoom/pan for precision."
+                  : "Manually define a text area. Use zoom/pan for precision."}
               </p>
             </div>
             <button
@@ -874,14 +922,25 @@ export default function AddTextBoxModal({
               {/* Page Selector */}
               <div className="bg-gray-50 p-4 rounded-lg border">
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Page
+                  Page{" "}
+                  {isEditMode && (
+                    <span className="text-xs text-gray-500">
+                      (read-only in edit mode)
+                    </span>
+                  )}
                 </label>
                 <div className="relative" ref={dropdownRef}>
                   <button
                     type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    disabled={isLoading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-left flex items-center justify-between hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() =>
+                      !isEditMode && setIsDropdownOpen(!isDropdownOpen)
+                    }
+                    disabled={isLoading || isEditMode}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-left flex items-center justify-between transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isEditMode
+                        ? "cursor-not-allowed"
+                        : "hover:border-gray-400 cursor-pointer"
+                    }`}
                   >
                     <span
                       className={
@@ -899,7 +958,7 @@ export default function AddTextBoxModal({
                     />
                   </button>
 
-                  {isDropdownOpen && (
+                  {isDropdownOpen && !isEditMode && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
                       {pages.length === 0 ? (
                         <div className="px-3 py-2 text-sm text-gray-500">
@@ -1249,17 +1308,20 @@ export default function AddTextBoxModal({
             Cancel
           </button>
           <button
-            onClick={handleAdd}
+            onClick={handleSubmit}
             disabled={!selectedPage || !ocrText.trim() || isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
           >
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
+                {isEditMode ? "Updating..." : "Saving..."}
               </>
             ) : (
-              "Save Text Box"
+              <>
+                {isEditMode ? <FiSave className="w-4 h-4" /> : null}
+                {isEditMode ? "Update Text Box" : "Save Text Box"}
+              </>
             )}
           </button>
         </div>

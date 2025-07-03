@@ -336,6 +336,34 @@ class OCRWithTranslationResponse(BaseModel):
         from_attributes = True
 
 
+# Text Region Detection Models
+class TextRegion(BaseModel):
+    """Individual text region with bounding box and extracted text"""
+    x: int
+    y: int
+    width: int
+    height: int
+    text: str
+    confidence: float
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TextRegionDetectionResponse(BaseModel):
+    """Response model for text region detection"""
+    success: bool
+    text_regions: List[TextRegion]
+    processing_time: float
+    detected_language: Optional[str] = None
+    language_confidence: Optional[float] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 # Translation Models
 class TranslationRequest(BaseModel):
     """Translation request model"""
@@ -561,7 +589,7 @@ class ChapterAnalysisResponse(BaseModel):
 class TextBoxBase(BaseModel):
     """Base text box model"""
     page_id: str
-    image: Optional[str] = None  # Base64 encoded cropped image
+    image: Optional[str] = None  # URL of the original page image
     x: int
     y: int
     w: int

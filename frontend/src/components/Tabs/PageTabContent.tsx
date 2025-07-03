@@ -15,7 +15,6 @@ import { BiSolidEdit } from "react-icons/bi";
 import { TabContent, TranslationsTableSkeleton, TextSkeleton } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import { PagesTable } from "../Lists";
-import EditTextBoxModal from "../Modals/EditTextBoxModal";
 import DeleteTextBoxModal from "../Modals/DeleteTextBoxModal";
 import type { Page, ChapterInfo } from "../../types";
 import type { TextBoxApiItem } from "../../services/textBoxService";
@@ -33,6 +32,7 @@ import {
   useHasCachedTextBoxes,
   useTextBoxesIsStale,
 } from "../../stores";
+import TextBoxModal from "../Modals/TextBoxModal";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -145,13 +145,8 @@ export function TranslationsTabContent({
   const textBoxesError = useTextBoxesErrorByChapterId(chapterId);
   const hasCachedTextBoxes = useHasCachedTextBoxes(chapterId);
   const isTextBoxesStale = useTextBoxesIsStale(chapterId);
-  const {
-    fetchTextBoxesByChapterId,
-    fetchTextBoxesByPageId,
-    createTextBox,
-    updateTextBox,
-    deleteTextBox,
-  } = useTextBoxesActions();
+  const { fetchTextBoxesByChapterId, updateTextBox, deleteTextBox } =
+    useTextBoxesActions();
 
   // Create a mapping from page_id to page_number
   const pageIdToNumberMap = useMemo(() => {
@@ -567,11 +562,12 @@ export function TranslationsTabContent({
       </div>
 
       {/* Edit Text Box Modal */}
-      <EditTextBoxModal
+      <TextBoxModal
         textBox={selectedTextBox}
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
-        onSave={handleSaveTextBoxEdit}
+        onEdit={handleSaveTextBoxEdit}
+        pages={pages}
       />
 
       {/* Delete Text Box Modal */}
@@ -607,6 +603,10 @@ export function ContextTabContent({
 }: ContextTabContentProps) {
   // Use pages store instead of props
   const pages = usePagesByChapterId(chapterId || "");
+
+  // Use text boxes store actions
+  const { fetchTextBoxesByPageId } = useTextBoxesActions();
+
   const [notes, setNotes] = useState(contextNotes);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -674,7 +674,7 @@ export function ContextTabContent({
 
             // Convert text boxes to analysis format
             const textBoxTranslations: TextBoxTranslationData[] = textBoxes.map(
-              (tb) => ({
+              (tb: TextBoxApiItem) => ({
                 x: tb.x,
                 y: tb.y,
                 w: tb.w,
