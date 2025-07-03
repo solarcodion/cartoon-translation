@@ -4,7 +4,7 @@ import { FiPlus } from "react-icons/fi";
 import AddSeriesModal from "../components/Modals/AddSeriesModal";
 import EditSeriesModal from "../components/Modals/EditSeriesModal";
 import DeleteSeriesModal from "../components/Modals/DeleteSeriesModal";
-import { SectionLoadingSpinner, ErrorState } from "../components/common";
+import { ErrorState } from "../components/common";
 import { SeriesTable } from "../components/Lists";
 import { SimplePageHeader } from "../components/Header/PageHeader";
 import type { SeriesItem } from "../types";
@@ -54,7 +54,7 @@ export default function Series() {
   const handleConfirmAddSeries = async (seriesName: string) => {
     try {
       // Create series via store action
-      const newSeries = await createSeries({
+      await createSeries({
         title: seriesName,
       });
 

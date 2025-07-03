@@ -408,4 +408,112 @@ export function AIGlossaryGridSkeleton({
   );
 }
 
+// Pages table skeleton rows - specialized for pages table structure
+interface PagesTableSkeletonProps extends SkeletonProps {
+  /** Number of skeleton rows to show */
+  rows?: number;
+}
+
+export function PagesTableSkeleton({
+  rows = 3,
+  animate = true,
+}: PagesTableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index} className="border-b border-gray-200">
+          {/* Page Number Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/3" animate={animate} />
+          </td>
+
+          {/* Preview Column */}
+          <td className="px-6 py-4">
+            <Skeleton className="h-16 w-16 rounded" animate={animate} />
+          </td>
+
+          {/* Dimensions Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="2/3" animate={animate} />
+          </td>
+
+          {/* Actions Column */}
+          <td className="px-6 py-4 text-right">
+            <div className="flex justify-end space-x-2">
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+// Translations table skeleton rows - specialized for translations table structure
+interface TranslationsTableSkeletonProps extends SkeletonProps {
+  /** Number of skeleton rows to show */
+  rows?: number;
+}
+
+export function TranslationsTableSkeleton({
+  rows = 3,
+  animate = true,
+}: TranslationsTableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index} className="border-b border-gray-200">
+          {/* Page Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/4" animate={animate} />
+          </td>
+
+          {/* Position Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/2" animate={animate} />
+          </td>
+
+          {/* OCR Text Column */}
+          <td className="px-6 py-4">
+            <div className="space-y-1">
+              <TextSkeleton size="sm" width="full" animate={animate} />
+              <TextSkeleton size="sm" width="3/4" animate={animate} />
+            </div>
+          </td>
+
+          {/* Translated Text Column */}
+          <td className="px-6 py-4">
+            <div className="space-y-1">
+              <TextSkeleton size="sm" width="full" animate={animate} />
+              <TextSkeleton size="sm" width="2/3" animate={animate} />
+            </div>
+          </td>
+
+          {/* Corrected Text Column */}
+          <td className="px-6 py-4">
+            <div className="space-y-1">
+              <TextSkeleton size="sm" width="full" animate={animate} />
+              <TextSkeleton size="sm" width="3/4" animate={animate} />
+            </div>
+          </td>
+
+          {/* TM Column */}
+          <td className="px-6 py-4">
+            <Skeleton className="h-6 w-8 rounded" animate={animate} />
+          </td>
+
+          {/* Actions Column */}
+          <td className="px-6 py-4 text-right">
+            <div className="flex justify-end space-x-2">
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+              <ButtonSkeleton size="sm" width="auto" animate={animate} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 export default Skeleton;

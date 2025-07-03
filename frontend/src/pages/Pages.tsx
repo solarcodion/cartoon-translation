@@ -4,17 +4,16 @@ import { FiImage, FiFileText } from "react-icons/fi";
 import { MdGTranslate } from "react-icons/md";
 
 import {
-  SectionLoadingSpinner,
   ErrorState,
   BackToChapters,
   NavigationTabs,
   PagesTabContent,
   TranslationsTabContent,
   ContextTabContent,
+  TextSkeleton,
 } from "../components/common";
 import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
-import { pageService } from "../services/pageService";
-import { textBoxService } from "../services/textBoxService";
+
 import { chapterService } from "../services/chapterService";
 import { convertApiPageToLegacy } from "../types/pages";
 import { convertLegacyTextBoxToApi } from "../types/textbox";
@@ -25,7 +24,16 @@ import DeletePageModal from "../components/Modals/DeletePageModal";
 import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
-import { getChapterById } from "../stores";
+import {
+  getChapterById,
+  usePagesByChapterId,
+  usePagesLoadingByChapterId,
+  usePagesErrorByChapterId,
+  usePagesActions,
+  useHasCachedPages,
+  usePagesIsStale,
+  useTextBoxesActions,
+} from "../stores";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -39,11 +47,23 @@ export default function Pages() {
     syncAfterPageDelete,
     syncAfterTextboxTranslate,
   } = useDashboardSync();
-  const [pages, setPages] = useState<Page[]>([]);
+
+  // Use pages store
+  const pages = usePagesByChapterId(chapterId || "");
+  const isPagesLoading = usePagesLoadingByChapterId(chapterId || "");
+  const pagesError = usePagesErrorByChapterId(chapterId || "");
+  const hasCachedPages = useHasCachedPages(chapterId || "");
+  const isPagesStale = usePagesIsStale(chapterId || "");
+  const { fetchPagesByChapterId, batchCreatePages, updatePage, deletePage } =
+    usePagesActions();
+
+  // Use text boxes store actions
+  const { createTextBox: createTextBoxInStore } = useTextBoxesActions();
+
   const [chapterInfo, setChapterInfo] = useState<ChapterInfo | null>(null);
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isSeriesLoading, setIsSeriesLoading] = useState(false);
+  const [seriesError, setSeriesError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "pages" | "translations" | "context"
   >("pages");
@@ -83,15 +103,15 @@ export default function Pages() {
     }
   }, [openDropdown, isPageDropdownOpen]);
 
-  // Fetch pages data
-  const fetchPages = useCallback(async () => {
+  // Fetch chapter info (separate from pages which are handled by store)
+  const fetchChapterInfo = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsSeriesLoading(true);
+      setSeriesError(null);
 
       if (!chapterId || !seriesId) {
-        setError("Chapter ID or Series ID is missing");
-        setIsLoading(false);
+        setSeriesError("Chapter ID or Series ID is missing");
+        setIsSeriesLoading(false);
         return;
       }
 
@@ -104,7 +124,7 @@ export default function Pages() {
         chapterData = {
           id: storeChapter.id,
           chapter_number: storeChapter.number,
-          page_count: 0, // We'll get this from pages
+          page_count: pages.length, // Use pages from store
           context: storeChapter.context,
         };
       } else {
@@ -118,7 +138,7 @@ export default function Pages() {
         number: chapterData.chapter_number,
         title: `Chapter ${chapterData.chapter_number}`,
         series_name: "Loading...", // We'll need to fetch series name separately if needed
-        total_pages: chapterData.page_count,
+        total_pages: chapterData.page_count || pages.length,
         context: chapterData.context,
       };
 
@@ -129,28 +149,45 @@ export default function Pages() {
         insights: ["Consider standardizing 'gate' vs 'portal' terminology."],
       });
 
-      // Fetch real pages data from API
-      const apiPages = await pageService.getPagesByChapter(chapterId);
-      const convertedPages = apiPages.map(convertApiPageToLegacy);
-      setPages(convertedPages);
-
-      setIsLoading(false);
+      setIsSeriesLoading(false);
     } catch (err) {
-      console.error("Error fetching pages:", err);
-      setError(
+      console.error("Error fetching chapter info:", err);
+      setSeriesError(
         err instanceof Error ? err.message : "An unexpected error occurred."
       );
-      setIsLoading(false);
+      setIsSeriesLoading(false);
     }
-  }, [chapterId, seriesId]);
+  }, [chapterId, seriesId, pages.length]);
 
   useEffect(() => {
     if (seriesId && chapterId) {
-      fetchPages();
+      // Fetch pages using store if we don't have cached data or if it's stale
+      if (!hasCachedPages || isPagesStale) {
+        console.log(
+          `🔄 Fetching pages for chapter ${chapterId} - hasCached: ${hasCachedPages}, isStale: ${isPagesStale}`
+        );
+        fetchPagesByChapterId(chapterId);
+      } else {
+        console.log(
+          `✅ Using cached pages for chapter ${chapterId} - ${pages.length} pages available`
+        );
+      }
+
+      // Always fetch chapter info (it's lightweight)
+      fetchChapterInfo();
     } else {
       navigate("/series");
     }
-  }, [seriesId, chapterId, navigate, fetchPages]);
+  }, [
+    seriesId,
+    chapterId,
+    navigate,
+    hasCachedPages,
+    isPagesStale,
+    fetchPagesByChapterId,
+    fetchChapterInfo,
+    pages.length,
+  ]);
 
   const handleUploadPage = () => {
     setIsUploadModalOpen(true);
@@ -169,23 +206,18 @@ export default function Pages() {
         throw new Error("Chapter ID is required");
       }
 
-      // Upload all files in batch
-      const result = await pageService.createPagesBatch({
+      // Upload all files in batch using store
+      const result = await batchCreatePages(chapterId, {
         chapter_id: chapterId,
         files,
         start_page_number: startPageNumber,
       });
 
       if (result.success) {
-        // Convert to frontend format and add to list
-        const newPages = result.pages.map(convertApiPageToLegacy);
-        setPages((prev) =>
-          [...prev, ...newPages].sort((a, b) => a.number - b.number)
-        );
-
         // Update dashboard stats for each successfully uploaded page
         const chapterTitle =
           chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
+        const newPages = result.pages.map(convertApiPageToLegacy);
         newPages.forEach((page) => {
           syncAfterPageCreate(page.number, chapterTitle);
         });
@@ -219,23 +251,8 @@ export default function Pages() {
     pageData: { page_number?: number }
   ) => {
     try {
-      // Update via API
-      await pageService.updatePage(pageId, pageData);
-
-      // Update local state
-      setPages((prev) =>
-        prev.map((page) =>
-          page.id === pageId
-            ? {
-                ...page,
-                number: pageData.page_number ?? page.number,
-              }
-            : page
-        )
-      );
-
-      // Refresh the page list to get updated data
-      await fetchPages();
+      // Update via store (which will handle API call and state update)
+      await updatePage(pageId, pageData);
 
       // Chapter analysis is now manual via the Analyze button in Context tab
     } catch (error) {
@@ -288,14 +305,18 @@ export default function Pages() {
     croppedImage?: string
   ) => {
     try {
+      if (!chapterId) {
+        throw new Error("Chapter ID is required");
+      }
+
       // Convert legacy format to API format
       const apiTextBoxData = convertLegacyTextBoxToApi(
         textBoxData,
         croppedImage
       );
 
-      // Create the text box via API
-      await textBoxService.createTextBox(apiTextBoxData);
+      // Create the text box via store
+      await createTextBoxInStore(chapterId, apiTextBoxData);
 
       // Close the modal
       setIsAddTextBoxModalOpen(false);
@@ -327,11 +348,11 @@ export default function Pages() {
       const chapterTitle =
         chapterInfo?.title || `Chapter ${chapterInfo?.number || "Unknown"}`;
 
-      // Delete from API (pageId is already a UUID string)
-      await pageService.deletePage(pageId);
-
-      // Remove from local state
-      setPages((prev) => prev.filter((page) => page.id !== pageId));
+      // Delete via store (which will handle API call and state update)
+      if (!chapterId) {
+        throw new Error("Chapter ID is required");
+      }
+      await deletePage(chapterId, pageId);
 
       // Update dashboard stats in real-time
       syncAfterPageDelete(pageNumber, chapterTitle);
@@ -341,27 +362,118 @@ export default function Pages() {
     }
   };
 
+  // Combine loading states
+  const isLoading = isPagesLoading || isSeriesLoading;
+
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Back Button */}
         <BackToChapters seriesId={seriesId!} />
 
-        {/* Page Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Chapter: Loading...
-          </h1>
-          <p className="text-gray-600">Manage all aspects of this chapter.</p>
+        {/* Header Section with AI Insights */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Chapter Header - Takes 3/4 of the width */}
+          <div className="xl:col-span-2">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  Chapter
+                </span>
+                <TextSkeleton size="3xl" width="1/3" className="inline-block" />
+              </div>
+              <p className="text-gray-600 mt-2">
+                Manage all aspects of this chapter.
+              </p>
+            </div>
+          </div>
+
+          {/* AI Insights Panel - Takes 1/4 of the width */}
+          <div className="xl:col-span-1">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
+              <TextSkeleton size="lg" width="3/4" className="mb-4" />
+              <div className="space-y-3">
+                <TextSkeleton size="sm" width="full" />
+                <TextSkeleton size="sm" width="2/3" />
+                <TextSkeleton size="sm" width="3/4" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Loading State */}
-        <div className="bg-white">
-          <SectionLoadingSpinner text="Loading pages..." />
+        {/* Main Content */}
+        <div>
+          {/* Navigation Tabs */}
+          <NavigationTabs
+            tabs={[
+              {
+                id: "pages",
+                label: "Pages",
+                icon: <FiImage className="text-sm" />,
+              },
+              {
+                id: "translations",
+                label: "Translations",
+                icon: <MdGTranslate className="text-sm" />,
+              },
+              {
+                id: "context",
+                label: "Context",
+                icon: <FiFileText className="text-sm" />,
+              },
+            ]}
+            activeTab={activeTab}
+            onTabChange={(tabId) =>
+              setActiveTab(tabId as "pages" | "translations" | "context")
+            }
+            className="mb-6"
+          />
+
+          {/* Tab Content with Skeleton Loading */}
+          <PagesTabContent
+            activeTab={activeTab}
+            pages={[]}
+            chapterInfo={null}
+            onUploadPage={canModify ? handleUploadPage : undefined}
+            onEditPage={canModify ? handleEditPage : undefined}
+            onDeletePage={canModify ? handleDeletePage : undefined}
+            canModify={canModify}
+            isLoading={true}
+          />
+
+          <TranslationsTabContent
+            activeTab={activeTab}
+            chapterInfo={null}
+            chapterId={chapterId || ""}
+            selectedPage={selectedPage}
+            isPageDropdownOpen={isPageDropdownOpen}
+            hoveredTMBadge={hoveredTMBadge}
+            onSetSelectedPage={setSelectedPage}
+            onSetIsPageDropdownOpen={setIsPageDropdownOpen}
+            onSetHoveredTMBadge={setHoveredTMBadge}
+            onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
+            canModifyTM={canModifyTM}
+            refreshTrigger={refreshTrigger}
+          />
+
+          <ContextTabContent
+            activeTab={activeTab}
+            chapterInfo={null}
+            contextNotes=""
+            onSaveNotes={canModifyTM ? handleSaveContext : undefined}
+            canModifyTM={canModifyTM}
+            chapterId={chapterId}
+            onContextUpdate={async (context) => {
+              setChapterInfo((prev) => (prev ? { ...prev, context } : null));
+            }}
+          />
         </div>
       </div>
     );
   }
+
+  // Combine error states
+  const error = pagesError || seriesError;
 
   if (error) {
     return (
@@ -375,7 +487,15 @@ export default function Pages() {
           <p className="text-gray-600">Manage all aspects of this chapter.</p>
         </div>
 
-        <ErrorState error={error} onRetry={fetchPages} />
+        <ErrorState
+          error={error}
+          onRetry={() => {
+            if (chapterId) {
+              fetchPagesByChapterId(chapterId);
+              fetchChapterInfo();
+            }
+          }}
+        />
       </div>
     );
   }
@@ -390,9 +510,20 @@ export default function Pages() {
         {/* Chapter Header - Takes 3/4 of the width */}
         <div className="xl:col-span-2">
           <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Chapter {chapterInfo?.number} - {chapterInfo?.title}
-            </h1>
+            {chapterInfo ? (
+              <h1 className="text-3xl font-bold text-gray-900">
+                Chapter {chapterInfo.number} - {chapterInfo.title}
+              </h1>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  Chapter
+                </span>
+                <TextSkeleton size="3xl" width="1/3" className="inline-block" />
+                <span className="text-3xl font-bold text-gray-900">-</span>
+                <TextSkeleton size="3xl" width="1/2" className="inline-block" />
+              </div>
+            )}
             <p className="text-gray-600 mt-2">
               Manage all aspects of this chapter.
             </p>
@@ -444,6 +575,7 @@ export default function Pages() {
             onEditPage={canModify ? handleEditPage : undefined}
             onDeletePage={canModify ? handleDeletePage : undefined}
             canModify={canModify}
+            isLoading={isLoading}
           />
 
           {/* Translations Tab Content */}
@@ -454,7 +586,6 @@ export default function Pages() {
             selectedPage={selectedPage}
             isPageDropdownOpen={isPageDropdownOpen}
             hoveredTMBadge={hoveredTMBadge}
-            pages={pages}
             onSetSelectedPage={setSelectedPage}
             onSetIsPageDropdownOpen={setIsPageDropdownOpen}
             onSetHoveredTMBadge={setHoveredTMBadge}
@@ -470,7 +601,6 @@ export default function Pages() {
             contextNotes={chapterInfo?.context || ""}
             onSaveNotes={canModifyTM ? handleSaveContext : undefined}
             canModifyTM={canModifyTM}
-            pages={pages}
             chapterId={chapterId}
             onContextUpdate={async (context) => {
               // Update local chapter info state immediately

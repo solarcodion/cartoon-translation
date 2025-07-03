@@ -61,9 +61,18 @@ export function SimplePageHeader({
   title,
   action,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   action?: React.ReactNode;
 }) {
+  // If title is a ReactNode, render it directly, otherwise use PageHeader
+  if (typeof title !== "string") {
+    return (
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-semibold text-gray-900">{title}</div>
+        {action && <div>{action}</div>}
+      </div>
+    );
+  }
   return <PageHeader title={title} action={action} />;
 }
 

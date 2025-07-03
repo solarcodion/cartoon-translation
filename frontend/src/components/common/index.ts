@@ -30,6 +30,8 @@ export {
   ChaptersTableSkeleton,
   TranslationMemoryTableSkeleton,
   AIGlossaryGridSkeleton,
+  PagesTableSkeleton,
+  TranslationsTableSkeleton,
 } from "./Skeleton";
 
 export {

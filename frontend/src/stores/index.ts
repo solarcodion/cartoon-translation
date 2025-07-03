@@ -77,3 +77,35 @@ export {
   refreshGlossaryData,
   getGlossaryEntryById,
 } from "./aiGlossaryStore";
+
+export {
+  usePagesStore,
+  usePagesByChapterId,
+  usePagesLoadingByChapterId,
+  usePagesErrorByChapterId,
+  usePagesGlobalLoading,
+  usePagesGlobalError,
+  usePagesActions,
+  useHasCachedPages,
+  usePagesIsStale,
+  invalidatePagesCache,
+  refreshPagesData,
+  getPageById,
+  getPagesCountByChapterId,
+} from "./pagesStore";
+
+export {
+  useTextBoxesStore,
+  useTextBoxesByChapterId,
+  useTextBoxesLoadingByChapterId,
+  useTextBoxesErrorByChapterId,
+  useTextBoxesGlobalLoading,
+  useTextBoxesGlobalError,
+  useTextBoxesActions,
+  useHasCachedTextBoxes,
+  useTextBoxesIsStale,
+  invalidateTextBoxesCache,
+  refreshTextBoxesData,
+  getTextBoxById,
+  getTextBoxesCountByChapterId,
+} from "./textBoxesStore";
