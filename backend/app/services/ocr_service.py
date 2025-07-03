@@ -55,18 +55,16 @@ class OCRService:
         """Initialize EasyOCR reader with multiple languages in CPU-only mode"""
         print(f"🔧 Initializing EasyOCR with languages: {', '.join(self.ocr_languages)} (CPU-only mode)")
 
-        # Define compatible language combinations
-        # EasyOCR requires English to be included with certain languages
-        # EasyOCR limitation: Asian languages can only be paired with English, not with each other
-        # We'll use a multi-reader approach for better language support
+        # Define compatible language combinations using environment configurations
+        # Each language is paired only with English for optimal performance
         compatible_combinations = [
             self.ocr_languages,  # Try original configuration first
-            # Working two-language combinations (verified)
-            ['ko', 'en'],  # Korean + English
-            ['ja', 'en'],  # Japanese + English
-            ['ch_sim', 'en'],  # Chinese Simplified + English
-            ['vi', 'en'],  # Vietnamese + English
-            ['en']  # English only as final fallback
+            # Language-specific combinations from environment
+            settings.ocr_language_korean,     # Korean + English
+            settings.ocr_language_japanese,   # Japanese + English
+            settings.ocr_language_chinese,    # Chinese + English
+            settings.ocr_language_vietnamese, # Vietnamese + English
+            settings.ocr_language_english     # English only as final fallback
         ]
 
         for i, lang_combo in enumerate(compatible_combinations):
@@ -252,12 +250,12 @@ class OCRService:
         Returns:
             List of OCR results from the best performing reader
         """
-        # Define specialized language combinations to try
+        # Define specialized language combinations using environment configurations
         specialized_combinations = [
-            ['ko', 'en'],     # Korean + English
-            ['ja', 'en'],     # Japanese + English
-            ['ch_sim', 'en'], # Chinese + English
-            ['vi', 'en'],     # Vietnamese + English
+            settings.ocr_language_korean,     # Korean + English
+            settings.ocr_language_japanese,   # Japanese + English
+            settings.ocr_language_chinese,    # Chinese + English
+            settings.ocr_language_vietnamese, # Vietnamese + English
         ]
 
         best_results = []
@@ -292,6 +290,19 @@ class OCRService:
                 continue
 
         return best_results
+
+    def get_language_specific_reader(self, language: str) -> 'easyocr.Reader':
+        """
+        Get a reader optimized for a specific language using environment configurations
+
+        Args:
+            language: Language code (ko, ja, ch_sim, vi, en) or language name
+
+        Returns:
+            EasyOCR reader optimized for the specified language
+        """
+        language_config = settings.get_language_config(language)
+        return self._get_specialized_reader(language_config)
 
     def process_image(self, image_data: str) -> OCRResponse:
         """
