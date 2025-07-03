@@ -7,6 +7,7 @@ from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.series_service import SeriesService
 from app.services.people_analysis_service import PeopleAnalysisService
+from app.services.dashboard_service import DashboardService
 from app.models import (
     SeriesResponse,
     SeriesCreate,
@@ -29,6 +30,11 @@ def get_series_service(supabase: Client = Depends(get_supabase)) -> SeriesServic
 def get_people_analysis_service(supabase: Client = Depends(get_supabase)) -> PeopleAnalysisService:
     """Dependency to get people analysis service"""
     return PeopleAnalysisService(supabase)
+
+
+def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
+    """Dependency to get dashboard service"""
+    return DashboardService(supabase)
 
 
 @router.get("/", response_model=List[SeriesResponse])
@@ -90,7 +96,8 @@ async def get_series_by_id(
 async def create_series(
     request: Request,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    series_service: SeriesService = Depends(get_series_service)
+    series_service: SeriesService = Depends(get_series_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """Create a new series"""
     try:
@@ -137,6 +144,15 @@ async def create_series(
             )
 
         series = await series_service.create_series(series_data, created_by)
+
+        # Update dashboard statistics
+        try:
+            await dashboard_service.increment_series_count()
+            await dashboard_service.add_recent_activity(f"New series '{series.title}' created")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after series creation: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
         return series
     except HTTPException:
         raise
@@ -237,7 +253,8 @@ async def update_series(
 async def delete_series(
     series_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    series_service: SeriesService = Depends(get_series_service)
+    series_service: SeriesService = Depends(get_series_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """Delete a series"""
     try:
@@ -247,14 +264,26 @@ async def delete_series(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User ID not found in authentication token"
             )
-        
+
+        # Get series info before deletion for activity log
+        series = await series_service.get_series_by_id(series_id)
+        series_title = series.title if series else f"Series {series_id}"
+
         success = await series_service.delete_series(series_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Series with ID {series_id} not found"
             )
-        
+
+        # Update dashboard statistics
+        try:
+            await dashboard_service.decrement_series_count()
+            await dashboard_service.add_recent_activity(f"Series '{series_title}' deleted")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after series deletion: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
         return ApiResponse(
             success=True,
             message=f"Series with ID {series_id} deleted successfully"

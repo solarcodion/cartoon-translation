@@ -36,11 +36,13 @@ import { translationMemoryService } from "../services/translationMemoryService";
 import { peopleAnalysisService } from "../services/peopleAnalysisService";
 import { aiGlossaryService } from "../services/aiGlossaryService";
 import { useAuth } from "../hooks/useAuth";
+import { useDashboardSync } from "../hooks/useDashboardSync";
 
 export default function Chapters() {
   const { seriesId } = useParams<{ seriesId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { syncAfterChapterCreate, syncAfterChapterDelete } = useDashboardSync();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<SeriesInfo | null>(null);
   const [translationMemoryData, setTranslationMemoryData] = useState<
@@ -209,6 +211,11 @@ export default function Chapters() {
           ? { ...prevInfo, totalChapters: prevInfo.totalChapters + 1 }
           : prevInfo
       );
+
+      // Update dashboard stats in real-time
+      const chapterTitle = `Chapter ${chapterNumber}`;
+      const seriesName = seriesInfo?.name || "Unknown Series";
+      syncAfterChapterCreate(chapterTitle, seriesName);
     } catch (error) {
       console.error("Error adding chapter:", error);
       throw error; // Re-throw to let the modal handle the error
@@ -267,6 +274,13 @@ export default function Chapters() {
 
   const handleConfirmDelete = async (chapterId: string) => {
     try {
+      // Get chapter info before deletion for dashboard update
+      const chapterToDelete = chapters.find((c) => c.id === chapterId);
+      const chapterTitle = chapterToDelete
+        ? `Chapter ${chapterToDelete.number}`
+        : "Unknown Chapter";
+      const seriesName = seriesInfo?.name || "Unknown Series";
+
       // Delete chapter via API
       await chapterService.deleteChapter(chapterId);
 
@@ -284,6 +298,9 @@ export default function Chapters() {
             }
           : prevInfo
       );
+
+      // Update dashboard stats in real-time
+      syncAfterChapterDelete(chapterTitle, seriesName);
     } catch (error) {
       console.error("Error deleting chapter:", error);
       throw error; // Re-throw to let the modal handle the error

@@ -5,6 +5,7 @@ from supabase import Client
 from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.text_box_service import TextBoxService
+from app.services.dashboard_service import DashboardService
 from app.models import (
     TextBoxResponse,
     TextBoxCreate,
@@ -20,11 +21,17 @@ def get_text_box_service(supabase: Client = Depends(get_supabase)) -> TextBoxSer
     return TextBoxService(supabase)
 
 
+def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
+    """Dependency to get dashboard service"""
+    return DashboardService(supabase)
+
+
 @router.post("/", response_model=TextBoxResponse, status_code=status.HTTP_201_CREATED)
 async def create_text_box(
     text_box_data: TextBoxCreate,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    text_box_service: TextBoxService = Depends(get_text_box_service)
+    text_box_service: TextBoxService = Depends(get_text_box_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Create a new text box
@@ -42,8 +49,17 @@ async def create_text_box(
     """
     try:
         text_box = await text_box_service.create_text_box(text_box_data)
+
+        # Update dashboard statistics
+        try:
+            await dashboard_service.increment_textbox_count()
+            await dashboard_service.add_recent_activity(f"New text box created on page")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after text box creation: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
         return text_box
-        
+
     except Exception as e:
         print(f"❌ Error in create_text_box endpoint: {str(e)}")
         raise HTTPException(
@@ -184,7 +200,8 @@ async def update_text_box(
 async def delete_text_box(
     text_box_id: str = Path(..., description="Text box ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    text_box_service: TextBoxService = Depends(get_text_box_service)
+    text_box_service: TextBoxService = Depends(get_text_box_service),
+    dashboard_service: DashboardService = Depends(get_dashboard_service)
 ):
     """
     Delete a text box
@@ -193,13 +210,21 @@ async def delete_text_box(
     """
     try:
         success = await text_box_service.delete_text_box(text_box_id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Text box not found"
             )
-        
+
+        # Update dashboard statistics
+        try:
+            await dashboard_service.decrement_textbox_count()
+            await dashboard_service.add_recent_activity(f"Text box deleted from page")
+        except Exception as dashboard_error:
+            print(f"⚠️ Failed to update dashboard after text box deletion: {dashboard_error}")
+            # Don't fail the request if dashboard update fails
+
         return ApiResponse(
             success=True,
             message="Text box deleted successfully"
