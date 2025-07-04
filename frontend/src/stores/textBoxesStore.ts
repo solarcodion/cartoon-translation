@@ -39,6 +39,10 @@ export interface TextBoxesActions {
     data: UpdateTextBoxData
   ) => Promise<TextBoxApiItem>;
   deleteTextBox: (chapterId: string, textBoxId: string) => Promise<void>;
+  addTextBoxesToChapter: (
+    chapterId: string,
+    textBoxes: TextBoxApiItem[]
+  ) => void;
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
@@ -396,6 +400,36 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         set(initialState, false, "textBoxes/reset");
       },
 
+      addTextBoxesToChapter: (
+        chapterId: string,
+        textBoxes: TextBoxApiItem[]
+      ) => {
+        const state = get();
+        const currentChapterData = state.data[chapterId];
+
+        // Merge new text boxes with existing ones, avoiding duplicates
+        const existingTextBoxes = currentChapterData?.textBoxes || [];
+        const existingIds = new Set(existingTextBoxes.map((tb) => tb.id));
+        const newTextBoxes = textBoxes.filter((tb) => !existingIds.has(tb.id));
+        const allTextBoxes = [...existingTextBoxes, ...newTextBoxes];
+
+        set(
+          {
+            data: {
+              ...state.data,
+              [chapterId]: {
+                textBoxes: allTextBoxes,
+                lastFetched: Date.now(),
+                isLoading: false,
+                error: null,
+              },
+            },
+          },
+          false,
+          "textBoxes/addTextBoxesToChapter"
+        );
+      },
+
       invalidateCache: (chapterId?: string) => {
         if (chapterId) {
           const state = get();
@@ -500,6 +534,9 @@ export const useTextBoxesActions = () => {
   const createTextBox = useTextBoxesStore((state) => state.createTextBox);
   const updateTextBox = useTextBoxesStore((state) => state.updateTextBox);
   const deleteTextBox = useTextBoxesStore((state) => state.deleteTextBox);
+  const addTextBoxesToChapter = useTextBoxesStore(
+    (state) => state.addTextBoxesToChapter
+  );
   const clearError = useTextBoxesStore((state) => state.clearError);
   const reset = useTextBoxesStore((state) => state.reset);
   const invalidateCache = useTextBoxesStore((state) => state.invalidateCache);
@@ -511,6 +548,7 @@ export const useTextBoxesActions = () => {
       createTextBox,
       updateTextBox,
       deleteTextBox,
+      addTextBoxesToChapter,
       clearError,
       reset,
       invalidateCache,
@@ -521,6 +559,7 @@ export const useTextBoxesActions = () => {
       createTextBox,
       updateTextBox,
       deleteTextBox,
+      addTextBoxesToChapter,
       clearError,
       reset,
       invalidateCache,

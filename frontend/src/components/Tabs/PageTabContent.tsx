@@ -120,6 +120,7 @@ interface TranslationsTabContentProps {
   onAddTextBox?: () => void;
   canModifyTM?: boolean;
   refreshTrigger?: number; // Add refresh trigger prop
+  seriesId?: string; // For TM calculation
 }
 
 export function TranslationsTabContent({
@@ -135,6 +136,7 @@ export function TranslationsTabContent({
   onAddTextBox,
   canModifyTM = true,
   refreshTrigger,
+  seriesId,
 }: TranslationsTabContentProps) {
   // Use pages store instead of props
   const pages = usePagesByChapterId(chapterId);
@@ -469,7 +471,7 @@ export function TranslationsTabContent({
                             )
                           ) : (
                             <span className="text-gray-400 italic">
-                              No correction
+                              Not Translated
                             </span>
                           )}
                         </span>
@@ -562,6 +564,7 @@ export function TranslationsTabContent({
         onClose={handleCloseEditModal}
         onEdit={handleSaveTextBoxEdit}
         pages={pages}
+        seriesId={seriesId}
       />
 
       {/* Delete Text Box Modal */}

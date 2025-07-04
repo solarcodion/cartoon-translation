@@ -516,6 +516,7 @@ export default function Pages() {
             onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
             canModifyTM={canModifyTM}
             refreshTrigger={refreshTrigger}
+            seriesId={seriesId}
           />
 
           <ContextTabContent
@@ -653,6 +654,7 @@ export default function Pages() {
             onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
             canModifyTM={canModifyTM}
             refreshTrigger={refreshTrigger}
+            seriesId={seriesId}
           />
 
           {/* Context Tab Content */}
@@ -721,6 +723,7 @@ export default function Pages() {
         onClose={handleCloseAddTextBoxModal}
         onAdd={handleConfirmAddTextBox}
         pages={pages}
+        seriesId={seriesId}
       />
     </div>
   );
