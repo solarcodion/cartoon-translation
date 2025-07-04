@@ -3,17 +3,20 @@ import { supabase } from "../lib/supabase";
 
 export interface SeriesCreateRequest {
   title: string;
+  language?: string;
 }
 
 export interface SeriesUpdateRequest {
   title?: string;
   total_chapters?: number;
+  language?: string;
 }
 
 export interface SeriesApiResponse {
   id: string;
   title: string;
   total_chapters: number;
+  language: string;
   user_id?: string;
   created_at: string;
   updated_at: string;

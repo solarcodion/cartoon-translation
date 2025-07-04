@@ -154,10 +154,6 @@ export default function Chapters() {
       const storeSeriesData = getSeriesById(seriesId);
 
       if (storeSeriesData) {
-        // Use data from store
-        console.log(
-          `✅ Using cached series data for ${seriesId}: ${storeSeriesData.name}`
-        );
         setSeriesInfo({
           id: storeSeriesData.id,
           name: storeSeriesData.name,
@@ -165,9 +161,6 @@ export default function Chapters() {
         });
         setIsSeriesLoading(false);
       } else {
-        // Fall back to API and also fetch all series to populate store
-        console.log(`🔄 Fetching series data from API for ${seriesId}`);
-
         // Fetch all series to populate store (this will cache the data)
         await fetchSeries();
 
@@ -205,14 +198,7 @@ export default function Chapters() {
     if (seriesId) {
       // Only fetch chapters if we don't have cached data or if it's stale
       if (!hasCachedChapters || isChaptersStale) {
-        console.log(
-          `🔄 Fetching chapters for series ${seriesId} - hasCached: ${hasCachedChapters}, isStale: ${isChaptersStale}`
-        );
         fetchChaptersBySeriesId(seriesId);
-      } else {
-        console.log(
-          `✅ Using cached chapters for series ${seriesId} - ${chapters.length} chapters available`
-        );
       }
 
       // Always fetch series info (it's lightweight)
@@ -220,26 +206,12 @@ export default function Chapters() {
 
       // Fetch TM data if we don't have cached data or if it's stale
       if (!hasCachedTM || isTMStale) {
-        console.log(
-          `🔄 Fetching TM data for series ${seriesId} - hasCached: ${hasCachedTM}, isStale: ${isTMStale}`
-        );
         fetchTMBySeriesId(seriesId);
-      } else {
-        console.log(
-          `✅ Using cached TM data for series ${seriesId} - ${translationMemoryData.length} entries available`
-        );
       }
 
       // Fetch glossary data if we don't have cached data or if it's stale
       if (!hasCachedGlossary || isGlossaryStale) {
-        console.log(
-          `🔄 Fetching glossary data for series ${seriesId} - hasCached: ${hasCachedGlossary}, isStale: ${isGlossaryStale}`
-        );
         fetchGlossaryBySeriesId(seriesId);
-      } else {
-        console.log(
-          `✅ Using cached glossary data for series ${seriesId} - ${glossaryData.length} entries available`
-        );
       }
     } else {
       navigate("/series");

@@ -168,14 +168,7 @@ export default function Pages() {
     if (seriesId && chapterId) {
       // Fetch pages using store if we don't have cached data or if it's stale
       if (!hasCachedPages || isPagesStale) {
-        console.log(
-          `🔄 Fetching pages for chapter ${chapterId} - hasCached: ${hasCachedPages}, isStale: ${isPagesStale}`
-        );
         fetchPagesByChapterId(chapterId);
-      } else {
-        console.log(
-          `✅ Using cached pages for chapter ${chapterId} - ${pages.length} pages available`
-        );
       }
 
       // Always fetch chapter info (it's lightweight)
@@ -341,20 +334,14 @@ export default function Pages() {
     setIsAddTextBoxModalOpen(false);
   };
 
-  const handleConfirmAddTextBox = async (
-    textBoxData: TextBoxCreate,
-    croppedImage?: string
-  ) => {
+  const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
       }
 
       // Convert legacy format to API format
-      const apiTextBoxData = convertLegacyTextBoxToApi(
-        textBoxData,
-        croppedImage
-      );
+      const apiTextBoxData = convertLegacyTextBoxToApi(textBoxData);
 
       // Create the text box via store
       await createTextBoxInStore(chapterId, apiTextBoxData);

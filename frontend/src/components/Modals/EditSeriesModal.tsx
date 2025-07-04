@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { FiX, FiSave, FiFileText } from "react-icons/fi";
 import type { SeriesItem } from "../../types";
+import LanguageSelect from "../common/LanguageSelect";
+import { DEFAULT_SERIES_LANGUAGE } from "../../constants/languages";
 
 interface EditSeriesModalProps {
   series: SeriesItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (seriesId: string, newName: string) => Promise<void>;
+  onSave: (
+    seriesId: string,
+    newName: string,
+    language?: string
+  ) => Promise<void>;
 }
 
 export default function EditSeriesModal({
@@ -16,13 +22,15 @@ export default function EditSeriesModal({
   onSave,
 }: EditSeriesModalProps) {
   const [seriesName, setSeriesName] = useState("");
+  const [language, setLanguage] = useState(DEFAULT_SERIES_LANGUAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Update series name when series changes
+  // Update series name and language when series changes
   useEffect(() => {
     if (series) {
       setSeriesName(series.name);
+      setLanguage(series.language || DEFAULT_SERIES_LANGUAGE);
       setError(null); // Clear error when series changes
     }
   }, [series]);
@@ -33,7 +41,7 @@ export default function EditSeriesModal({
     try {
       setIsLoading(true);
       setError(null); // Clear any previous errors
-      await onSave(series.id, seriesName.trim());
+      await onSave(series.id, seriesName.trim(), language);
       setError(null); // Clear error on success
       onClose();
     } catch (error) {
@@ -70,7 +78,9 @@ export default function EditSeriesModal({
 
   if (!isOpen || !series) return null;
 
-  const hasChanges = seriesName.trim() !== series.name;
+  const hasChanges =
+    seriesName.trim() !== series.name ||
+    language !== (series.language || DEFAULT_SERIES_LANGUAGE);
   const isValidName = seriesName.trim().length > 0;
 
   return (
@@ -126,6 +136,20 @@ export default function EditSeriesModal({
               autoFocus
             />
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          </div>
+
+          {/* Language Selection */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Language
+            </label>
+            <LanguageSelect
+              value={language}
+              onChange={setLanguage}
+              disabled={isLoading}
+              error={false}
+              placeholder="Select series language"
+            />
           </div>
 
           {/* Help Text */}

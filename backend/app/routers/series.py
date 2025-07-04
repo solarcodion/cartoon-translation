@@ -128,7 +128,10 @@ async def create_series(
                 )
 
             # Create SeriesCreate object
-            series_data = SeriesCreate(title=json_data['title'])
+            series_data = SeriesCreate(
+                title=json_data['title'],
+                language=json_data.get('language', 'korean')
+            )
 
         except json.JSONDecodeError as e:
             print(f"❌ JSON decode error: {e}")

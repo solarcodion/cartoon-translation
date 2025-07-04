@@ -4,6 +4,7 @@ export interface SeriesItem {
   id: string;
   name: string;
   chapters: number;
+  language: string;
   created_at: string;
   updated_at: string;
 }
@@ -13,6 +14,7 @@ export interface SeriesApiItem {
   id: string;
   title: string;
   total_chapters: number;
+  language: string;
   user_id?: string;
   created_at: string;
   updated_at: string;
@@ -24,6 +26,7 @@ export function convertApiSeriesToLegacy(apiSeries: SeriesApiItem): SeriesItem {
     id: apiSeries.id,
     name: apiSeries.title,
     chapters: apiSeries.total_chapters || 0,
+    language: apiSeries.language || "korean",
     created_at: apiSeries.created_at,
     updated_at: apiSeries.updated_at,
   };

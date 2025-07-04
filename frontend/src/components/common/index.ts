@@ -45,6 +45,8 @@ export { default as NavigationTabs } from "./Tabs/NavigationTabs";
 export { TabContent } from "./Tabs/NavigationTabs";
 export type { TabItem } from "./Tabs/NavigationTabs";
 
+export { default as LanguageSelect } from "./LanguageSelect";
+
 export {
   ChaptersTabContent,
   TranslationMemoryTabContent,

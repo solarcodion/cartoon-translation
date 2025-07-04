@@ -555,6 +555,87 @@ class OCRService:
         language_config = settings.get_language_config(language)
         return self._get_specialized_reader(language_config)
 
+    def process_image_with_specific_reader(self, image_data: str, reader: 'easyocr.Reader', language: str) -> OCRResponse:
+        """
+        Process image with a specific OCR reader for targeted language detection
+
+        Args:
+            image_data: Base64 encoded image data
+            reader: Specific EasyOCR reader to use
+            language: Target language for processing
+
+        Returns:
+            OCRResponse with extracted text and metadata
+        """
+        try:
+            start_time = time.time()
+
+            # Clean base64 data
+            if image_data.startswith('data:image'):
+                image_data = image_data.split(',')[1]
+
+            # Decode base64 image
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(io.BytesIO(image_bytes))
+
+            # Convert PIL image to OpenCV format
+            opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+            # Perform OCR using the specific reader
+            try:
+                results = reader.readtext(opencv_image)
+                print(f"🔍 Language-specific OCR ({language}) found {len(results)} text regions")
+            except Exception as ocr_error:
+                print(f"❌ Error in language-specific OCR processing: {str(ocr_error)}")
+                return OCRResponse(
+                    success=False,
+                    text="",
+                    confidence=0.0,
+                    processing_time=time.time() - start_time,
+                    detected_language=None,
+                    language_confidence=None
+                )
+
+            # Process results
+            extracted_texts = []
+            confidences = []
+
+            for (bbox, text, confidence) in results:
+                if confidence >= self._get_confidence_threshold(language):
+                    extracted_texts.append(text.strip())
+                    confidences.append(confidence)
+
+            # Combine all extracted text
+            combined_text = ' '.join(extracted_texts)
+
+            # Calculate average confidence
+            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+            # Detect language from extracted text
+            detected_language, language_confidence = self._detect_language_from_text(combined_text)
+
+            processing_time = time.time() - start_time
+
+            return OCRResponse(
+                success=True,
+                text=combined_text,
+                confidence=avg_confidence,
+                processing_time=processing_time,
+                detected_language=detected_language,
+                language_confidence=language_confidence
+            )
+
+        except Exception as e:
+            print(f"❌ Error in language-specific OCR processing: {str(e)}")
+            return OCRResponse(
+                success=False,
+                text="",
+                confidence=0.0,
+                processing_time=0.0,
+                detected_language=None,
+                language_confidence=None
+            )
+
     def process_image(self, image_data: str) -> OCRResponse:
         """
         Process base64 image data and extract text using OCR

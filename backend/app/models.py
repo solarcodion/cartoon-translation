@@ -93,11 +93,13 @@ class SeriesBase(BaseModel):
     """Base series model"""
     title: str
     total_chapters: int = 0
+    language: str = "korean"
 
 
 class SeriesCreate(BaseModel):
     """Series creation model - only requires title"""
     title: str
+    language: str = "korean"
 
     class Config:
         # Ensure proper JSON parsing
@@ -109,6 +111,7 @@ class SeriesUpdate(BaseModel):
     """Series update model"""
     title: Optional[str] = None
     total_chapters: Optional[int] = None
+    language: Optional[str] = None
 
 
 class SeriesResponse(SeriesBase):

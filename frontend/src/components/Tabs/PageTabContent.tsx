@@ -174,14 +174,7 @@ export function TranslationsTabContent({
 
     // Fetch text boxes using store if we don't have cached data or if it's stale
     if (!hasCachedTextBoxes || isTextBoxesStale) {
-      console.log(
-        `🔄 Fetching text boxes for chapter ${chapterId} - hasCached: ${hasCachedTextBoxes}, isStale: ${isTextBoxesStale}`
-      );
       fetchTextBoxesByChapterId(chapterId);
-    } else {
-      console.log(
-        `✅ Using cached text boxes for chapter ${chapterId} - ${textBoxes.length} text boxes available`
-      );
     }
   }, [
     chapterId,

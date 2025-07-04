@@ -51,11 +51,15 @@ export default function Series() {
     setIsAddModalOpen(false);
   };
 
-  const handleConfirmAddSeries = async (seriesName: string) => {
+  const handleConfirmAddSeries = async (
+    seriesName: string,
+    language?: string
+  ) => {
     try {
       // Create series via store action
       await createSeries({
         title: seriesName,
+        language: language || "korean",
       });
 
       // Update dashboard stats in real-time
@@ -82,11 +86,16 @@ export default function Series() {
     }
   };
 
-  const handleSaveSeriesName = async (seriesId: string, newName: string) => {
+  const handleSaveSeriesName = async (
+    seriesId: string,
+    newName: string,
+    language?: string
+  ) => {
     try {
       // Update series via store action
       await updateSeries(seriesId, {
         title: newName,
+        language: language,
       });
     } catch (error) {
       console.error("Error updating series name:", error);
