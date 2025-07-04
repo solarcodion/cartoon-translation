@@ -39,6 +39,7 @@ export interface ChaptersActions {
     data: ChapterUpdateRequest
   ) => Promise<Chapter>;
   deleteChapter: (seriesId: string, chapterId: string) => Promise<void>;
+  resetChapterContextAndTranslations: (chapterId: string) => Promise<void>;
   clearError: (seriesId?: string) => void;
   reset: () => void;
   invalidateCache: (seriesId?: string) => void;
@@ -366,6 +367,52 @@ export const useChaptersStore = create<ChaptersStore>()(
         }
       },
 
+      resetChapterContextAndTranslations: async (chapterId: string) => {
+        try {
+          // Call the backend to reset chapter context and clear text boxes
+          await chapterService.resetChapterContextAndTranslations(chapterId);
+
+          // Find which series this chapter belongs to and update the store
+          const state = get();
+          let targetSeriesId: string | null = null;
+
+          for (const [seriesId, seriesData] of Object.entries(state.data)) {
+            if (
+              seriesData.chapters.some((chapter) => chapter.id === chapterId)
+            ) {
+              targetSeriesId = seriesId;
+              break;
+            }
+          }
+
+          if (targetSeriesId) {
+            // Update the chapter's context to empty string in the store
+            const seriesData = state.data[targetSeriesId];
+            const updatedChapters = seriesData.chapters.map((chapter) =>
+              chapter.id === chapterId ? { ...chapter, context: "" } : chapter
+            );
+
+            set(
+              {
+                data: {
+                  ...state.data,
+                  [targetSeriesId]: {
+                    ...seriesData,
+                    chapters: updatedChapters,
+                    lastFetched: Date.now(),
+                  },
+                },
+              },
+              false,
+              "chapters/resetSuccess"
+            );
+          }
+        } catch (error) {
+          console.error("❌ Error resetting chapter:", error);
+          throw error;
+        }
+      },
+
       clearError: (seriesId?: string) => {
         const state = get();
 
@@ -491,6 +538,9 @@ export const useChaptersActions = () => {
   const createChapter = useChaptersStore((state) => state.createChapter);
   const updateChapter = useChaptersStore((state) => state.updateChapter);
   const deleteChapter = useChaptersStore((state) => state.deleteChapter);
+  const resetChapterContextAndTranslations = useChaptersStore(
+    (state) => state.resetChapterContextAndTranslations
+  );
   const clearError = useChaptersStore((state) => state.clearError);
   const reset = useChaptersStore((state) => state.reset);
   const invalidateCache = useChaptersStore((state) => state.invalidateCache);
@@ -501,6 +551,7 @@ export const useChaptersActions = () => {
       createChapter,
       updateChapter,
       deleteChapter,
+      resetChapterContextAndTranslations,
       clearError,
       reset,
       invalidateCache,
@@ -510,6 +561,7 @@ export const useChaptersActions = () => {
       createChapter,
       updateChapter,
       deleteChapter,
+      resetChapterContextAndTranslations,
       clearError,
       reset,
       invalidateCache,

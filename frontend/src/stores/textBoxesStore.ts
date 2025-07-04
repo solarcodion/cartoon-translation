@@ -43,6 +43,7 @@ export interface TextBoxesActions {
     chapterId: string,
     textBoxes: TextBoxApiItem[]
   ) => void;
+  clearChapterTextBoxes: (chapterId: string) => void;
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
@@ -372,6 +373,29 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         }
       },
 
+      clearChapterTextBoxes: (chapterId: string) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  textBoxes: [],
+                  lastFetched: Date.now(),
+                  isLoading: false,
+                  error: null,
+                },
+              },
+            },
+            false,
+            "textBoxes/clearChapter"
+          );
+        }
+      },
+
       clearError: (chapterId?: string) => {
         if (chapterId) {
           const state = get();
@@ -537,6 +561,9 @@ export const useTextBoxesActions = () => {
   const addTextBoxesToChapter = useTextBoxesStore(
     (state) => state.addTextBoxesToChapter
   );
+  const clearChapterTextBoxes = useTextBoxesStore(
+    (state) => state.clearChapterTextBoxes
+  );
   const clearError = useTextBoxesStore((state) => state.clearError);
   const reset = useTextBoxesStore((state) => state.reset);
   const invalidateCache = useTextBoxesStore((state) => state.invalidateCache);
@@ -549,6 +576,7 @@ export const useTextBoxesActions = () => {
       updateTextBox,
       deleteTextBox,
       addTextBoxesToChapter,
+      clearChapterTextBoxes,
       clearError,
       reset,
       invalidateCache,
@@ -560,6 +588,7 @@ export const useTextBoxesActions = () => {
       updateTextBox,
       deleteTextBox,
       addTextBoxesToChapter,
+      clearChapterTextBoxes,
       clearError,
       reset,
       invalidateCache,

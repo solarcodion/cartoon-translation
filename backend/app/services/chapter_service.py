@@ -244,3 +244,35 @@ class ChapterService:
         except Exception as e:
             print(f"❌ Error updating series chapter count for {series_id}: {str(e)}")
             # Don't raise exception here to avoid breaking chapter operations
+
+    async def reset_chapter_context_and_translations(self, chapter_id: str) -> bool:
+        """Reset chapter context and clear all translations (text boxes)"""
+        try:
+            # Reset chapter context to empty string
+            update_data = {
+                "context": "",
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            response = (
+                self.supabase.table(self.table_name)
+                .update(update_data)
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not response.data:
+                print(f"❌ Chapter with ID {chapter_id} not found for context reset")
+                return False
+
+            # Clear all text boxes for this chapter
+            from app.services.text_box_service import TextBoxService
+            text_box_service = TextBoxService(self.supabase)
+            deleted_count = await text_box_service.clear_chapter_text_boxes(chapter_id)
+
+            print(f"✅ Reset chapter {chapter_id} context and cleared {deleted_count} text boxes")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error resetting chapter {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to reset chapter: {str(e)}")

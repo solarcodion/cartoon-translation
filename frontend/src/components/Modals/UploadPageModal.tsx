@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { FiX } from "react-icons/fi";
 
 interface UploadPageModalProps {
@@ -31,13 +31,6 @@ export default function UploadPageModal({
   const [isUploading, setIsUploading] = useState(false);
   const [autoDetectText, setAutoDetectText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Update start page number when nextPageNumber changes
-  useEffect(() => {
-    if (nextPageNumber) {
-      setStartPageNumber(nextPageNumber.toString());
-    }
-  }, [nextPageNumber]);
 
   const handleUpload = async () => {
     const startNumber = parseInt(startPageNumber.trim());
@@ -489,14 +482,12 @@ export default function UploadPageModal({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {autoDetectText
-                  ? "Uploading & Auto-creating Text Boxes..."
-                  : "Uploading & Processing OCR..."}
+                Uploading & Processing OCR...
               </>
             ) : (
               `Upload ${selectedFiles.length} Page${
                 selectedFiles.length !== 1 ? "s" : ""
-              }${autoDetectText ? " & Auto-create Text Boxes" : " & Run OCR"}`
+              } & Run OCR`
             )}
           </button>
         </div>

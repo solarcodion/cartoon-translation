@@ -213,6 +213,47 @@ class TextBoxService:
             print(f"❌ Error fetching text boxes for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch text boxes: {str(e)}")
 
+    async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
+        """Clear all text boxes for a chapter (used when resetting chapter translations)"""
+        try:
+            # Delete all text boxes for this chapter
+            response = (
+                self.supabase.table(self.table_name)
+                .delete()
+                .eq("page_id", chapter_id)  # This will need to be updated to use a proper join
+                .execute()
+            )
+
+            # Since we can't directly join in Supabase, we need to get pages first
+            # Get all pages for this chapter
+            from app.services.page_service import PageService
+            page_service = PageService(self.supabase)
+            pages = await page_service.get_pages_by_chapter(chapter_id)
+
+            if not pages:
+                return 0
+
+            page_ids = [page.id for page in pages]
+
+            # Delete text boxes for all pages in this chapter
+            deleted_count = 0
+            for page_id in page_ids:
+                response = (
+                    self.supabase.table(self.table_name)
+                    .delete()
+                    .eq("page_id", page_id)
+                    .execute()
+                )
+                if response.data:
+                    deleted_count += len(response.data)
+
+            print(f"✅ Cleared {deleted_count} text boxes for chapter {chapter_id}")
+            return deleted_count
+
+        except Exception as e:
+            print(f"❌ Error clearing text boxes for chapter {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to clear text boxes: {str(e)}")
+
     async def create_text_boxes_from_detection(self, page_id: str, detection_result: TextRegionDetectionResponse, page_image_url: str = None) -> List[TextBoxResponse]:
         """
         Create text boxes automatically from text region detection results

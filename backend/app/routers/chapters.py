@@ -213,7 +213,7 @@ async def delete_chapter(
             success=True,
             message=f"Chapter {chapter_id} deleted successfully"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -221,6 +221,43 @@ async def delete_chapter(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete chapter: {str(e)}"
+        )
+
+
+@router.post("/{chapter_id}/reset", response_model=ApiResponse)
+async def reset_chapter_context_and_translations(
+    chapter_id: str = Path(..., description="ID of the chapter to reset"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    chapter_service: ChapterService = Depends(get_chapter_service)
+):
+    """
+    Reset chapter context and clear all translations (text boxes).
+
+    This endpoint is typically called when new pages are added to trigger a full re-translation.
+
+    - **chapter_id**: The ID of the chapter to reset
+    """
+    try:
+        success = await chapter_service.reset_chapter_context_and_translations(chapter_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Chapter with ID {chapter_id} not found"
+            )
+
+        return ApiResponse(
+            success=True,
+            message=f"Chapter {chapter_id} context and translations reset successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in reset_chapter endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset chapter: {str(e)}"
         )
 
 

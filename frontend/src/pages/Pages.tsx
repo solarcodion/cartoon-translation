@@ -19,7 +19,6 @@ import {
   getChapterById as getChapterFromStore,
   useChaptersActions,
 } from "../stores/chaptersStore";
-import { chapterService } from "../services/chapterService";
 import { convertApiPageToLegacy } from "../types/pages";
 import { convertLegacyTextBoxToApi } from "../types/textbox";
 import AIInsightPanel from "../components/AIInsightPanel";
@@ -54,7 +53,11 @@ export default function Pages() {
 
   // Store actions for ensuring data is available
   const { fetchSeries } = useSeriesActions();
-  const { fetchChaptersBySeriesId } = useChaptersActions();
+  const {
+    fetchChaptersBySeriesId,
+    updateChapter,
+    resetChapterContextAndTranslations,
+  } = useChaptersActions();
 
   // Use pages store
   const pages = usePagesByChapterId(chapterId || "");
@@ -71,7 +74,8 @@ export default function Pages() {
   } = usePagesActions();
 
   // Use text boxes store actions
-  const { createTextBox: createTextBoxInStore } = useTextBoxesActions();
+  const { createTextBox: createTextBoxInStore, clearChapterTextBoxes } =
+    useTextBoxesActions();
 
   const [chapterInfo, setChapterInfo] = useState<ChapterInfo | null>(null);
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
@@ -248,6 +252,22 @@ export default function Pages() {
         throw new Error("Chapter ID is required");
       }
 
+      // Reset chapter context and translations before uploading new pages
+      try {
+        await resetChapterContextAndTranslations(chapterId);
+        // Clear text boxes from the store as well
+        clearChapterTextBoxes(chapterId);
+        // Update local chapter info to reflect the reset context
+        setChapterInfo((prev) => (prev ? { ...prev, context: "" } : null));
+        console.log("✅ Chapter context and translations reset successfully");
+      } catch (resetError) {
+        console.error(
+          "❌ Failed to reset chapter context and translations:",
+          resetError
+        );
+        // Continue with upload even if reset fails
+      }
+
       // Upload all files in batch using store
       const result = await batchCreatePages(chapterId, {
         chapter_id: chapterId,
@@ -282,6 +302,22 @@ export default function Pages() {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
+      }
+
+      // Reset chapter context and translations before uploading new pages
+      try {
+        await resetChapterContextAndTranslations(chapterId);
+        // Clear text boxes from the store as well
+        clearChapterTextBoxes(chapterId);
+        // Update local chapter info to reflect the reset context
+        setChapterInfo((prev) => (prev ? { ...prev, context: "" } : null));
+        console.log("✅ Chapter context and translations reset successfully");
+      } catch (resetError) {
+        console.error(
+          "❌ Failed to reset chapter context and translations:",
+          resetError
+        );
+        // Continue with upload even if reset fails
       }
 
       // Upload all files in batch with auto text box creation using store
@@ -364,7 +400,8 @@ export default function Pages() {
         return;
       }
 
-      await chapterService.updateChapter(chapterId, { context });
+      // Update via store (which will handle API call and state update)
+      await updateChapter(chapterId, { context });
 
       // Update local state
       setChapterInfo((prev) => (prev ? { ...prev, context } : null));
@@ -521,8 +558,8 @@ export default function Pages() {
 
           <ContextTabContent
             activeTab={activeTab}
-            chapterInfo={null}
-            contextNotes=""
+            chapterInfo={chapterInfo}
+            contextNotes={chapterInfo?.context || ""}
             onSaveNotes={canModifyTM ? handleSaveContext : undefined}
             canModifyTM={canModifyTM}
             chapterId={chapterId}
@@ -669,22 +706,16 @@ export default function Pages() {
               // Update local chapter info state immediately
               setChapterInfo((prev) => (prev ? { ...prev, context } : null));
 
-              // Refresh chapter info from backend to ensure we have the latest data
+              // Update the store to keep it in sync
               try {
                 if (chapterId) {
-                  const updatedChapterData =
-                    await chapterService.getChapterById(chapterId);
-                  if (updatedChapterData) {
-                    // Update only the context from the API response
-                    setChapterInfo((prev) =>
-                      prev
-                        ? { ...prev, context: updatedChapterData.context }
-                        : null
-                    );
-                  }
+                  await updateChapter(chapterId, { context });
                 }
               } catch (error) {
-                console.error("❌ Failed to refresh chapter context:", error);
+                console.error(
+                  "❌ Failed to update chapter context in store:",
+                  error
+                );
               }
             }}
           />

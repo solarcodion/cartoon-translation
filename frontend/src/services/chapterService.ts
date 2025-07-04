@@ -260,6 +260,33 @@ class ChapterService {
       page_count: pageCount,
     });
   }
+
+  // Reset chapter context and clear all translations
+  async resetChapterContextAndTranslations(chapterId: string): Promise<void> {
+    try {
+      const token = await this.getAuthToken();
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+      }>(`/chapters/${chapterId}/reset`, {}, token);
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to reset chapter");
+      }
+    } catch (error) {
+      console.error(`Error resetting chapter ${chapterId}:`, error);
+      throw new Error(
+        `Failed to reset chapter: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
 }
 
 // Export singleton instance
