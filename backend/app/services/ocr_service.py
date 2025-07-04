@@ -45,27 +45,33 @@ class OCRService:
         }
 
         # Text grouping configuration for improved distance-based separation
+        # Reduced thresholds for better context separation accuracy
         self.grouping_config = {
-            # Hard distance limits (minimum pixel distances)
-            'max_horizontal_gap_pixels': 50,
-            'max_vertical_gap_pixels': 30,
+            # Hard distance limits (minimum pixel distances) - significantly reduced
+            'max_horizontal_gap_pixels': 25,  # Reduced from 50
+            'max_vertical_gap_pixels': 15,    # Reduced from 30
 
-            # Relative distance multipliers
-            'max_horizontal_gap_multiplier': 1.5,
-            'max_vertical_gap_multiplier': 1.2,
+            # Relative distance multipliers - more restrictive
+            'max_horizontal_gap_multiplier': 0.8,  # Reduced from 1.5
+            'max_vertical_gap_multiplier': 0.6,    # Reduced from 1.2
 
-            # Same line detection
-            'same_line_vertical_threshold': 0.3,
-            'same_line_horizontal_gap_multiplier': 1.5,
+            # Same line detection - more restrictive
+            'same_line_vertical_threshold': 0.2,           # Reduced from 0.3
+            'same_line_horizontal_gap_multiplier': 0.8,    # Reduced from 1.5
 
-            # Vertical stacking detection
-            'vertical_stack_horizontal_threshold': 0.5,
-            'vertical_stack_gap_multiplier': 1.0,
+            # Vertical stacking detection - more restrictive
+            'vertical_stack_horizontal_threshold': 0.3,    # Reduced from 0.5
+            'vertical_stack_gap_multiplier': 0.5,          # Reduced from 1.0
 
-            # Nearby text detection
-            'nearby_vertical_threshold': 0.8,
-            'nearby_horizontal_threshold': 1.2,
-            'nearby_gap_multiplier': 0.8
+            # Nearby text detection - much more restrictive
+            'nearby_vertical_threshold': 0.4,      # Reduced from 0.8
+            'nearby_horizontal_threshold': 0.6,    # Reduced from 1.2
+            'nearby_gap_multiplier': 0.4,          # Reduced from 0.8
+
+            # Additional fine-tuning parameters
+            'min_text_box_area': 20,               # Minimum area to consider (width * height)
+            'min_text_length': 1,                  # Minimum text length to consider
+            'confidence_boost_threshold': 0.8      # Boost grouping for high-confidence text
         }
 
     def _initialize_reader(self):
@@ -309,13 +315,36 @@ class OCRService:
         # Sort by vertical position (top to bottom), then horizontal (left to right)
         text_boxes.sort(key=lambda box: (box['y'], box['x']))
 
-        # Filter out very small or low-confidence text boxes that might be noise
-        text_boxes = [box for box in text_boxes if
-                     box['width'] >= 5 and box['height'] >= 5 and
-                     len(box['text'].strip()) > 0]
+        # Enhanced filtering to capture more relevant content while removing noise
+        filtered_boxes = []
+        for box in text_boxes:
+            # Calculate text box area
+            area = box['width'] * box['height']
+            text_length = len(box['text'].strip())
+
+            # More inclusive filtering criteria
+            if (area >= self.grouping_config['min_text_box_area'] and
+                text_length >= self.grouping_config['min_text_length'] and
+                box['width'] >= 3 and box['height'] >= 3):  # Very minimal size requirements
+
+                # Boost inclusion for high-confidence text even if small
+                if (box['confidence'] >= self.grouping_config['confidence_boost_threshold'] and
+                    text_length > 0):
+                    filtered_boxes.append(box)
+                # Standard inclusion criteria
+                elif area >= 15 and text_length > 0:  # Reduced from previous implicit 25 (5x5)
+                    filtered_boxes.append(box)
+
+        text_boxes = filtered_boxes
 
         # Group text boxes using improved algorithm for manga/comic text
         grouped_regions = self._group_by_proximity_and_context(text_boxes)
+
+        # Debug logging for improved context separation
+        print(f"📊 OCR Context Separation Results:")
+        print(f"   • Input text boxes: {len(text_boxes)}")
+        print(f"   • Output grouped regions: {len(grouped_regions)}")
+        print(f"   • Average texts per region: {len(text_boxes) / max(1, len(grouped_regions)):.1f}")
 
         return grouped_regions
 
@@ -377,13 +406,15 @@ class OCRService:
     def _should_group_boxes(self, box1, box2) -> bool:
         """
         Determine if two text boxes should be grouped together based on manga/comic patterns
-        with improved distance-based separation
+        with enhanced distance-based separation for improved accuracy
         """
         # Calculate center-to-center distances and dimensions
         vertical_distance = abs(box1['center_y'] - box2['center_y'])
         horizontal_distance = abs(box1['center_x'] - box2['center_x'])
         avg_height = (box1['height'] + box2['height']) / 2
         avg_width = (box1['width'] + box2['width']) / 2
+        min_height = min(box1['height'], box2['height'])
+        min_width = min(box1['width'], box2['width'])
 
         # Calculate edge-to-edge distances for more accurate separation
         box1_right = box1['x'] + box1['width']
@@ -395,44 +426,52 @@ class OCRService:
         horizontal_gap = max(0, max(box1['x'] - box2_right, box2['x'] - box1_right))
         vertical_gap = max(0, max(box1['y'] - box2_bottom, box2['y'] - box1_bottom))
 
-        # Hard distance limits - if text is too far apart, never group
-        max_absolute_horizontal_gap = max(
+        # Enhanced hard distance limits - much more restrictive
+        max_absolute_horizontal_gap = min(
             avg_width * self.grouping_config['max_horizontal_gap_multiplier'],
             self.grouping_config['max_horizontal_gap_pixels']
         )
-        max_absolute_vertical_gap = max(
+        max_absolute_vertical_gap = min(
             avg_height * self.grouping_config['max_vertical_gap_multiplier'],
             self.grouping_config['max_vertical_gap_pixels']
         )
 
+        # Immediate rejection for large gaps
         if horizontal_gap > max_absolute_horizontal_gap or vertical_gap > max_absolute_vertical_gap:
             return False
 
-        # More restrictive grouping conditions using configuration
-
-        # 1. Same line text (horizontal alignment) - more restrictive
-        if vertical_distance <= avg_height * self.grouping_config['same_line_vertical_threshold']:
-            # Tighter horizontal gap allowance
-            return horizontal_gap <= avg_width * self.grouping_config['same_line_horizontal_gap_multiplier']
-
-        # 2. Vertically stacked text (common in manga) - more restrictive
-        if horizontal_distance <= avg_width * self.grouping_config['vertical_stack_horizontal_threshold']:
-            # Tighter vertical gap allowance
-            return vertical_gap <= avg_height * self.grouping_config['vertical_stack_gap_multiplier']
-
-        # 3. Nearby text within speech bubble range - more restrictive
-        if (vertical_distance <= avg_height * self.grouping_config['nearby_vertical_threshold'] and
-            horizontal_distance <= avg_width * self.grouping_config['nearby_horizontal_threshold']):
-            # Additional check: ensure actual gaps are reasonable
-            gap_multiplier = self.grouping_config['nearby_gap_multiplier']
-            return horizontal_gap <= avg_width * gap_multiplier and vertical_gap <= avg_height * gap_multiplier
-
-        # 4. Check for overlapping bounding boxes only (no proximity grouping)
+        # Check for actual overlap first (highest priority)
         horizontal_overlap = not (box1_right <= box2['x'] or box2_right <= box1['x'])
         vertical_overlap = not (box1_bottom <= box2['y'] or box2_bottom <= box1['y'])
 
-        # Only group if there's actual overlap, not just proximity
-        return horizontal_overlap and vertical_overlap
+        if horizontal_overlap and vertical_overlap:
+            return True
+
+        # Enhanced restrictive grouping conditions
+
+        # 1. Same line text (horizontal alignment) - much more restrictive
+        if vertical_distance <= min_height * self.grouping_config['same_line_vertical_threshold']:
+            # Very tight horizontal gap allowance
+            max_horizontal_gap = min_width * self.grouping_config['same_line_horizontal_gap_multiplier']
+            return horizontal_gap <= max_horizontal_gap
+
+        # 2. Vertically stacked text (common in manga) - more restrictive
+        if horizontal_distance <= min_width * self.grouping_config['vertical_stack_horizontal_threshold']:
+            # Very tight vertical gap allowance
+            max_vertical_gap = min_height * self.grouping_config['vertical_stack_gap_multiplier']
+            return vertical_gap <= max_vertical_gap
+
+        # 3. Nearby text within speech bubble range - much more restrictive
+        if (vertical_distance <= min_height * self.grouping_config['nearby_vertical_threshold'] and
+            horizontal_distance <= min_width * self.grouping_config['nearby_horizontal_threshold']):
+            # Very strict gap requirements
+            gap_multiplier = self.grouping_config['nearby_gap_multiplier']
+            max_h_gap = min_width * gap_multiplier
+            max_v_gap = min_height * gap_multiplier
+            return horizontal_gap <= max_h_gap and vertical_gap <= max_v_gap
+
+        # 4. No grouping for distant text - be very conservative
+        return False
 
     def configure_text_grouping(self, **kwargs):
         """
@@ -451,13 +490,19 @@ class OCRService:
                 - nearby_vertical_threshold: Threshold for nearby text detection
                 - nearby_horizontal_threshold: Threshold for nearby text detection
                 - nearby_gap_multiplier: Gap multiplier for nearby text
+                - min_text_box_area: Minimum text box area to consider
+                - min_text_length: Minimum text length to consider
+                - confidence_boost_threshold: Confidence threshold for boosting inclusion
         """
         for key, value in kwargs.items():
             if key in self.grouping_config:
+                old_value = self.grouping_config[key]
                 self.grouping_config[key] = value
-                print(f"✅ Updated text grouping config: {key} = {value}")
+                print(f"📝 Updated {key}: {old_value} → {value}")
             else:
                 print(f"⚠️ Unknown grouping config parameter: {key}")
+
+        print("✅ Text grouping configuration updated")
 
     def get_text_grouping_config(self):
         """
@@ -467,6 +512,28 @@ class OCRService:
             Dictionary of current configuration parameters
         """
         return self.grouping_config.copy()
+
+    def reset_grouping_config(self):
+        """
+        Reset text grouping configuration to optimized defaults for improved accuracy
+        """
+        self.grouping_config = {
+            'max_horizontal_gap_pixels': 25,
+            'max_vertical_gap_pixels': 15,
+            'max_horizontal_gap_multiplier': 0.8,
+            'max_vertical_gap_multiplier': 0.6,
+            'same_line_vertical_threshold': 0.2,
+            'same_line_horizontal_gap_multiplier': 0.8,
+            'vertical_stack_horizontal_threshold': 0.3,
+            'vertical_stack_gap_multiplier': 0.5,
+            'nearby_vertical_threshold': 0.4,
+            'nearby_horizontal_threshold': 0.6,
+            'nearby_gap_multiplier': 0.4,
+            'min_text_box_area': 20,
+            'min_text_length': 1,
+            'confidence_boost_threshold': 0.8
+        }
+        print("🔄 Text grouping configuration reset to optimized defaults")
 
     def _merge_text_boxes(self, text_boxes) -> 'TextRegion':
         """
@@ -513,19 +580,22 @@ class OCRService:
                 avg_height = (box['height'] + prev_box['height']) / 2
                 avg_width = (box['width'] + prev_box['width']) / 2
 
-                # More conservative spacing logic
-                # 1. Significant vertical gap - always new line
-                if vertical_gap > avg_height * 0.5:  # Reduced threshold from 0.7
+                # Enhanced conservative spacing logic for better context separation
+                # 1. Significant vertical gap - always new line (more restrictive)
+                if vertical_gap > avg_height * 0.3:  # Further reduced from 0.5
                     combined_text.append('\n')
-                # 2. Same line text (very close vertically)
-                elif abs(box['center_y'] - prev_box['center_y']) <= avg_height * 0.3:  # Reduced from 0.4
+                # 2. Same line text (very close vertically) - more restrictive
+                elif abs(box['center_y'] - prev_box['center_y']) <= avg_height * 0.15:  # Reduced from 0.3
                     # Add space only if there's meaningful horizontal separation
-                    if horizontal_gap > avg_width * 0.2:  # More conservative spacing
+                    if horizontal_gap > avg_width * 0.15:  # More conservative spacing
                         combined_text.append(' ')
-                # 3. Small vertical gap but still separate
-                elif vertical_gap > avg_height * 0.1:  # Reduced from 0.2
-                    # Add space for small separations
-                    combined_text.append(' ')
+                # 3. Small vertical gap but still separate - more restrictive
+                elif vertical_gap > avg_height * 0.05:  # Reduced from 0.1
+                    # Add space for small separations, but be more conservative
+                    if horizontal_gap > avg_width * 0.1:  # Only add space if there's horizontal gap too
+                        combined_text.append(' ')
+                    else:
+                        combined_text.append('\n')  # New line for vertical separation without horizontal gap
 
             combined_text.append(box['text'])
             prev_box = box
