@@ -170,6 +170,56 @@ export function ButtonSkeleton({
   );
 }
 
+// Progress bar skeleton
+interface ProgressBarSkeletonProps extends SkeletonProps {
+  /** Height of the progress bar */
+  height?: "sm" | "md" | "lg";
+  /** Whether to show the percentage text skeleton */
+  showPercentage?: boolean;
+  /** Whether to show the label text skeleton */
+  showLabel?: boolean;
+}
+
+export function ProgressBarSkeleton({
+  height = "sm",
+  showPercentage = true,
+  showLabel = true,
+  className = "",
+  animate = true,
+}: ProgressBarSkeletonProps) {
+  const heightClasses = {
+    sm: "h-2",
+    md: "h-3",
+    lg: "h-4",
+  };
+
+  return (
+    <div className={className}>
+      {/* Label and Percentage Row */}
+      {(showLabel || showPercentage) && (
+        <div className="flex items-center justify-between mb-2">
+          {showLabel && (
+            <TextSkeleton size="sm" width="1/2" animate={animate} />
+          )}
+          {showPercentage && (
+            <TextSkeleton size="lg" width="1/4" animate={animate} />
+          )}
+        </div>
+      )}
+
+      {/* Progress Bar */}
+      <div
+        className={`w-full bg-gray-200 rounded-full ${heightClasses[height]}`}
+      >
+        <Skeleton
+          className={`${heightClasses[height]} rounded-full w-3/4`}
+          animate={animate}
+        />
+      </div>
+    </div>
+  );
+}
+
 // Table skeleton
 interface TableSkeletonProps extends SkeletonProps {
   /** Number of rows to show */
@@ -245,6 +295,11 @@ export function SeriesTableSkeleton({
               <TextSkeleton size="md" width="3/4" animate={animate} />
               <TextSkeleton size="sm" width="1/2" animate={animate} />
             </div>
+          </td>
+
+          {/* Language Column */}
+          <td className="px-6 py-4">
+            <TextSkeleton size="sm" width="1/3" animate={animate} />
           </td>
 
           {/* Chapters Column */}

@@ -10,6 +10,7 @@ interface UploadPageModalProps {
     startPageNumber: number
   ) => Promise<void>;
   chapterNumber?: number;
+  nextPageNumber?: number;
 }
 
 export default function UploadPageModal({
@@ -17,9 +18,12 @@ export default function UploadPageModal({
   onClose,
   onUpload,
   onUploadWithAutoTextBoxes,
+  nextPageNumber,
 }: UploadPageModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [startPageNumber, setStartPageNumber] = useState("1");
+  const [startPageNumber, setStartPageNumber] = useState(
+    nextPageNumber ? nextPageNumber.toString() : "1"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -87,7 +91,7 @@ export default function UploadPageModal({
     if (!isLoading) {
       // Reset form on close
       setSelectedFiles([]);
-      setStartPageNumber("1");
+      setStartPageNumber(nextPageNumber ? nextPageNumber.toString() : "1");
       // Clean up preview URLs
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
       setPreviewUrls([]);
@@ -478,14 +482,12 @@ export default function UploadPageModal({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {autoDetectText
-                  ? "Uploading & Auto-creating Text Boxes..."
-                  : "Uploading & Processing OCR..."}
+                Uploading & Processing OCR...
               </>
             ) : (
               `Upload ${selectedFiles.length} Page${
                 selectedFiles.length !== 1 ? "s" : ""
-              }${autoDetectText ? " & Auto-create Text Boxes" : " & Run OCR"}`
+              } & Run OCR`
             )}
           </button>
         </div>

@@ -25,6 +25,7 @@ class ChapterService:
                 "chapter_number": chapter_data.chapter_number,
                 "status": ChapterStatus.DRAFT.value,  # Default to draft
                 "page_count": 0,  # Default to 0
+                "next_page": 1,  # Default to 1 (first page)
                 "context": "",  # Default to empty string (NOT NULL constraint)
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
@@ -126,6 +127,46 @@ class ChapterService:
         except Exception as e:
             print(f"❌ Error updating chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to update chapter: {str(e)}")
+
+    async def update_next_page_number(self, chapter_id: str) -> None:
+        """Update the next_page field based on existing pages"""
+        try:
+            from app.services.page_service import PageService
+
+            # Get page service to fetch existing pages
+            page_service = PageService(self.supabase)
+            pages = await page_service.get_pages_by_chapter(chapter_id)
+
+            # Calculate next page number
+            if not pages:
+                next_page = 1
+            else:
+                # Find the highest page number and add 1
+                max_page_number = max(page.page_number for page in pages)
+                next_page = max_page_number + 1
+
+            # Update the chapter with new next_page value
+            update_data = {
+                "next_page": next_page,
+                "page_count": len(pages),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            response = (
+                self.supabase.table(self.table_name)
+                .update(update_data)
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not response.data:
+                raise Exception("Failed to update chapter next_page - no data returned")
+
+            print(f"✅ Updated chapter {chapter_id} next_page to {next_page}")
+
+        except Exception as e:
+            print(f"❌ Error updating chapter next_page {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to update chapter next_page: {str(e)}")
     
     async def delete_chapter(self, chapter_id: str) -> bool:
         """Delete a chapter"""
@@ -203,3 +244,35 @@ class ChapterService:
         except Exception as e:
             print(f"❌ Error updating series chapter count for {series_id}: {str(e)}")
             # Don't raise exception here to avoid breaking chapter operations
+
+    async def reset_chapter_context_and_translations(self, chapter_id: str) -> bool:
+        """Reset chapter context and clear all translations (text boxes)"""
+        try:
+            # Reset chapter context to empty string
+            update_data = {
+                "context": "",
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            response = (
+                self.supabase.table(self.table_name)
+                .update(update_data)
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not response.data:
+                print(f"❌ Chapter with ID {chapter_id} not found for context reset")
+                return False
+
+            # Clear all text boxes for this chapter
+            from app.services.text_box_service import TextBoxService
+            text_box_service = TextBoxService(self.supabase)
+            deleted_count = await text_box_service.clear_chapter_text_boxes(chapter_id)
+
+            print(f"✅ Reset chapter {chapter_id} context and cleared {deleted_count} text boxes")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error resetting chapter {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to reset chapter: {str(e)}")

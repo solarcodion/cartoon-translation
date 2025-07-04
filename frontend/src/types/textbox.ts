@@ -103,8 +103,7 @@ export function convertApiTextBoxToLegacy(apiTextBox: TextBoxApiItem): TextBox {
 }
 
 export function convertLegacyTextBoxToApi(
-  legacyTextBox: TextBoxCreate,
-  croppedImage?: string
+  legacyTextBox: TextBoxCreate
 ): TextBoxApiCreate {
   return {
     page_id: legacyTextBox.pageId,

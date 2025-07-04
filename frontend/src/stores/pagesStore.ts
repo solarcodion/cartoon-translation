@@ -334,6 +334,26 @@ export const usePagesStore = create<PagesStore>()(
             "pages/batchCreateWithAutoTextBoxesSuccess"
           );
 
+          // Fetch and update text boxes for the chapter since auto text boxes were created
+          try {
+            const { textBoxService } = await import(
+              "../services/textBoxService"
+            );
+            const { useTextBoxesStore } = await import("./textBoxesStore");
+
+            const textBoxes = await textBoxService.getTextBoxesByChapter(
+              chapterId
+            );
+            const { addTextBoxesToChapter } = useTextBoxesStore.getState();
+            addTextBoxesToChapter(chapterId, textBoxes);
+          } catch (textBoxError) {
+            console.warn(
+              "Failed to update text boxes store after auto creation:",
+              textBoxError
+            );
+            // Don't fail the page creation if text box store update fails
+          }
+
           return response;
         } catch (error) {
           const errorMessage =

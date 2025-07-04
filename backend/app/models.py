@@ -93,11 +93,13 @@ class SeriesBase(BaseModel):
     """Base series model"""
     title: str
     total_chapters: int = 0
+    language: str = "korean"
 
 
 class SeriesCreate(BaseModel):
     """Series creation model - only requires title"""
     title: str
+    language: str = "korean"
 
     class Config:
         # Ensure proper JSON parsing
@@ -109,6 +111,7 @@ class SeriesUpdate(BaseModel):
     """Series update model"""
     title: Optional[str] = None
     total_chapters: Optional[int] = None
+    language: Optional[str] = None
 
 
 class SeriesResponse(SeriesBase):
@@ -149,6 +152,7 @@ class ChapterBase(BaseModel):
     chapter_number: int
     status: ChapterStatus = ChapterStatus.DRAFT
     page_count: int = 0
+    next_page: int = 1
     context: str = ""
 
 
@@ -170,6 +174,7 @@ class ChapterUpdate(BaseModel):
     chapter_number: Optional[int] = None
     status: Optional[ChapterStatus] = None
     page_count: Optional[int] = None
+    next_page: Optional[int] = None
     context: Optional[str] = None
 
 

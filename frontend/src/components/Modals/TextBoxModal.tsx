@@ -17,6 +17,10 @@ import type { Page, TextBoxCreate, BoundingBox } from "../../types";
 import type { TextBoxApiItem, TextBoxApiUpdate } from "../../types/textbox";
 import { ocrService } from "../../services/ocrService";
 import { translationService } from "../../services/translationService";
+import {
+  tmCalculationService,
+  type TMSuggestion,
+} from "../../services/tmCalculationService";
 
 interface TextBoxModalProps {
   isOpen: boolean;
@@ -26,6 +30,7 @@ interface TextBoxModalProps {
   pages: Page[];
   selectedPageId?: string;
   textBox?: TextBoxApiItem | null; // For edit mode
+  seriesId?: string; // For TM calculation
 }
 
 export default function TextBoxModal({
@@ -36,6 +41,7 @@ export default function TextBoxModal({
   pages,
   selectedPageId,
   textBox,
+  seriesId,
 }: TextBoxModalProps) {
   // Determine if we're in edit mode
   const isEditMode = !!textBox;
@@ -63,6 +69,12 @@ export default function TextBoxModal({
   // Custom dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // TM calculation state
+  const [tmScore, setTmScore] = useState<number>(0);
+  const [tmSuggestions, setTmSuggestions] = useState<TMSuggestion[]>([]);
+  const [isCalculatingTM, setIsCalculatingTM] = useState(false);
+  const [tmQualityLabel, setTmQualityLabel] = useState<string>("No Match");
 
   // Drag selection mode
   const [isDragSelectionMode, setIsDragSelectionMode] = useState(false);
@@ -607,6 +619,10 @@ export default function TextBoxModal({
       setIsCropped(false);
       setCroppedImageData("");
       setSelectedPage(null);
+      // Reset TM state
+      setTmScore(0);
+      setTmSuggestions([]);
+      setTmQualityLabel("No Match");
     } else if (isEditMode && textBox) {
       // Populate form with textBox data for edit mode
       setBoundingBox({
@@ -619,6 +635,12 @@ export default function TextBoxModal({
       setAiTranslatedText(""); // AI translation not stored in DB, start fresh
       setCorrectedText(textBox.corrected || "");
       setCorrectionReason(textBox.reason || "");
+
+      // Set TM data if available
+      if (textBox.tm !== undefined && textBox.tm !== null) {
+        setTmScore(textBox.tm);
+        setTmQualityLabel(tmCalculationService.getTMQualityLabel(textBox.tm));
+      }
 
       // Find and set the page for this textBox
       const page = pages.find((p) => p.id === textBox.page_id);
@@ -635,6 +657,17 @@ export default function TextBoxModal({
       setPan({ x: 0, y: 0 });
     }
   }, [selectedPage]);
+
+  // Auto-calculate TM when OCR text changes (with debounce)
+  useEffect(() => {
+    if (!ocrText.trim() || !seriesId || isEditMode) return;
+
+    const timeoutId = setTimeout(() => {
+      handleCalculateTM();
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [ocrText, seriesId, isEditMode]);
 
   const handleSubmit = async () => {
     if (!selectedPage || !ocrText.trim()) return;
@@ -701,6 +734,32 @@ export default function TextBoxModal({
       setAiTranslatedText("Translation failed. Please try again.");
     } finally {
       setIsTranslating(false);
+    }
+  };
+
+  const handleCalculateTM = async () => {
+    if (!ocrText.trim() || !seriesId) return;
+
+    try {
+      setIsCalculatingTM(true);
+
+      // Call the TM calculation API
+      const result = await tmCalculationService.calculateTMScore({
+        ocr_text: ocrText.trim(),
+        series_id: seriesId,
+        max_suggestions: 3,
+      });
+
+      setTmScore(result.best_score);
+      setTmSuggestions(result.suggestions);
+      setTmQualityLabel(result.quality_label);
+    } catch (error) {
+      console.error("Error calculating TM score:", error);
+      setTmScore(0);
+      setTmSuggestions([]);
+      setTmQualityLabel("No Match");
+    } finally {
+      setIsCalculatingTM(false);
     }
   };
 
@@ -1293,6 +1352,109 @@ export default function TextBoxModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
                   disabled={isLoading}
                 />
+              </div>
+
+              {/* TM (Translation Memory) Section */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-900">
+                    Translation Memory Match
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCalculateTM}
+                    disabled={
+                      !ocrText.trim() ||
+                      !seriesId ||
+                      isCalculatingTM ||
+                      isLoading
+                    }
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isCalculatingTM ? "Calculating..." : "Calculate TM"}
+                  </button>
+                </div>
+
+                {/* TM Score Display */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-gray-600">
+                      Match Quality:
+                    </span>
+                    <span
+                      className={`text-sm font-medium px-2 py-1 rounded-full border ${tmCalculationService.getTMQualityBadgeClass(
+                        tmScore
+                      )}`}
+                    >
+                      {tmQualityLabel} (
+                      {tmCalculationService.formatTMScore(tmScore)})
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${tmCalculationService.getTMProgressBarClass(
+                        tmScore
+                      )}`}
+                      style={{ width: `${tmScore * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* TM Suggestions */}
+                {tmSuggestions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      Suggestions from Translation Memory:
+                    </h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {tmSuggestions.map((suggestion, index) => (
+                        <div
+                          key={suggestion.tm_entry.id}
+                          className="bg-white p-2 rounded border border-gray-200 text-xs"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-gray-700">
+                              Match {index + 1}
+                            </span>
+                            <span
+                              className={`px-1 py-0.5 rounded text-xs ${tmCalculationService.getTMQualityBadgeClass(
+                                suggestion.similarity_score
+                              )}`}
+                            >
+                              {tmCalculationService.formatTMScore(
+                                suggestion.similarity_score
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-gray-600">
+                            <div>
+                              <strong>Source:</strong>{" "}
+                              {suggestion.tm_entry.source_text}
+                            </div>
+                            <div>
+                              <strong>Target:</strong>{" "}
+                              {suggestion.tm_entry.target_text}
+                            </div>
+                            {suggestion.tm_entry.context && (
+                              <div>
+                                <strong>Context:</strong>{" "}
+                                {suggestion.tm_entry.context}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {tmSuggestions.length === 0 &&
+                  tmScore === 0 &&
+                  !isCalculatingTM && (
+                    <div className="text-sm text-gray-500 text-center py-2">
+                      Click "Calculate TM" to find translation memory matches
+                    </div>
+                  )}
               </div>
             </div>
           </div>

@@ -13,7 +13,7 @@ ocr_service = None
 
 
 class TextGroupingConfigRequest(BaseModel):
-    """Request model for updating text grouping configuration"""
+    """Request model for updating text grouping configuration with enhanced parameters"""
     max_horizontal_gap_pixels: int = None
     max_vertical_gap_pixels: int = None
     max_horizontal_gap_multiplier: float = None
@@ -25,6 +25,10 @@ class TextGroupingConfigRequest(BaseModel):
     nearby_vertical_threshold: float = None
     nearby_horizontal_threshold: float = None
     nearby_gap_multiplier: float = None
+    # New enhanced parameters for improved accuracy
+    min_text_box_area: int = None
+    min_text_length: int = None
+    confidence_boost_threshold: float = None
 
     class Config:
         str_strip_whitespace = True
@@ -431,4 +435,83 @@ async def update_text_grouping_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update text grouping configuration: {str(e)}"
+        )
+
+
+@router.post("/text-grouping-config/reset", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+async def reset_text_grouping_config(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Reset text grouping configuration to optimized defaults for improved accuracy
+
+    This endpoint resets all text grouping parameters to the enhanced default values
+    that provide better context separation and accuracy for manga/comic text detection.
+    """
+    try:
+        # Reset to optimized defaults
+        ocr_service.reset_grouping_config()
+
+        # Get the reset configuration
+        reset_config = ocr_service.get_text_grouping_config()
+
+        return ApiResponse(
+            success=True,
+            message="Text grouping configuration reset to optimized defaults successfully.",
+            data={
+                "reset_config": reset_config,
+                "improvements": [
+                    "Reduced distance thresholds for better context separation",
+                    "Enhanced filtering to capture more relevant content",
+                    "More restrictive grouping for improved accuracy",
+                    "Optimized for manga/comic text patterns"
+                ]
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Error resetting text grouping config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset text grouping configuration: {str(e)}"
+        )
+
+
+@router.get("/text-grouping-config", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+async def get_text_grouping_config(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Get current text grouping configuration
+
+    Returns the current text grouping parameters used for OCR context separation.
+    """
+    try:
+        current_config = ocr_service.get_text_grouping_config()
+
+        return ApiResponse(
+            success=True,
+            message="Text grouping configuration retrieved successfully.",
+            data={
+                "current_config": current_config,
+                "description": {
+                    "max_horizontal_gap_pixels": "Maximum horizontal gap in pixels before separating text",
+                    "max_vertical_gap_pixels": "Maximum vertical gap in pixels before separating text",
+                    "max_horizontal_gap_multiplier": "Horizontal gap multiplier relative to text width",
+                    "max_vertical_gap_multiplier": "Vertical gap multiplier relative to text height",
+                    "same_line_vertical_threshold": "Threshold for detecting same-line text",
+                    "nearby_vertical_threshold": "Threshold for nearby text detection",
+                    "min_text_box_area": "Minimum text box area to consider",
+                    "confidence_boost_threshold": "Confidence threshold for boosting inclusion"
+                }
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Error getting text grouping config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get text grouping configuration: {str(e)}"
         )

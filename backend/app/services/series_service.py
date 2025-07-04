@@ -32,6 +32,7 @@ class SeriesService:
             insert_data = {
                 "title": series_data.title,
                 "total_chapters": 0,
+                "language": series_data.language,
                 "user_id": created_by,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()

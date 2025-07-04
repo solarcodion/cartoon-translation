@@ -8,6 +8,8 @@ from app.services.page_service import PageService
 from app.services.ocr_service import OCRService
 from app.services.dashboard_service import DashboardService
 from app.services.text_box_service import TextBoxService
+from app.services.chapter_service import ChapterService
+from app.services.series_service import SeriesService
 from app.models import (
     PageResponse,
     PageCreate,
@@ -23,12 +25,22 @@ def get_ocr_service() -> OCRService:
     """Dependency to get OCR service"""
     return OCRService()
 
+def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterService:
+    """Dependency to get chapter service"""
+    return ChapterService(supabase)
+
+def get_series_service(supabase: Client = Depends(get_supabase)) -> SeriesService:
+    """Dependency to get series service"""
+    return SeriesService(supabase)
+
 def get_page_service(
     supabase: Client = Depends(get_supabase),
-    ocr_service: OCRService = Depends(get_ocr_service)
+    ocr_service: OCRService = Depends(get_ocr_service),
+    chapter_service: ChapterService = Depends(get_chapter_service),
+    series_service: SeriesService = Depends(get_series_service)
 ) -> PageService:
     """Dependency to get page service with OCR support"""
-    return PageService(supabase, ocr_service)
+    return PageService(supabase, ocr_service, chapter_service, series_service)
 
 
 def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:

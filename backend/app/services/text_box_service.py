@@ -9,14 +9,16 @@ from app.models import (
     TextBoxUpdate,
     TextRegionDetectionResponse
 )
+from app.services.tm_calculation_service import TMCalculationService
 
 
 class TextBoxService:
     """Service for managing text boxes"""
-    
+
     def __init__(self, supabase: Client):
         self.supabase = supabase
         self.table_name = "text_boxes"
+        self.tm_service = TMCalculationService(supabase)
     
     async def create_text_box(self, text_box_data: TextBoxCreate) -> TextBoxResponse:
         """Create a new text box"""
@@ -25,6 +27,25 @@ class TextBoxService:
             page_image_url = text_box_data.image
             if not page_image_url:
                 page_image_url = await self._get_page_image_url(text_box_data.page_id)
+
+            # Calculate TM score if OCR text is provided and no TM score is set
+            tm_score = text_box_data.tm
+            if text_box_data.ocr and text_box_data.ocr.strip() and tm_score is None:
+                try:
+                    # Get series_id from page_id
+                    series_id = await self._get_series_id_from_page(text_box_data.page_id)
+                    if series_id:
+                        # Calculate TM score
+                        tm_score, best_match = await self.tm_service.calculate_tm_score(
+                            text_box_data.ocr.strip(),
+                            series_id
+                        )
+                        print(f"📊 Calculated TM score: {tm_score:.3f} for text: '{text_box_data.ocr[:50]}...'")
+                        if best_match:
+                            print(f"📝 Best match: '{best_match.source_text}' -> '{best_match.target_text}'")
+                except Exception as tm_error:
+                    print(f"⚠️ TM calculation failed: {str(tm_error)}")
+                    tm_score = 0.0
 
             # Prepare data for database insertion
             insert_data = {
@@ -36,7 +57,7 @@ class TextBoxService:
                 "h": text_box_data.h,
                 "ocr": text_box_data.ocr or "",
                 "corrected": text_box_data.corrected or "",
-                "tm": text_box_data.tm,
+                "tm": tm_score,
                 "reason": text_box_data.reason or "",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
@@ -192,6 +213,47 @@ class TextBoxService:
             print(f"❌ Error fetching text boxes for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch text boxes: {str(e)}")
 
+    async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
+        """Clear all text boxes for a chapter (used when resetting chapter translations)"""
+        try:
+            # Delete all text boxes for this chapter
+            response = (
+                self.supabase.table(self.table_name)
+                .delete()
+                .eq("page_id", chapter_id)  # This will need to be updated to use a proper join
+                .execute()
+            )
+
+            # Since we can't directly join in Supabase, we need to get pages first
+            # Get all pages for this chapter
+            from app.services.page_service import PageService
+            page_service = PageService(self.supabase)
+            pages = await page_service.get_pages_by_chapter(chapter_id)
+
+            if not pages:
+                return 0
+
+            page_ids = [page.id for page in pages]
+
+            # Delete text boxes for all pages in this chapter
+            deleted_count = 0
+            for page_id in page_ids:
+                response = (
+                    self.supabase.table(self.table_name)
+                    .delete()
+                    .eq("page_id", page_id)
+                    .execute()
+                )
+                if response.data:
+                    deleted_count += len(response.data)
+
+            print(f"✅ Cleared {deleted_count} text boxes for chapter {chapter_id}")
+            return deleted_count
+
+        except Exception as e:
+            print(f"❌ Error clearing text boxes for chapter {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to clear text boxes: {str(e)}")
+
     async def create_text_boxes_from_detection(self, page_id: str, detection_result: TextRegionDetectionResponse, page_image_url: str = None) -> List[TextBoxResponse]:
         """
         Create text boxes automatically from text region detection results
@@ -320,3 +382,29 @@ class TextBoxService:
         except Exception as e:
             print(f"❌ Error getting page URL: {str(e)}")
             return ""
+
+    async def _get_series_id_from_page(self, page_id: str) -> Optional[str]:
+        """Get series_id from page_id by joining pages and chapters tables"""
+        try:
+            # Query to get series_id through page -> chapter -> series relationship
+            response = (
+                self.supabase.table("pages")
+                .select("chapters(series_id)")
+                .eq("id", page_id)
+                .execute()
+            )
+
+            if not response.data or not response.data[0]:
+                print(f"❌ Page with ID {page_id} not found")
+                return None
+
+            page_data = response.data[0]
+            if not page_data.get("chapters") or not page_data["chapters"].get("series_id"):
+                print(f"❌ No series_id found for page {page_id}")
+                return None
+
+            return page_data["chapters"]["series_id"]
+
+        except Exception as e:
+            print(f"❌ Error getting series_id from page {page_id}: {str(e)}")
+            return None

@@ -7,6 +7,7 @@ from app.auth import get_current_user
 from app.services.text_box_service import TextBoxService
 from app.services.dashboard_service import DashboardService
 from app.services.ocr_service import OCRService
+from app.services.tm_calculation_service import TMCalculationService
 from app.models import (
     TextBoxResponse,
     TextBoxCreate,
@@ -26,6 +27,11 @@ def get_text_box_service(supabase: Client = Depends(get_supabase)) -> TextBoxSer
 def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
     """Dependency to get dashboard service"""
     return DashboardService(supabase)
+
+
+def get_tm_calculation_service(supabase: Client = Depends(get_supabase)) -> TMCalculationService:
+    """Dependency to get TM calculation service"""
+    return TMCalculationService(supabase)
 
 
 # Global OCR service instance (initialized once)
@@ -319,4 +325,77 @@ async def auto_create_text_boxes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to auto-create text boxes: {str(e)}"
+        )
+
+
+@router.post("/calculate-tm")
+async def calculate_tm_score(
+    request: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    tm_service: TMCalculationService = Depends(get_tm_calculation_service)
+):
+    """
+    Calculate TM (Translation Memory) score for given OCR text.
+
+    Request body should contain:
+    - ocr_text: The OCR text to calculate TM score for
+    - series_id: The series ID to search TM entries in
+    - max_suggestions: Optional, maximum number of suggestions to return (default: 3)
+    """
+    try:
+        ocr_text = request.get("ocr_text", "").strip()
+        series_id = request.get("series_id", "").strip()
+        max_suggestions = request.get("max_suggestions", 3)
+
+        if not ocr_text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OCR text is required"
+            )
+
+        if not series_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Series ID is required"
+            )
+
+        # Calculate TM score with suggestions
+        best_score, suggestions = await tm_service.calculate_tm_score_with_suggestions(
+            ocr_text, series_id, max_suggestions
+        )
+
+        # Format suggestions for response
+        formatted_suggestions = []
+        for tm_entry, score in suggestions:
+            formatted_suggestions.append({
+                "tm_entry": {
+                    "id": tm_entry.id,
+                    "source_text": tm_entry.source_text,
+                    "target_text": tm_entry.target_text,
+                    "context": tm_entry.context,
+                    "usage_count": tm_entry.usage_count
+                },
+                "similarity_score": score,
+                "quality_label": tm_service.get_tm_quality_label(score),
+                "quality_color": tm_service.get_tm_quality_color(score)
+            })
+
+        return {
+            "success": True,
+            "ocr_text": ocr_text,
+            "series_id": series_id,
+            "best_score": best_score,
+            "quality_label": tm_service.get_tm_quality_label(best_score),
+            "quality_color": tm_service.get_tm_quality_color(best_score),
+            "suggestions": formatted_suggestions,
+            "total_suggestions": len(formatted_suggestions)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error calculating TM score: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to calculate TM score: {str(e)}"
         )

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { FiX } from "react-icons/fi";
+import LanguageSelect from "../common/LanguageSelect";
+import { DEFAULT_SERIES_LANGUAGE } from "../../constants/languages";
 
 interface AddSeriesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (seriesName: string) => Promise<void>;
+  onAdd: (seriesName: string, language?: string) => Promise<void>;
 }
 
 export default function AddSeriesModal({
@@ -13,6 +15,7 @@ export default function AddSeriesModal({
   onAdd,
 }: AddSeriesModalProps) {
   const [seriesName, setSeriesName] = useState("");
+  const [language, setLanguage] = useState(DEFAULT_SERIES_LANGUAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +25,9 @@ export default function AddSeriesModal({
     try {
       setIsLoading(true);
       setError(null); // Clear any previous errors
-      await onAdd(seriesName.trim());
+      await onAdd(seriesName.trim(), language);
       setSeriesName(""); // Reset form
+      setLanguage(DEFAULT_SERIES_LANGUAGE); // Reset language
       setError(null); // Clear error on success
       onClose();
     } catch (error) {
@@ -107,6 +111,23 @@ export default function AddSeriesModal({
                 autoFocus
               />
               {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            </div>
+
+            {/* Language Selection */}
+            <div>
+              <label
+                htmlFor="seriesLanguage"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Language
+              </label>
+              <LanguageSelect
+                value={language}
+                onChange={setLanguage}
+                disabled={isLoading}
+                error={false}
+                placeholder="Select series language"
+              />
             </div>
           </div>
 

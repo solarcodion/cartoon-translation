@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiImage, FiFileText } from "react-icons/fi";
+import { FiImage, FiFileText, FiArrowRight } from "react-icons/fi";
 import { MdGTranslate } from "react-icons/md";
 
 import {
@@ -14,7 +14,11 @@ import {
 } from "../components/common";
 import type { Page, ChapterInfo, AIInsights, TextBoxCreate } from "../types";
 
-import { chapterService } from "../services/chapterService";
+import { getSeriesById, useSeriesActions } from "../stores/seriesStore";
+import {
+  getChapterById as getChapterFromStore,
+  useChaptersActions,
+} from "../stores/chaptersStore";
 import { convertApiPageToLegacy } from "../types/pages";
 import { convertLegacyTextBoxToApi } from "../types/textbox";
 import AIInsightPanel from "../components/AIInsightPanel";
@@ -24,7 +28,6 @@ import DeletePageModal from "../components/Modals/DeletePageModal";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardSync } from "../hooks/useDashboardSync";
 import {
-  getChapterById,
   usePagesByChapterId,
   usePagesLoadingByChapterId,
   usePagesErrorByChapterId,
@@ -48,6 +51,14 @@ export default function Pages() {
     syncAfterTextboxTranslate,
   } = useDashboardSync();
 
+  // Store actions for ensuring data is available
+  const { fetchSeries } = useSeriesActions();
+  const {
+    fetchChaptersBySeriesId,
+    updateChapter,
+    resetChapterContextAndTranslations,
+  } = useChaptersActions();
+
   // Use pages store
   const pages = usePagesByChapterId(chapterId || "");
   const isPagesLoading = usePagesLoadingByChapterId(chapterId || "");
@@ -63,7 +74,8 @@ export default function Pages() {
   } = usePagesActions();
 
   // Use text boxes store actions
-  const { createTextBox: createTextBoxInStore } = useTextBoxesActions();
+  const { createTextBox: createTextBoxInStore, clearChapterTextBoxes } =
+    useTextBoxesActions();
 
   const [chapterInfo, setChapterInfo] = useState<ChapterInfo | null>(null);
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
@@ -108,7 +120,7 @@ export default function Pages() {
     }
   }, [openDropdown, isPageDropdownOpen]);
 
-  // Fetch chapter info (separate from pages which are handled by store)
+  // Fetch chapter info using store data
   const fetchChapterInfo = useCallback(async () => {
     try {
       setIsSeriesLoading(true);
@@ -120,31 +132,50 @@ export default function Pages() {
         return;
       }
 
-      // Try to get chapter data from store first, then fall back to API
-      let chapterData;
-      const storeChapter = getChapterById(chapterId);
+      // Try to get data from stores first
+      let storeChapter = getChapterFromStore(chapterId);
+      let storeSeries = getSeriesById(seriesId);
 
-      if (storeChapter) {
-        // Use data from store
-        chapterData = {
-          id: storeChapter.id,
-          chapter_number: storeChapter.number,
-          page_count: pages.length, // Use pages from store
-          context: storeChapter.context,
-        };
-      } else {
-        // Fall back to API
-        chapterData = await chapterService.getChapterById(chapterId);
+      // If chapter not found in store, fetch chapters for this series
+      if (!storeChapter) {
+        try {
+          await fetchChaptersBySeriesId(seriesId);
+          storeChapter = getChapterFromStore(chapterId);
+        } catch (error) {
+          console.error("Error fetching chapters:", error);
+        }
       }
 
-      // Convert to ChapterInfo format
+      // If series not found in store, fetch all series
+      if (!storeSeries) {
+        try {
+          await fetchSeries();
+          storeSeries = getSeriesById(seriesId);
+        } catch (error) {
+          console.error("Error fetching series:", error);
+        }
+      }
+
+      // If still not found, show error
+      if (!storeChapter) {
+        setSeriesError(
+          "Chapter not found. Please check the URL or refresh the page."
+        );
+        setIsSeriesLoading(false);
+        return;
+      }
+
+      const seriesName = storeSeries?.name || "Unknown Series";
+
+      // Convert to ChapterInfo format using store data
       const chapterInfo: ChapterInfo = {
-        id: chapterData.id,
-        number: chapterData.chapter_number,
-        title: `Chapter ${chapterData.chapter_number}`,
-        series_name: "Loading...", // We'll need to fetch series name separately if needed
-        total_pages: chapterData.page_count || pages.length,
-        context: chapterData.context,
+        id: storeChapter.id,
+        number: storeChapter.number,
+        title: storeChapter.title,
+        series_name: seriesName,
+        total_pages: 0, // Will be updated when pages are loaded
+        next_page: storeChapter.next_page || 1,
+        context: storeChapter.context || "",
       };
 
       setChapterInfo(chapterInfo);
@@ -162,20 +193,13 @@ export default function Pages() {
       );
       setIsSeriesLoading(false);
     }
-  }, [chapterId, seriesId, pages.length]);
+  }, [chapterId, seriesId, fetchChaptersBySeriesId, fetchSeries]);
 
   useEffect(() => {
     if (seriesId && chapterId) {
       // Fetch pages using store if we don't have cached data or if it's stale
       if (!hasCachedPages || isPagesStale) {
-        console.log(
-          `🔄 Fetching pages for chapter ${chapterId} - hasCached: ${hasCachedPages}, isStale: ${isPagesStale}`
-        );
         fetchPagesByChapterId(chapterId);
-      } else {
-        console.log(
-          `✅ Using cached pages for chapter ${chapterId} - ${pages.length} pages available`
-        );
       }
 
       // Always fetch chapter info (it's lightweight)
@@ -191,8 +215,25 @@ export default function Pages() {
     isPagesStale,
     fetchPagesByChapterId,
     fetchChapterInfo,
-    pages.length,
   ]);
+
+  // Update chapter info when pages are loaded to get accurate total_pages count
+  useEffect(() => {
+    if (
+      chapterInfo &&
+      pages.length > 0 &&
+      chapterInfo.total_pages !== pages.length
+    ) {
+      setChapterInfo((prev) =>
+        prev
+          ? {
+              ...prev,
+              total_pages: pages.length,
+            }
+          : null
+      );
+    }
+  }, [pages.length, chapterInfo]);
 
   const handleUploadPage = () => {
     setIsUploadModalOpen(true);
@@ -209,6 +250,22 @@ export default function Pages() {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
+      }
+
+      // Reset chapter context and translations before uploading new pages
+      try {
+        await resetChapterContextAndTranslations(chapterId);
+        // Clear text boxes from the store as well
+        clearChapterTextBoxes(chapterId);
+        // Update local chapter info to reflect the reset context
+        setChapterInfo((prev) => (prev ? { ...prev, context: "" } : null));
+        console.log("✅ Chapter context and translations reset successfully");
+      } catch (resetError) {
+        console.error(
+          "❌ Failed to reset chapter context and translations:",
+          resetError
+        );
+        // Continue with upload even if reset fails
       }
 
       // Upload all files in batch using store
@@ -245,6 +302,22 @@ export default function Pages() {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
+      }
+
+      // Reset chapter context and translations before uploading new pages
+      try {
+        await resetChapterContextAndTranslations(chapterId);
+        // Clear text boxes from the store as well
+        clearChapterTextBoxes(chapterId);
+        // Update local chapter info to reflect the reset context
+        setChapterInfo((prev) => (prev ? { ...prev, context: "" } : null));
+        console.log("✅ Chapter context and translations reset successfully");
+      } catch (resetError) {
+        console.error(
+          "❌ Failed to reset chapter context and translations:",
+          resetError
+        );
+        // Continue with upload even if reset fails
       }
 
       // Upload all files in batch with auto text box creation using store
@@ -327,7 +400,8 @@ export default function Pages() {
         return;
       }
 
-      await chapterService.updateChapter(chapterId, { context });
+      // Update via store (which will handle API call and state update)
+      await updateChapter(chapterId, { context });
 
       // Update local state
       setChapterInfo((prev) => (prev ? { ...prev, context } : null));
@@ -341,20 +415,14 @@ export default function Pages() {
     setIsAddTextBoxModalOpen(false);
   };
 
-  const handleConfirmAddTextBox = async (
-    textBoxData: TextBoxCreate,
-    croppedImage?: string
-  ) => {
+  const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
     try {
       if (!chapterId) {
         throw new Error("Chapter ID is required");
       }
 
       // Convert legacy format to API format
-      const apiTextBoxData = convertLegacyTextBoxToApi(
-        textBoxData,
-        croppedImage
-      );
+      const apiTextBoxData = convertLegacyTextBoxToApi(textBoxData);
 
       // Create the text box via store
       await createTextBoxInStore(chapterId, apiTextBoxData);
@@ -417,10 +485,7 @@ export default function Pages() {
           {/* Chapter Header - Takes 3/4 of the width */}
           <div className="xl:col-span-2">
             <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold text-gray-900">
-                  Chapter
-                </span>
+              <div className="flex items-center gap-3">
                 <TextSkeleton size="3xl" width="1/3" className="inline-block" />
               </div>
               <p className="text-gray-600 mt-2">
@@ -431,14 +496,7 @@ export default function Pages() {
 
           {/* AI Insights Panel - Takes 1/4 of the width */}
           <div className="xl:col-span-1">
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
-              <TextSkeleton size="lg" width="3/4" className="mb-4" />
-              <div className="space-y-3">
-                <TextSkeleton size="sm" width="full" />
-                <TextSkeleton size="sm" width="2/3" />
-                <TextSkeleton size="sm" width="3/4" />
-              </div>
-            </div>
+            <AIInsightPanel aiInsights={null} isLoading={true} />
           </div>
         </div>
 
@@ -495,12 +553,13 @@ export default function Pages() {
             onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
             canModifyTM={canModifyTM}
             refreshTrigger={refreshTrigger}
+            seriesId={seriesId}
           />
 
           <ContextTabContent
             activeTab={activeTab}
-            chapterInfo={null}
-            contextNotes=""
+            chapterInfo={chapterInfo}
+            contextNotes={chapterInfo?.context || ""}
             onSaveNotes={canModifyTM ? handleSaveContext : undefined}
             canModifyTM={canModifyTM}
             chapterId={chapterId}
@@ -552,17 +611,16 @@ export default function Pages() {
         <div className="xl:col-span-2">
           <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
             {chapterInfo ? (
-              <h1 className="text-3xl font-bold text-gray-900">
-                Chapter {chapterInfo.number} - {chapterInfo.title}
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <span>{chapterInfo.series_name}</span>
+                <FiArrowRight className="text-2xl text-gray-500" />
+                <span>Chapter {chapterInfo.number}</span>
               </h1>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold text-gray-900">
-                  Chapter
-                </span>
+              <div className="flex items-center gap-3">
                 <TextSkeleton size="3xl" width="1/3" className="inline-block" />
-                <span className="text-3xl font-bold text-gray-900">-</span>
-                <TextSkeleton size="3xl" width="1/2" className="inline-block" />
+                <FiArrowRight className="text-2xl text-gray-500" />
+                <TextSkeleton size="3xl" width="1/4" className="inline-block" />
               </div>
             )}
             <p className="text-gray-600 mt-2">
@@ -573,7 +631,7 @@ export default function Pages() {
 
         {/* AI Insights Panel - Takes 1/4 of the width */}
         <div className="xl:col-span-1">
-          <AIInsightPanel aiInsights={aiInsights} />
+          <AIInsightPanel aiInsights={aiInsights} isLoading={isSeriesLoading} />
         </div>
       </div>
 
@@ -633,6 +691,7 @@ export default function Pages() {
             onAddTextBox={canModifyTM ? handleAddTextBox : undefined}
             canModifyTM={canModifyTM}
             refreshTrigger={refreshTrigger}
+            seriesId={seriesId}
           />
 
           {/* Context Tab Content */}
@@ -647,22 +706,16 @@ export default function Pages() {
               // Update local chapter info state immediately
               setChapterInfo((prev) => (prev ? { ...prev, context } : null));
 
-              // Refresh chapter info from backend to ensure we have the latest data
+              // Update the store to keep it in sync
               try {
                 if (chapterId) {
-                  const updatedChapterData =
-                    await chapterService.getChapterById(chapterId);
-                  if (updatedChapterData) {
-                    // Update only the context from the API response
-                    setChapterInfo((prev) =>
-                      prev
-                        ? { ...prev, context: updatedChapterData.context }
-                        : null
-                    );
-                  }
+                  await updateChapter(chapterId, { context });
                 }
               } catch (error) {
-                console.error("❌ Failed to refresh chapter context:", error);
+                console.error(
+                  "❌ Failed to update chapter context in store:",
+                  error
+                );
               }
             }}
           />
@@ -676,6 +729,7 @@ export default function Pages() {
         onUpload={handleConfirmUpload}
         onUploadWithAutoTextBoxes={handleConfirmUploadWithAutoTextBoxes}
         chapterNumber={chapterInfo?.number}
+        nextPageNumber={chapterInfo?.next_page}
       />
 
       {/* Edit Page Modal */}
@@ -700,6 +754,7 @@ export default function Pages() {
         onClose={handleCloseAddTextBoxModal}
         onAdd={handleConfirmAddTextBox}
         pages={pages}
+        seriesId={seriesId}
       />
     </div>
   );

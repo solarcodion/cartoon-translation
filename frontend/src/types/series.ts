@@ -4,6 +4,7 @@ export interface SeriesItem {
   id: string;
   name: string;
   chapters: number;
+  language: string;
   created_at: string;
   updated_at: string;
 }
@@ -13,6 +14,7 @@ export interface SeriesApiItem {
   id: string;
   title: string;
   total_chapters: number;
+  language: string;
   user_id?: string;
   created_at: string;
   updated_at: string;
@@ -24,6 +26,7 @@ export function convertApiSeriesToLegacy(apiSeries: SeriesApiItem): SeriesItem {
     id: apiSeries.id,
     name: apiSeries.title,
     chapters: apiSeries.total_chapters || 0,
+    language: apiSeries.language || "korean",
     created_at: apiSeries.created_at,
     updated_at: apiSeries.updated_at,
   };
@@ -40,6 +43,7 @@ export interface Chapter {
   number: number;
   title: string;
   status: "draft" | "in_progress" | "translated";
+  next_page: number;
   context: string;
   created_at: string;
   updated_at: string;
@@ -52,6 +56,7 @@ export interface ChapterApiItem {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
+  next_page: number;
   context: string;
   created_at: string;
   updated_at: string;
@@ -64,6 +69,7 @@ export function convertApiChapterToLegacy(apiChapter: ChapterApiItem): Chapter {
     number: apiChapter.chapter_number,
     title: `Chapter ${apiChapter.chapter_number}`, // Generate title from number
     status: apiChapter.status,
+    next_page: apiChapter.next_page,
     context: apiChapter.context,
     created_at: apiChapter.created_at,
     updated_at: apiChapter.updated_at,
@@ -76,5 +82,6 @@ export interface ChapterInfo {
   title: string;
   series_name: string;
   total_pages: number;
+  next_page: number;
   context: string;
 }

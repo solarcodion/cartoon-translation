@@ -12,11 +12,13 @@ import base64
 class PageService:
     """Service for managing pages"""
 
-    def __init__(self, supabase: Client, ocr_service=None):
+    def __init__(self, supabase: Client, ocr_service=None, chapter_service=None, series_service=None):
         self.supabase = supabase
         self.table_name = "pages"
         self.storage_bucket = "pages"
         self.ocr_service = ocr_service
+        self.chapter_service = chapter_service
+        self.series_service = series_service
     
     async def create_page(self, page_data: PageCreate, file_content: bytes, file_extension: str) -> PageResponse:
         """Create a new page with file upload to Supabase storage"""
@@ -79,6 +81,13 @@ class PageService:
             public_url = self.get_page_url(original_path)
             page_data['file_path'] = public_url
 
+            # Update chapter next_page field if chapter_service is available
+            if self.chapter_service:
+                try:
+                    await self.chapter_service.update_next_page_number(page_data.chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
+
             return PageResponse(**page_data)
             
         except Exception as e:
@@ -88,6 +97,19 @@ class PageService:
     async def create_pages_batch(self, chapter_id: str, files_data: List[tuple], start_page_number: int) -> BatchPageUploadResponse:
         """Create multiple pages with batch file upload"""
         try:
+            # Get chapter and series information for language-specific OCR
+            series_language = None
+            if self.chapter_service and self.series_service:
+                try:
+                    chapter = await self.chapter_service.get_chapter_by_id(chapter_id)
+                    if chapter:
+                        series = await self.series_service.get_series_by_id(chapter.series_id)
+                        if series:
+                            series_language = series.language
+                            print(f"🌐 Using series language for OCR: {series_language}")
+                except Exception as e:
+                    print(f"⚠️ Could not get series language: {str(e)}")
+
             # Use the provided start page number
             next_page_number = start_page_number
 
@@ -106,11 +128,24 @@ class PageService:
                             # Convert image to base64 for OCR processing
                             base64_image = base64.b64encode(file_content).decode('utf-8')
 
-                            # Process with OCR
-                            ocr_result = self.ocr_service.process_image(base64_image)
+                            # Use language-specific OCR if series language is available
+                            if series_language:
+                                # Get language-specific OCR reader based on series language
+                                language_specific_reader = self.ocr_service.get_language_specific_reader(series_language)
+
+                                # Process with language-specific OCR
+                                ocr_result = self.ocr_service.process_image_with_specific_reader(
+                                    base64_image, language_specific_reader, series_language
+                                )
+                                print(f"🔍 Using {series_language}-specific OCR for page {page_number}")
+                            else:
+                                # Fallback to generic OCR
+                                ocr_result = self.ocr_service.process_image(base64_image)
+                                print(f"🔍 Using generic OCR for page {page_number}")
 
                             if ocr_result.success and ocr_result.text.strip():
                                 ocr_context = ocr_result.text.strip()
+                                print(f"✅ OCR extracted text for page {page_number}: {ocr_context[:100]}...")
                             else:
                                 print(f"⚠️ OCR failed for page {page_number}: No text extracted")
 
@@ -134,6 +169,13 @@ class PageService:
                     print(f"❌ Error creating page {next_page_number + i}: {str(e)}")
                     failed_uploads.append(f"Page {next_page_number + i}: {str(e)}")
                     continue
+
+            # Update chapter next_page field if chapter_service is available and pages were created
+            if self.chapter_service and len(created_pages) > 0:
+                try:
+                    await self.chapter_service.update_next_page_number(chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
 
             return BatchPageUploadResponse(
                 success=len(created_pages) > 0,
@@ -330,6 +372,19 @@ class PageService:
     async def create_pages_batch_with_auto_textboxes(self, chapter_id: str, files_data: List[tuple], start_page_number: int, text_box_service=None) -> BatchPageUploadResponse:
         """Create multiple pages with batch file upload and automatic text box creation"""
         try:
+            # Get chapter and series information for language-specific OCR
+            series_language = None
+            if self.chapter_service and self.series_service:
+                try:
+                    chapter = await self.chapter_service.get_chapter_by_id(chapter_id)
+                    if chapter:
+                        series = await self.series_service.get_series_by_id(chapter.series_id)
+                        if series:
+                            series_language = series.language
+                            print(f"🌐 Using series language for OCR: {series_language}")
+                except Exception as e:
+                    print(f"⚠️ Could not get series language: {str(e)}")
+
             # Use the provided start page number
             next_page_number = start_page_number
 
@@ -349,11 +404,24 @@ class PageService:
                             # Convert image to base64 for OCR processing
                             base64_image = base64.b64encode(file_content).decode('utf-8')
 
-                            # Process with OCR
-                            ocr_result = self.ocr_service.process_image(base64_image)
+                            # Use language-specific OCR if series language is available
+                            if series_language:
+                                # Get language-specific OCR reader based on series language
+                                language_specific_reader = self.ocr_service.get_language_specific_reader(series_language)
+
+                                # Process with language-specific OCR
+                                ocr_result = self.ocr_service.process_image_with_specific_reader(
+                                    base64_image, language_specific_reader, series_language
+                                )
+                                print(f"🔍 Using {series_language}-specific OCR for page {page_number}")
+                            else:
+                                # Fallback to generic OCR
+                                ocr_result = self.ocr_service.process_image(base64_image)
+                                print(f"🔍 Using generic OCR for page {page_number}")
 
                             if ocr_result.success and ocr_result.text.strip():
                                 ocr_context = ocr_result.text.strip()
+                                print(f"✅ OCR extracted text for page {page_number}: {ocr_context[:100]}...")
                             else:
                                 print(f"⚠️ OCR failed for page {page_number}: No text extracted")
 
@@ -407,6 +475,13 @@ class PageService:
             success_message = f"Successfully uploaded {len(created_pages)} pages"
             if total_text_boxes_created > 0:
                 success_message += f" with {total_text_boxes_created} auto-created text boxes"
+
+            # Update chapter next_page field if chapter_service is available and pages were created
+            if self.chapter_service and len(created_pages) > 0:
+                try:
+                    await self.chapter_service.update_next_page_number(chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
 
             return BatchPageUploadResponse(
                 success=len(created_pages) > 0,

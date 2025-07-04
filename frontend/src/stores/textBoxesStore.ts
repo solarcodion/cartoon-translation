@@ -39,6 +39,11 @@ export interface TextBoxesActions {
     data: UpdateTextBoxData
   ) => Promise<TextBoxApiItem>;
   deleteTextBox: (chapterId: string, textBoxId: string) => Promise<void>;
+  addTextBoxesToChapter: (
+    chapterId: string,
+    textBoxes: TextBoxApiItem[]
+  ) => void;
+  clearChapterTextBoxes: (chapterId: string) => void;
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
@@ -368,6 +373,29 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         }
       },
 
+      clearChapterTextBoxes: (chapterId: string) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  textBoxes: [],
+                  lastFetched: Date.now(),
+                  isLoading: false,
+                  error: null,
+                },
+              },
+            },
+            false,
+            "textBoxes/clearChapter"
+          );
+        }
+      },
+
       clearError: (chapterId?: string) => {
         if (chapterId) {
           const state = get();
@@ -394,6 +422,36 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
 
       reset: () => {
         set(initialState, false, "textBoxes/reset");
+      },
+
+      addTextBoxesToChapter: (
+        chapterId: string,
+        textBoxes: TextBoxApiItem[]
+      ) => {
+        const state = get();
+        const currentChapterData = state.data[chapterId];
+
+        // Merge new text boxes with existing ones, avoiding duplicates
+        const existingTextBoxes = currentChapterData?.textBoxes || [];
+        const existingIds = new Set(existingTextBoxes.map((tb) => tb.id));
+        const newTextBoxes = textBoxes.filter((tb) => !existingIds.has(tb.id));
+        const allTextBoxes = [...existingTextBoxes, ...newTextBoxes];
+
+        set(
+          {
+            data: {
+              ...state.data,
+              [chapterId]: {
+                textBoxes: allTextBoxes,
+                lastFetched: Date.now(),
+                isLoading: false,
+                error: null,
+              },
+            },
+          },
+          false,
+          "textBoxes/addTextBoxesToChapter"
+        );
       },
 
       invalidateCache: (chapterId?: string) => {
@@ -500,6 +558,12 @@ export const useTextBoxesActions = () => {
   const createTextBox = useTextBoxesStore((state) => state.createTextBox);
   const updateTextBox = useTextBoxesStore((state) => state.updateTextBox);
   const deleteTextBox = useTextBoxesStore((state) => state.deleteTextBox);
+  const addTextBoxesToChapter = useTextBoxesStore(
+    (state) => state.addTextBoxesToChapter
+  );
+  const clearChapterTextBoxes = useTextBoxesStore(
+    (state) => state.clearChapterTextBoxes
+  );
   const clearError = useTextBoxesStore((state) => state.clearError);
   const reset = useTextBoxesStore((state) => state.reset);
   const invalidateCache = useTextBoxesStore((state) => state.invalidateCache);
@@ -511,6 +575,8 @@ export const useTextBoxesActions = () => {
       createTextBox,
       updateTextBox,
       deleteTextBox,
+      addTextBoxesToChapter,
+      clearChapterTextBoxes,
       clearError,
       reset,
       invalidateCache,
@@ -521,6 +587,8 @@ export const useTextBoxesActions = () => {
       createTextBox,
       updateTextBox,
       deleteTextBox,
+      addTextBoxesToChapter,
+      clearChapterTextBoxes,
       clearError,
       reset,
       invalidateCache,

@@ -2,11 +2,14 @@
 
 import { FiAlertTriangle } from "react-icons/fi";
 import { LuBrain } from "react-icons/lu";
+import { useState, useEffect } from "react";
 import type { AIInsights } from "../../types";
 
 interface AIInsightPanelProps {
   /** AI insights data */
   aiInsights: AIInsights | null;
+  /** Whether the AI insights are currently loading */
+  isLoading?: boolean;
   /** Custom className for styling */
   className?: string;
   /** Whether to show the panel in compact mode */
@@ -19,11 +22,29 @@ interface AIInsightPanelProps {
 
 export default function AIInsightPanel({
   aiInsights,
+  isLoading = false,
   className = "",
   compact = false,
   title = "AI Insights",
   subtitle = "Automated quality checks & suggestions.",
 }: AIInsightPanelProps) {
+  // State for animated progress
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+
+  // Animate progress when aiInsights changes
+  useEffect(() => {
+    if (aiInsights && !isLoading) {
+      // Reset to 0 first
+      setAnimatedProgress(0);
+
+      // Start animation after a small delay
+      const timer = setTimeout(() => {
+        setAnimatedProgress(aiInsights.overall_quality_score);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [aiInsights, isLoading]);
   // Get progress bar color based on score
   const getProgressColor = (score: number) => {
     if (score >= 90) return "bg-green-500";
@@ -78,7 +99,37 @@ export default function AIInsightPanel({
       </p>
 
       {/* Content */}
-      {aiInsights ? (
+      {isLoading ? (
+        /* Loading State - Show skeleton */
+        <>
+          {/* Loading Quality Score */}
+          <div className={compact ? "mb-4" : "mb-6"}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">
+                Overall Quality Score:
+              </span>
+              <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+
+            {/* Progress Bar Skeleton */}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="h-2 bg-gray-300 rounded-full w-3/4 animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Loading Insights */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="w-4 h-4 bg-gray-200 rounded mt-0.5 flex-shrink-0"></div>
+              <div className="flex-1 space-y-1">
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : aiInsights ? (
+        /* Data Available State */
         <>
           {/* Quality Score */}
           <div className={compact ? "mb-4" : "mb-6"}>
@@ -100,8 +151,8 @@ export default function AIInsightPanel({
               <div
                 className={`${getProgressColor(
                   aiInsights.overall_quality_score
-                )} h-2 rounded-full transition-all duration-300`}
-                style={{ width: `${aiInsights.overall_quality_score}%` }}
+                )} h-2 rounded-full transition-all duration-1000 ease-out`}
+                style={{ width: `${animatedProgress}%` }}
               ></div>
             </div>
           </div>
@@ -126,7 +177,7 @@ export default function AIInsightPanel({
           </div>
         </>
       ) : (
-        /* Loading/Empty State */
+        /* Empty State */
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <LuBrain className="text-4xl text-gray-300 mb-3" />
           <p className="text-sm text-gray-500 mb-2">No AI insights available</p>
