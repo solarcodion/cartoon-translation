@@ -114,7 +114,7 @@ export default function EditSeriesModal({
           </div>
 
           {/* Series Name Input */}
-          <div className="space-y-3">
+          <div className="space-y-3 mb-4">
             <label className="block text-sm font-medium text-gray-700">
               Series Name
             </label>

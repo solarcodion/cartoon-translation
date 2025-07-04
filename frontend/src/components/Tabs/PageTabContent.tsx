@@ -10,6 +10,7 @@ import {
   FiChevronDown,
   FiRefreshCw,
   FiX,
+  FiArrowRight,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
 import { TabContent, TranslationsTableSkeleton, TextSkeleton } from "../common";
@@ -66,11 +67,10 @@ export function PagesTabContent({
               chapterInfo?.number ? (
                 `Pages for Chapter ${chapterInfo.number}`
               ) : (
-                <div className="flex items-center gap-2">
-                  <span>Pages for Chapter</span>
+                <div className="min-w-[400px]">
                   <TextSkeleton
-                    size="lg"
-                    width="1/4"
+                    size="3xl"
+                    width="1/2"
                     className="inline-block"
                   />
                 </div>
@@ -268,15 +268,16 @@ export function TranslationsTabContent({
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-6">
           <div className="flex items-center justify-between">
-            {chapterInfo?.number ? (
-              <h2 className="text-xl font-bold text-gray-900">
-                Translations for Chapter {chapterInfo.number}
+            {chapterInfo?.number && chapterInfo?.series_name ? (
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                <span>{chapterInfo.series_name}</span>
+                <FiArrowRight className="text-lg text-gray-500" />
+                <span>Chapter {chapterInfo.number}</span>
               </h2>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-gray-900">
-                  Translations for Chapter
-                </span>
+              <div className="flex items-center gap-3">
+                <TextSkeleton size="xl" width="1/3" className="inline-block" />
+                <FiArrowRight className="text-lg text-gray-500" />
                 <TextSkeleton size="xl" width="1/4" className="inline-block" />
               </div>
             )}
@@ -785,15 +786,20 @@ export function ContextTabContent({
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              {chapterInfo?.number ? (
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Context Notes for Chapter {chapterInfo.number}
+              {chapterInfo?.number && chapterInfo?.series_name ? (
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                  <span>{chapterInfo.series_name}</span>
+                  <FiArrowRight className="text-xl text-gray-500" />
+                  <span>Chapter {chapterInfo.number}</span>
                 </h2>
               ) : (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl font-bold text-gray-900">
-                    Context Notes for Chapter
-                  </span>
+                <div className="flex items-center gap-3 mb-2">
+                  <TextSkeleton
+                    size="2xl"
+                    width="1/3"
+                    className="inline-block"
+                  />
+                  <FiArrowRight className="text-xl text-gray-500" />
                   <TextSkeleton
                     size="2xl"
                     width="1/4"

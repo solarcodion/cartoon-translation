@@ -36,6 +36,9 @@ export default function SeriesTable({
               Series Name
             </th>
             <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+              Language
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
               Chapters
             </th>
             <th className="px-6 py-4 text-right text-sm font-medium text-gray-500">
