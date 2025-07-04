@@ -43,6 +43,7 @@ export interface Chapter {
   number: number;
   title: string;
   status: "draft" | "in_progress" | "translated";
+  next_page: number;
   context: string;
   created_at: string;
   updated_at: string;
@@ -68,6 +69,7 @@ export function convertApiChapterToLegacy(apiChapter: ChapterApiItem): Chapter {
     number: apiChapter.chapter_number,
     title: `Chapter ${apiChapter.chapter_number}`, // Generate title from number
     status: apiChapter.status,
+    next_page: apiChapter.next_page,
     context: apiChapter.context,
     created_at: apiChapter.created_at,
     updated_at: apiChapter.updated_at,
