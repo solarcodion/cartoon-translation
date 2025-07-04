@@ -2,7 +2,7 @@
 
 import { useNavigate } from "react-router-dom";
 import type { Chapter } from "../../types";
-import { EmptyState } from "../common";
+import { EmptyState, ChaptersTableSkeleton } from "../common";
 import { ChapterItemRow } from "./Items";
 
 interface ChaptersTableProps {
@@ -16,6 +16,8 @@ interface ChaptersTableProps {
   onDeleteChapter: (chapterId: string) => void;
   /** Callback when add chapter is clicked */
   onAddChapter: () => void;
+  /** Whether data is currently loading */
+  isLoading?: boolean;
 }
 
 export default function ChaptersTable({
@@ -24,6 +26,7 @@ export default function ChaptersTable({
   onEditChapter,
   onDeleteChapter,
   onAddChapter,
+  isLoading = false,
 }: ChaptersTableProps) {
   const navigate = useNavigate();
 
@@ -44,22 +47,26 @@ export default function ChaptersTable({
           </tr>
         </thead>
         <tbody className="bg-white">
-          {chapters.map((chapter) => (
-            <ChapterItemRow
-              key={chapter.id}
-              chapter={chapter}
-              onClick={() =>
-                navigate(`/series/${seriesId}/chapters/${chapter.id}/pages`)
-              }
-              onEdit={() => onEditChapter(chapter.id)}
-              onDelete={() => onDeleteChapter(chapter.id)}
-            />
-          ))}
+          {isLoading ? (
+            <ChaptersTableSkeleton rows={3} />
+          ) : (
+            chapters.map((chapter) => (
+              <ChapterItemRow
+                key={chapter.id}
+                chapter={chapter}
+                onClick={() =>
+                  navigate(`/series/${seriesId}/chapters/${chapter.id}/pages`)
+                }
+                onEdit={() => onEditChapter(chapter.id)}
+                onDelete={() => onDeleteChapter(chapter.id)}
+              />
+            ))
+          )}
         </tbody>
       </table>
 
-      {/* Empty state */}
-      {chapters.length === 0 && (
+      {/* Empty state - only show when not loading and no chapters */}
+      {!isLoading && chapters.length === 0 && (
         <EmptyState
           icon="📖"
           title="No chapters found"

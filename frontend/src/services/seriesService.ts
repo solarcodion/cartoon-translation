@@ -1,7 +1,6 @@
 import { apiClient, type ApiResponse } from "./api";
 import { supabase } from "../lib/supabase";
 
-// Series types for API communication
 export interface SeriesCreateRequest {
   title: string;
 }
@@ -18,16 +17,6 @@ export interface SeriesApiResponse {
   user_id?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface SeriesStats {
-  total_series: number;
-  status_counts: {
-    active: number;
-    completed: number;
-    on_hold: number;
-    dropped: number;
-  };
 }
 
 class SeriesService {
@@ -104,10 +93,7 @@ class SeriesService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error creating series:", error);
-
-      // If it's already an Error object with a message, just re-throw it
-      // The API client already extracts the proper error message from the response
+      console.error("Error creating series:", error);
       if (error instanceof Error) {
         throw error;
       }
@@ -162,27 +148,6 @@ class SeriesService {
       );
     }
   }
-
-  async getSeriesStats(): Promise<SeriesStats> {
-    try {
-      const token = await this.getAuthToken();
-
-      const response = await apiClient.get<SeriesStats>(
-        "/series/stats",
-        token || undefined
-      );
-
-      return response;
-    } catch (error) {
-      console.error("❌ Error fetching series statistics:", error);
-      throw new Error(
-        `Failed to fetch series statistics: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
 }
 
-// Export singleton instance
 export const seriesService = new SeriesService();

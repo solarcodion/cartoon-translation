@@ -111,7 +111,6 @@ class PageService:
 
                             if ocr_result.success and ocr_result.text.strip():
                                 ocr_context = ocr_result.text.strip()
-                                print(f"✅ OCR processed for page {page_number}: {len(ocr_context)} characters extracted")
                             else:
                                 print(f"⚠️ OCR failed for page {page_number}: No text extracted")
 
@@ -322,9 +321,101 @@ class PageService:
                 print(f"⚠️ Supabase client method failed: {client_error}")
 
             # Fallback to constructed URL
-            print(f"🔗 Using constructed URL: {public_url}")
             return public_url
 
         except Exception as e:
             print(f"❌ Error getting page URL: {str(e)}")
             return ""
+
+    async def create_pages_batch_with_auto_textboxes(self, chapter_id: str, files_data: List[tuple], start_page_number: int, text_box_service=None) -> BatchPageUploadResponse:
+        """Create multiple pages with batch file upload and automatic text box creation"""
+        try:
+            # Use the provided start page number
+            next_page_number = start_page_number
+
+            created_pages = []
+            failed_uploads = []
+            total_text_boxes_created = 0
+
+            # Process each file
+            for i, (file_content, file_extension, original_filename) in enumerate(files_data):
+                try:
+                    page_number = next_page_number + i
+
+                    # Process OCR if OCR service is available
+                    ocr_context = ""
+                    if self.ocr_service:
+                        try:
+                            # Convert image to base64 for OCR processing
+                            base64_image = base64.b64encode(file_content).decode('utf-8')
+
+                            # Process with OCR
+                            ocr_result = self.ocr_service.process_image(base64_image)
+
+                            if ocr_result.success and ocr_result.text.strip():
+                                ocr_context = ocr_result.text.strip()
+                            else:
+                                print(f"⚠️ OCR failed for page {page_number}: No text extracted")
+
+                        except Exception as ocr_error:
+                            print(f"⚠️ OCR processing failed for page {page_number}: {str(ocr_error)}")
+                            # Continue without OCR context
+
+                    # Create page data
+                    page_data = PageCreate(
+                        chapter_id=chapter_id,
+                        page_number=page_number,
+                        file_name=original_filename or f"page_{page_number}.{file_extension}",
+                        context=ocr_context  # Use OCR result or empty string
+                    )
+
+                    # Create the page
+                    page = await self.create_page(page_data, file_content, file_extension)
+                    created_pages.append(page)
+
+                    # Auto-create text boxes if services are available
+                    if self.ocr_service and text_box_service:
+                        try:
+                            # Convert image to base64 for text region detection
+                            base64_image = base64.b64encode(file_content).decode('utf-8')
+
+                            # Detect text regions
+                            detection_result = self.ocr_service.detect_text_regions(base64_image)
+
+                            if detection_result.success and detection_result.text_regions:
+                                # Get the page image URL
+                                page_image_url = self.get_page_url(page.file_path)
+
+                                # Create text boxes from detected regions
+                                text_boxes = await text_box_service.create_text_boxes_from_detection(
+                                    page.id, detection_result, page_image_url
+                                )
+                                total_text_boxes_created += len(text_boxes)
+                                print(f"✅ Auto-created {len(text_boxes)} text boxes for page {page_number}")
+                            else:
+                                print(f"⚠️ No text regions detected for page {page_number}")
+
+                        except Exception as textbox_error:
+                            print(f"⚠️ Auto text box creation failed for page {page_number}: {str(textbox_error)}")
+                            # Continue without text boxes - don't fail the page creation
+
+                except Exception as e:
+                    print(f"❌ Error creating page {next_page_number + i}: {str(e)}")
+                    failed_uploads.append(f"Page {next_page_number + i}: {str(e)}")
+                    continue
+
+            success_message = f"Successfully uploaded {len(created_pages)} pages"
+            if total_text_boxes_created > 0:
+                success_message += f" with {total_text_boxes_created} auto-created text boxes"
+
+            return BatchPageUploadResponse(
+                success=len(created_pages) > 0,
+                message=success_message,
+                pages=created_pages,
+                total_uploaded=len(created_pages),
+                failed_uploads=failed_uploads
+            )
+
+        except Exception as e:
+            print(f"❌ Error in batch page upload with auto text boxes: {str(e)}")
+            raise Exception(f"Failed to upload pages: {str(e)}")

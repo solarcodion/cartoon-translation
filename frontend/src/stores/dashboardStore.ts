@@ -28,20 +28,17 @@ export const useDashboardStore = create<DashboardStore>()(
           state.lastFetched &&
           Date.now() - state.lastFetched < CACHE_DURATION
         ) {
-          console.log("📊 Using cached dashboard data");
           return;
         }
 
         // If already loading, don't fetch again
         if (state.isLoading) {
-          console.log("📊 Dashboard data already loading...");
           return;
         }
 
         set({ isLoading: true, error: null }, false, "dashboard/fetchStart");
 
         try {
-          console.log("📊 Fetching fresh dashboard data...");
           const data = await dashboardService.getDashboardData();
 
           set(
@@ -54,8 +51,6 @@ export const useDashboardStore = create<DashboardStore>()(
             false,
             "dashboard/fetchSuccess"
           );
-
-          console.log("✅ Dashboard data fetched successfully");
         } catch (error) {
           const errorMessage =
             error instanceof Error

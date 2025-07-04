@@ -12,21 +12,27 @@ import {
   FiX,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import { TabContent, SectionLoadingSpinner } from "../common";
+import { TabContent, TranslationsTableSkeleton, TextSkeleton } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import { PagesTable } from "../Lists";
-import EditTextBoxModal from "../Modals/EditTextBoxModal";
 import DeleteTextBoxModal from "../Modals/DeleteTextBoxModal";
 import type { Page, ChapterInfo } from "../../types";
-import {
-  textBoxService,
-  type TextBoxApiItem,
-} from "../../services/textBoxService";
+import type { TextBoxApiItem } from "../../services/textBoxService";
 import type { TextBoxApiUpdate } from "../../types/textbox";
 import {
   chapterService,
   type TextBoxTranslationData,
 } from "../../services/chapterService";
+import {
+  usePagesByChapterId,
+  useTextBoxesByChapterId,
+  useTextBoxesLoadingByChapterId,
+  useTextBoxesErrorByChapterId,
+  useTextBoxesActions,
+  useHasCachedTextBoxes,
+  useTextBoxesIsStale,
+} from "../../stores";
+import TextBoxModal from "../Modals/TextBoxModal";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -37,6 +43,7 @@ interface PagesTabContentProps {
   onEditPage?: (pageId: string) => void;
   onDeletePage?: (pageId: string) => void;
   canModify?: boolean;
+  isLoading?: boolean;
 }
 
 export function PagesTabContent({
@@ -47,6 +54,7 @@ export function PagesTabContent({
   onEditPage,
   onDeletePage,
   canModify = true,
+  isLoading = false,
 }: PagesTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="pages">
@@ -54,7 +62,20 @@ export function PagesTabContent({
         {/* Pages for Chapter Header */}
         <div className="mb-4">
           <SimplePageHeader
-            title={`Pages for Chapter ${chapterInfo?.number}`}
+            title={
+              chapterInfo?.number ? (
+                `Pages for Chapter ${chapterInfo.number}`
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>Pages for Chapter</span>
+                  <TextSkeleton
+                    size="lg"
+                    width="1/4"
+                    className="inline-block"
+                  />
+                </div>
+              )
+            }
             action={
               canModify && onUploadPage ? (
                 <button
@@ -77,6 +98,7 @@ export function PagesTabContent({
             onDeletePage={canModify && onDeletePage ? onDeletePage : undefined}
             onUploadPage={canModify && onUploadPage ? onUploadPage : undefined}
             canModify={canModify}
+            isLoading={isLoading}
           />
         </div>
       </>
@@ -92,7 +114,6 @@ interface TranslationsTabContentProps {
   selectedPage: string;
   isPageDropdownOpen: boolean;
   hoveredTMBadge: string | null;
-  pages: Page[]; // Add pages prop for page number mapping
   onSetSelectedPage: (page: string) => void;
   onSetIsPageDropdownOpen: (open: boolean) => void;
   onSetHoveredTMBadge: (id: string | null) => void;
@@ -108,7 +129,6 @@ export function TranslationsTabContent({
   selectedPage,
   isPageDropdownOpen,
   hoveredTMBadge,
-  pages,
   onSetSelectedPage,
   onSetIsPageDropdownOpen,
   onSetHoveredTMBadge,
@@ -116,9 +136,17 @@ export function TranslationsTabContent({
   canModifyTM = true,
   refreshTrigger,
 }: TranslationsTabContentProps) {
-  const [textBoxes, setTextBoxes] = useState<TextBoxApiItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Use pages store instead of props
+  const pages = usePagesByChapterId(chapterId);
+
+  // Use text boxes store
+  const textBoxes = useTextBoxesByChapterId(chapterId);
+  const isTextBoxesLoading = useTextBoxesLoadingByChapterId(chapterId);
+  const textBoxesError = useTextBoxesErrorByChapterId(chapterId);
+  const hasCachedTextBoxes = useHasCachedTextBoxes(chapterId);
+  const isTextBoxesStale = useTextBoxesIsStale(chapterId);
+  const { fetchTextBoxesByChapterId, updateTextBox, deleteTextBox } =
+    useTextBoxesActions();
 
   // Create a mapping from page_id to page_number
   const pageIdToNumberMap = useMemo(() => {
@@ -140,28 +168,29 @@ export function TranslationsTabContent({
     null
   );
 
-  // Fetch text boxes for the chapter
+  // Fetch text boxes for the chapter using store
   useEffect(() => {
-    const fetchTextBoxes = async () => {
-      if (!chapterId) return;
+    if (!chapterId) return;
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        const fetchedTextBoxes = await textBoxService.getTextBoxesByChapter(
-          chapterId
-        );
-        setTextBoxes(fetchedTextBoxes);
-      } catch (err) {
-        console.error("Error fetching text boxes:", err);
-        setError("Failed to load text boxes");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTextBoxes();
-  }, [chapterId, refreshTrigger]); // Add refreshTrigger to dependencies
+    // Fetch text boxes using store if we don't have cached data or if it's stale
+    if (!hasCachedTextBoxes || isTextBoxesStale) {
+      console.log(
+        `🔄 Fetching text boxes for chapter ${chapterId} - hasCached: ${hasCachedTextBoxes}, isStale: ${isTextBoxesStale}`
+      );
+      fetchTextBoxesByChapterId(chapterId);
+    } else {
+      console.log(
+        `✅ Using cached text boxes for chapter ${chapterId} - ${textBoxes.length} text boxes available`
+      );
+    }
+  }, [
+    chapterId,
+    refreshTrigger,
+    hasCachedTextBoxes,
+    isTextBoxesStale,
+    fetchTextBoxesByChapterId,
+    textBoxes.length,
+  ]);
 
   // Filter text boxes by selected page
   const filteredTextBoxes =
@@ -184,18 +213,10 @@ export function TranslationsTabContent({
 
   const handleSaveQuickEdit = async (textBoxId: string) => {
     try {
-      await textBoxService.updateTextBox(textBoxId, {
+      // Update via store (which will handle API call and state update)
+      await updateTextBox(textBoxId, {
         corrected: editingText.trim() || undefined,
       });
-
-      // Update the local state
-      setTextBoxes((prev) =>
-        prev.map((tb) =>
-          tb.id === textBoxId
-            ? { ...tb, corrected: editingText.trim() || undefined }
-            : tb
-        )
-      );
 
       // Exit edit mode
       setEditingTextBoxId(null);
@@ -221,15 +242,8 @@ export function TranslationsTabContent({
     updateData: TextBoxApiUpdate
   ) => {
     try {
-      const updatedTextBox = await textBoxService.updateTextBox(
-        textBoxId,
-        updateData
-      );
-
-      // Update the local state
-      setTextBoxes((prev) =>
-        prev.map((tb) => (tb.id === textBoxId ? updatedTextBox : tb))
-      );
+      // Update via store (which will handle API call and state update)
+      await updateTextBox(textBoxId, updateData);
     } catch (err) {
       console.error("Error updating text box:", err);
       throw err; // Re-throw to let the modal handle the error
@@ -248,8 +262,8 @@ export function TranslationsTabContent({
 
   const handleConfirmDeleteTextBox = async (textBoxId: string) => {
     try {
-      await textBoxService.deleteTextBox(textBoxId);
-      setTextBoxes((prev) => prev.filter((tb) => tb.id !== textBoxId));
+      // Delete via store (which will handle API call and state update)
+      await deleteTextBox(chapterId, textBoxId);
     } catch (err) {
       console.error("Error deleting text box:", err);
       throw err; // Re-throw to let the modal handle the error
@@ -261,9 +275,18 @@ export function TranslationsTabContent({
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">
-              Translations for Chapter {chapterInfo?.number}
-            </h2>
+            {chapterInfo?.number ? (
+              <h2 className="text-xl font-bold text-gray-900">
+                Translations for Chapter {chapterInfo.number}
+              </h2>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold text-gray-900">
+                  Translations for Chapter
+                </span>
+                <TextSkeleton size="xl" width="1/4" className="inline-block" />
+              </div>
+            )}
             {canModifyTM && onAddTextBox && (
               <button
                 onClick={onAddTextBox}
@@ -353,16 +376,12 @@ export function TranslationsTabContent({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
+              {isTextBoxesLoading ? (
+                <TranslationsTableSkeleton rows={3} />
+              ) : textBoxesError ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center">
-                    <SectionLoadingSpinner />
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center">
-                    <div className="text-red-600">{error}</div>
+                    <div className="text-red-600">{textBoxesError}</div>
                   </td>
                 </tr>
               ) : filteredTextBoxes.length === 0 ? (
@@ -543,11 +562,12 @@ export function TranslationsTabContent({
       </div>
 
       {/* Edit Text Box Modal */}
-      <EditTextBoxModal
+      <TextBoxModal
         textBox={selectedTextBox}
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
-        onSave={handleSaveTextBoxEdit}
+        onEdit={handleSaveTextBoxEdit}
+        pages={pages}
       />
 
       {/* Delete Text Box Modal */}
@@ -568,7 +588,6 @@ interface ContextTabContentProps {
   contextNotes?: string;
   onSaveNotes?: (notes: string) => Promise<void> | void;
   canModifyTM?: boolean;
-  pages?: Page[];
   chapterId?: string;
   onContextUpdate?: (context: string) => void;
 }
@@ -579,10 +598,15 @@ export function ContextTabContent({
   contextNotes = "",
   onSaveNotes,
   canModifyTM = true,
-  pages = [],
   chapterId,
   onContextUpdate,
 }: ContextTabContentProps) {
+  // Use pages store instead of props
+  const pages = usePagesByChapterId(chapterId || "");
+
+  // Use text boxes store actions
+  const { fetchTextBoxesByPageId } = useTextBoxesActions();
+
   const [notes, setNotes] = useState(contextNotes);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -646,11 +670,11 @@ export function ContextTabContent({
         validPages.map(async (page) => {
           try {
             // Fetch text boxes for this page
-            const textBoxes = await textBoxService.getTextBoxesByPage(page.id);
+            const textBoxes = await fetchTextBoxesByPageId(page.id);
 
             // Convert text boxes to analysis format
             const textBoxTranslations: TextBoxTranslationData[] = textBoxes.map(
-              (tb) => ({
+              (tb: TextBoxApiItem) => ({
                 x: tb.x,
                 y: tb.y,
                 w: tb.w,
@@ -768,9 +792,22 @@ export function ContextTabContent({
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Context Notes for Chapter {chapterInfo?.number}
-              </h2>
+              {chapterInfo?.number ? (
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Context Notes for Chapter {chapterInfo.number}
+                </h2>
+              ) : (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl font-bold text-gray-900">
+                    Context Notes for Chapter
+                  </span>
+                  <TextSkeleton
+                    size="2xl"
+                    width="1/4"
+                    className="inline-block"
+                  />
+                </div>
+              )}
               <p className="text-sm text-gray-600">
                 Add or edit notes specific to this chapter. This can include
                 character motivations, plot points, specific terminology, or

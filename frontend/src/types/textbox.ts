@@ -43,7 +43,7 @@ export interface TextBoxUpdate {
 export interface TextBoxApiItem {
   id: string;
   page_id: string;
-  image?: string;
+  image?: string; // URL of the original page image
   x: number;
   y: number;
   w: number;
@@ -58,7 +58,7 @@ export interface TextBoxApiItem {
 
 export interface TextBoxApiCreate {
   page_id: string;
-  image?: string;
+  image?: string; // URL of the original page image
   x: number;
   y: number;
   w: number;
@@ -70,7 +70,7 @@ export interface TextBoxApiCreate {
 }
 
 export interface TextBoxApiUpdate {
-  image?: string;
+  image?: string; // URL of the original page image
   x?: number;
   y?: number;
   w?: number;
@@ -108,7 +108,8 @@ export function convertLegacyTextBoxToApi(
 ): TextBoxApiCreate {
   return {
     page_id: legacyTextBox.pageId,
-    image: croppedImage,
+    // Don't pass croppedImage - let backend fetch page image URL instead
+    image: undefined,
     x: legacyTextBox.boundingBox.x,
     y: legacyTextBox.boundingBox.y,
     w: legacyTextBox.boundingBox.width,

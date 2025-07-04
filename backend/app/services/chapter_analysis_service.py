@@ -50,7 +50,7 @@ class ChapterAnalysisService:
                 try:
                     tm_data = await self.tm_service.get_all_tm_entries_for_analysis(series_id)
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Failed to fetch TM data: {str(tm_error)}")
+                    print(f"Warning: Failed to fetch TM data: {str(tm_error)}")
 
             # Build the analysis prompt with TM data
             system_prompt = self._build_system_prompt_with_tm(request.translation_info, request.existing_context, tm_data)
@@ -83,7 +83,7 @@ class ChapterAnalysisService:
                     for tm_id in useful_tm_ids:
                         await self.tm_service.increment_usage_count(tm_id)
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Failed to update TM usage counts: {str(tm_error)}")
+                    print(f"Warning: Failed to update TM usage counts: {str(tm_error)}")
             
             return ChapterAnalysisResponse(
                 success=True,
@@ -95,15 +95,15 @@ class ChapterAnalysisService:
             )
             
         except openai.RateLimitError as e:
-            print(f"❌ OpenAI rate limit exceeded: {str(e)}")
+            print(f"OpenAI rate limit exceeded: {str(e)}")
             raise Exception("Chapter analysis service is currently busy. Please try again later.")
-        
+
         except openai.AuthenticationError as e:
-            print(f"❌ OpenAI authentication error: {str(e)}")
+            print(f"OpenAI authentication error: {str(e)}")
             raise Exception("Chapter analysis service authentication failed.")
-        
+
         except openai.APIError as e:
-            print(f"❌ OpenAI API error: {str(e)}")
+            print(f"OpenAI API error: {str(e)}")
             raise Exception(f"Chapter analysis service error: {str(e)}")
         
         except Exception as e:
@@ -317,7 +317,7 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
                 return analysis_result.strip(), "Analysis completed successfully."
                 
         except Exception as e:
-            print(f"⚠️ Warning: Could not parse analysis result: {str(e)}")
+            print(f"Warning: Could not parse analysis result: {str(e)}")
             # Fallback: return the entire result as context
             return analysis_result.strip(), "Analysis completed successfully."
 
@@ -366,7 +366,6 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
             return cleaned_context, "Analysis completed successfully.", []
 
     def _clean_tm_references(self, text: str) -> str:
-        """Remove TM_ID references and alerts from text"""
         import re
 
         # Remove patterns like "Translation Memory TM_ID: uuid"
@@ -387,25 +386,4 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
 
         return text.strip()
 
-    async def health_check(self) -> dict:
-        """Check if chapter analysis service is working"""
-        try:
-            if not self.client:
-                return {
-                    "status": "unhealthy",
-                    "service": "OpenAI GPT Chapter Analysis",
-                    "error": "OpenAI API key not configured"
-                }
-            
-            return {
-                "status": "healthy",
-                "service": "OpenAI GPT Chapter Analysis",
-                "target_language": self.target_language,
-                "model": "gpt-4o-mini"
-            }
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "service": "OpenAI GPT Chapter Analysis",
-                "error": str(e)
-            }
+

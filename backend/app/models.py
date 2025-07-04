@@ -336,6 +336,34 @@ class OCRWithTranslationResponse(BaseModel):
         from_attributes = True
 
 
+# Text Region Detection Models
+class TextRegion(BaseModel):
+    """Individual text region with bounding box and extracted text"""
+    x: int
+    y: int
+    width: int
+    height: int
+    text: str
+    confidence: float
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class TextRegionDetectionResponse(BaseModel):
+    """Response model for text region detection"""
+    success: bool
+    text_regions: List[TextRegion]
+    processing_time: float
+    detected_language: Optional[str] = None
+    language_confidence: Optional[float] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 # Translation Models
 class TranslationRequest(BaseModel):
     """Translation request model"""
@@ -446,7 +474,6 @@ class TerminologyInfo(BaseModel):
 
 
 class PeopleAnalysisRequest(BaseModel):
-    """Request model for analyzing people in a series - DEPRECATED: Use TerminologyAnalysisRequest instead"""
     series_id: str
     force_refresh: bool = False  # Whether to force re-analysis even if data exists
 
@@ -456,7 +483,6 @@ class PeopleAnalysisRequest(BaseModel):
 
 
 class TerminologyAnalysisRequest(BaseModel):
-    """Request model for analyzing terminology in a series"""
     series_id: str
     force_refresh: bool = False  # Whether to force re-analysis even if data exists
 
@@ -466,7 +492,6 @@ class TerminologyAnalysisRequest(BaseModel):
 
 
 class PeopleAnalysisResponse(BaseModel):
-    """Response model for people analysis - DEPRECATED: Use TerminologyAnalysisResponse instead"""
     success: bool
     people: list[PersonInfo]
     total_people_found: int
@@ -479,7 +504,6 @@ class PeopleAnalysisResponse(BaseModel):
 
 
 class TerminologyAnalysisResponse(BaseModel):
-    """Response model for terminology analysis"""
     success: bool
     terminology: list[TerminologyInfo]
     total_terms_found: int
@@ -565,7 +589,7 @@ class ChapterAnalysisResponse(BaseModel):
 class TextBoxBase(BaseModel):
     """Base text box model"""
     page_id: str
-    image: Optional[str] = None  # Base64 encoded cropped image
+    image: Optional[str] = None  # URL of the original page image
     x: int
     y: int
     w: int

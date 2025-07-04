@@ -5,45 +5,38 @@ from app.models import SeriesCreate, SeriesUpdate, SeriesResponse, SeriesInDB
 
 
 class SeriesService:
-    """Service for handling series operations"""
-    
     def __init__(self, supabase: Client):
         self.supabase = supabase
         self.table_name = "series"
-    
+
     async def check_series_name_exists(self, title: str) -> bool:
-        """Check if a series with the given title already exists"""
         try:
             response = (
                 self.supabase.table(self.table_name)
                 .select("id")
-                .ilike("title", title)  # Case-insensitive search
+                .ilike("title", title)
                 .execute()
             )
 
             return len(response.data) > 0
 
         except Exception as e:
-            print(f"❌ Error checking series name existence: {str(e)}")
+            print(f"Error checking series name existence: {str(e)}")
             raise Exception(f"Failed to check series name: {str(e)}")
 
     async def create_series(self, series_data: SeriesCreate, created_by: str) -> SeriesResponse:
-        """Create a new series"""
         try:
-            # Check if series name already exists
             if await self.check_series_name_exists(series_data.title):
                 raise Exception(f"A series with the name '{series_data.title}' already exists")
 
-            # Prepare data for insertion with defaults
             insert_data = {
                 "title": series_data.title,
-                "total_chapters": 0,  # Default to 0
+                "total_chapters": 0,
                 "user_id": created_by,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }
 
-            # Insert into database
             response = self.supabase.table(self.table_name).insert(insert_data).execute()
 
             if not response.data:
@@ -177,34 +170,7 @@ class SeriesService:
             print(f"❌ Error deleting series {series_id}: {str(e)}")
             raise Exception(f"Failed to delete series: {str(e)}")
     
-    async def get_series_stats(self) -> Dict[str, Any]:
-        """Get series statistics"""
-        try:
-            # Get total count
-            response = self.supabase.table(self.table_name).select("id", count="exact").execute()
-            total_series = response.count or 0
-            
-            # Get count by status
-            status_counts = {}
-            for status in ["active", "completed", "on_hold", "dropped"]:
-                response = (
-                    self.supabase.table(self.table_name)
-                    .select("id", count="exact")
-                    .eq("status", status)
-                    .execute()
-                )
-                status_counts[status] = response.count or 0
-            
-            stats = {
-                "total_series": total_series,
-                "status_counts": status_counts
-            }
-            
-            return stats
-            
-        except Exception as e:
-            print(f"❌ Error fetching series statistics: {str(e)}")
-            raise Exception(f"Failed to fetch series statistics: {str(e)}")
+
 
     async def get_chapters_with_pages_for_analysis(self, series_id: str) -> List[Dict[str, Any]]:
         """Get all chapters with their pages and contexts for people analysis"""

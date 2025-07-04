@@ -58,7 +58,7 @@ class Settings:
 
         # Validate OpenAI settings (warn if not set, but don't fail)
         if not self.openai_api_key:
-            print("⚠️ Warning: OPENAI_API_KEY environment variable is not set. Translation features will not work.")
+            print("Warning: OPENAI_API_KEY environment variable is not set. Translation features will not work.")
 
     def _parse_language_config(self, env_var: str, default_value: str) -> List[str]:
         """Parse language configuration from environment variable"""

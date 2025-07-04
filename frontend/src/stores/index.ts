@@ -19,3 +19,93 @@ export {
   decrementDashboardTranslatedTextbox,
   addDashboardActivity,
 } from "./dashboardStore";
+
+export {
+  useSeriesStore,
+  useSeriesData,
+  useSeriesLoading,
+  useSeriesError,
+  useSeriesActions,
+  useSeriesIsStale,
+  invalidateSeriesCache,
+  refreshSeriesData,
+  getSeriesById,
+} from "./seriesStore";
+
+export {
+  useChaptersStore,
+  useChaptersBySeriesId,
+  useChaptersLoadingBySeriesId,
+  useChaptersErrorBySeriesId,
+  useChaptersGlobalLoading,
+  useChaptersGlobalError,
+  useChaptersActions,
+  useChaptersIsStale,
+  useHasCachedChapters,
+  invalidateChaptersCache,
+  refreshChaptersData,
+  getChapterById,
+} from "./chaptersStore";
+
+export {
+  useTMStore,
+  useTMBySeriesId,
+  useTMLoadingBySeriesId,
+  useTMErrorBySeriesId,
+  useTMGlobalLoading,
+  useTMGlobalError,
+  useTMActions,
+  useTMIsStale,
+  useHasCachedTM,
+  invalidateTMCache,
+  refreshTMData,
+  getTMEntryById,
+} from "./tmStore";
+
+export {
+  useAIGlossaryStore,
+  useGlossaryBySeriesId,
+  useGlossaryLoadingBySeriesId,
+  useGlossaryRefreshingBySeriesId,
+  useGlossaryErrorBySeriesId,
+  useGlossaryGlobalLoading,
+  useGlossaryGlobalError,
+  useAIGlossaryActions,
+  useGlossaryIsStale,
+  useHasCachedGlossary,
+  invalidateGlossaryCache,
+  refreshGlossaryData,
+  getGlossaryEntryById,
+} from "./aiGlossaryStore";
+
+export {
+  usePagesStore,
+  usePagesByChapterId,
+  usePagesLoadingByChapterId,
+  usePagesErrorByChapterId,
+  usePagesGlobalLoading,
+  usePagesGlobalError,
+  usePagesActions,
+  useHasCachedPages,
+  usePagesIsStale,
+  invalidatePagesCache,
+  refreshPagesData,
+  getPageById,
+  getPagesCountByChapterId,
+} from "./pagesStore";
+
+export {
+  useTextBoxesStore,
+  useTextBoxesByChapterId,
+  useTextBoxesLoadingByChapterId,
+  useTextBoxesErrorByChapterId,
+  useTextBoxesGlobalLoading,
+  useTextBoxesGlobalError,
+  useTextBoxesActions,
+  useHasCachedTextBoxes,
+  useTextBoxesIsStale,
+  invalidateTextBoxesCache,
+  refreshTextBoxesData,
+  getTextBoxById,
+  getTextBoxesCountByChapterId,
+} from "./textBoxesStore";

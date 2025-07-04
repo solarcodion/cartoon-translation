@@ -10,7 +10,13 @@ import {
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
 import { LuBrain, LuTag, LuSword, LuSparkles, LuCircle } from "react-icons/lu";
-import { EmptyState, TabContent } from "../common";
+import {
+  EmptyState,
+  TabContent,
+  ChaptersTableSkeleton,
+  TranslationMemoryTableSkeleton,
+  AIGlossaryGridSkeleton,
+} from "../common";
 import DropdownMenu from "../common/DropdownMenu";
 import type {
   Chapter,
@@ -27,6 +33,7 @@ interface ChaptersTabContentProps {
   onEditChapter?: (chapterId: string) => void;
   onDeleteChapter?: (chapterId: string) => void;
   canModify?: boolean;
+  isLoading?: boolean;
 }
 
 export function ChaptersTabContent({
@@ -37,6 +44,7 @@ export function ChaptersTabContent({
   onEditChapter,
   onDeleteChapter,
   canModify = true,
+  isLoading = false,
 }: ChaptersTabContentProps) {
   const navigate = useNavigate();
 
@@ -101,70 +109,76 @@ export function ChaptersTabContent({
               </tr>
             </thead>
             <tbody className="bg-white">
-              {chapters.map((chapter) => (
-                <tr
-                  key={chapter.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                  onClick={() =>
-                    navigate(`/series/${seriesId}/chapters/${chapter.id}/pages`)
-                  }
-                >
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900">
-                      Chapter {chapter.number}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(
-                        chapter.status
-                      )}`}
-                    >
-                      {getStatusText(chapter.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      {canModify && onEditChapter && (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onEditChapter(chapter.id);
-                          }}
-                          className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit chapter"
-                        >
-                          <BiSolidEdit className="text-lg" />
-                        </button>
-                      )}
-                      {canModify && onDeleteChapter && (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onDeleteChapter(chapter.id);
-                          }}
-                          className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
-                          title="Delete chapter"
-                        >
-                          <FiTrash2 className="text-lg" />
-                        </button>
-                      )}
-                      {!canModify && (
-                        <span className="text-sm text-gray-400 italic">
-                          View only
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <ChaptersTableSkeleton rows={3} />
+              ) : (
+                chapters.map((chapter) => (
+                  <tr
+                    key={chapter.id}
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                    onClick={() =>
+                      navigate(
+                        `/series/${seriesId}/chapters/${chapter.id}/pages`
+                      )
+                    }
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">
+                        Chapter {chapter.number}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(
+                          chapter.status
+                        )}`}
+                      >
+                        {getStatusText(chapter.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        {canModify && onEditChapter && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onEditChapter(chapter.id);
+                            }}
+                            className="p-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                            title="Edit chapter"
+                          >
+                            <BiSolidEdit className="text-lg" />
+                          </button>
+                        )}
+                        {canModify && onDeleteChapter && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onDeleteChapter(chapter.id);
+                            }}
+                            className="p-1.5 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+                            title="Delete chapter"
+                          >
+                            <FiTrash2 className="text-lg" />
+                          </button>
+                        )}
+                        {!canModify && (
+                          <span className="text-sm text-gray-400 italic">
+                            View only
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
 
-          {/* Empty state */}
-          {chapters.length === 0 && (
+          {/* Empty state - only show when not loading and no chapters */}
+          {!isLoading && chapters.length === 0 && (
             <EmptyState
               icon="📖"
               title="No chapters found"
@@ -263,16 +277,7 @@ export function TranslationMemoryTabContent({
             </thead>
             <tbody className="bg-white">
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mr-3"></div>
-                      <span className="text-gray-600">
-                        Loading translation memory...
-                      </span>
-                    </div>
-                  </td>
-                </tr>
+                <TranslationMemoryTableSkeleton rows={3} />
               ) : translationMemoryData.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
@@ -363,6 +368,7 @@ interface AIGlossaryTabContentProps {
   seriesId?: string;
   onRefreshGlossary?: () => void;
   isRefreshing?: boolean;
+  isLoading?: boolean;
 }
 
 export function AIGlossaryTabContent({
@@ -371,6 +377,7 @@ export function AIGlossaryTabContent({
   seriesId,
   onRefreshGlossary,
   isRefreshing = false,
+  isLoading = false,
 }: AIGlossaryTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="glossary">
@@ -402,120 +409,136 @@ export function AIGlossaryTabContent({
         </div>
 
         <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {glossaryData.map((character) => (
-              <div
-                key={character.id}
-                className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-              >
-                {/* Term Image with Name Overlay */}
-                <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center overflow-hidden">
-                  <div
-                    className={`w-full h-full rounded-lg flex items-center justify-center ${
-                      character.category === "character"
-                        ? "bg-blue-400"
-                        : character.category === "item"
-                        ? "bg-orange-400"
-                        : character.category === "place"
-                        ? "bg-green-400"
-                        : character.category === "term"
-                        ? "bg-purple-400"
-                        : character.category === "other"
-                        ? "bg-gray-400"
-                        : "bg-gray-400"
-                    }`}
-                  >
-                    {/* Dynamic icon based on category */}
-                    {character.category === "character" && (
-                      <FiUser className="text-white text-4xl" />
-                    )}
-                    {character.category === "item" && (
-                      <LuSword className="text-white text-4xl" />
-                    )}
-                    {character.category === "place" && (
-                      <FiMapPin className="text-white text-4xl" />
-                    )}
-                    {character.category === "term" && (
-                      <LuSparkles className="text-white text-4xl" />
-                    )}
-                    {character.category === "other" && (
-                      <LuCircle className="text-white text-4xl" />
-                    )}
-                    {!character.category && (
-                      <LuTag className="text-white text-4xl" />
-                    )}
-                  </div>
-                  {/* Term Name Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end">
-                    <h3 className="text-xl font-semibold text-white">
-                      {character.name}
-                    </h3>
-                  </div>
-                </div>
-
-                {/* Term Info */}
-                <div className="p-4">
-                  {/* Category Badge */}
-                  {character.category && (
-                    <div className="mb-3">
-                      <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                        {character.category}
-                      </span>
+          {isLoading ? (
+            <AIGlossaryGridSkeleton cards={6} />
+          ) : glossaryData.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-500">
+                <p className="text-lg font-medium mb-2">
+                  No AI glossary entries found
+                </p>
+                <p className="text-sm">
+                  Click "Analyze Terminology" to generate AI-powered glossary
+                  entries.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {glossaryData.map((character) => (
+                <div
+                  key={character.id}
+                  className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+                >
+                  {/* Term Image with Name Overlay */}
+                  <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center overflow-hidden">
+                    <div
+                      className={`w-full h-full rounded-lg flex items-center justify-center ${
+                        character.category === "character"
+                          ? "bg-blue-400"
+                          : character.category === "item"
+                          ? "bg-orange-400"
+                          : character.category === "place"
+                          ? "bg-green-400"
+                          : character.category === "term"
+                          ? "bg-purple-400"
+                          : character.category === "other"
+                          ? "bg-gray-400"
+                          : "bg-gray-400"
+                      }`}
+                    >
+                      {/* Dynamic icon based on category */}
+                      {character.category === "character" && (
+                        <FiUser className="text-white text-4xl" />
+                      )}
+                      {character.category === "item" && (
+                        <LuSword className="text-white text-4xl" />
+                      )}
+                      {character.category === "place" && (
+                        <FiMapPin className="text-white text-4xl" />
+                      )}
+                      {character.category === "term" && (
+                        <LuSparkles className="text-white text-4xl" />
+                      )}
+                      {character.category === "other" && (
+                        <LuCircle className="text-white text-4xl" />
+                      )}
+                      {!character.category && (
+                        <LuTag className="text-white text-4xl" />
+                      )}
                     </div>
-                  )}
+                    {/* Term Name Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 flex flex-col justify-end">
+                      <h3 className="text-xl font-semibold text-white">
+                        {character.name}
+                      </h3>
+                    </div>
+                  </div>
 
-                  {/* Vietnamese Description */}
-                  {character.summary && (
-                    <div className="mb-3">
-                      <div className="flex items-center gap-1 mb-1">
-                        <LuBrain className="text-xs text-gray-500" />
-                        <span className="text-xs text-gray-500">
-                          Vietnamese Description
+                  {/* Term Info */}
+                  <div className="p-4">
+                    {/* Category Badge */}
+                    {character.category && (
+                      <div className="mb-3">
+                        <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                          {character.category}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {character.summary}
-                      </p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* English Translation */}
-                  {character.translatedText && (
+                    {/* Vietnamese Description */}
+                    {character.summary && (
+                      <div className="mb-3">
+                        <div className="flex items-center gap-1 mb-1">
+                          <LuBrain className="text-xs text-gray-500" />
+                          <span className="text-xs text-gray-500">
+                            Vietnamese Description
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          {character.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* English Translation */}
+                    {character.translatedText && (
+                      <div className="mb-3">
+                        <div className="flex items-center gap-1 mb-1">
+                          <LuTag className="text-xs text-gray-500" />
+                          <span className="text-xs text-gray-500">
+                            English Translation
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {character.translatedText}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Mentioned in Chapters */}
                     <div className="mb-3">
                       <div className="flex items-center gap-1 mb-1">
                         <LuTag className="text-xs text-gray-500" />
                         <span className="text-xs text-gray-500">
-                          English Translation
+                          Mentioned in Chapters
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {character.translatedText}
-                      </p>
                     </div>
-                  )}
 
-                  {/* Mentioned in Chapters */}
-                  <div className="mb-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <LuTag className="text-xs text-gray-500" />
-                      <span className="text-xs text-gray-500">
-                        Mentioned in Chapters
-                      </span>
+                    {/* Status with Chapter Numbers */}
+                    <div className="text-xs bg-gray-100 border border-gray-300 text-gray-600 px-3 py-1 rounded-full inline-block">
+                      {character.mentionedChapters.length > 0
+                        ? `${character.mentionedChapters.join(", ")}-${
+                            character.status
+                          }`
+                        : character.status}
                     </div>
-                  </div>
-
-                  {/* Status with Chapter Numbers */}
-                  <div className="text-xs bg-gray-100 border border-gray-300 text-gray-600 px-3 py-1 rounded-full inline-block">
-                    {character.mentionedChapters.length > 0
-                      ? `${character.mentionedChapters.join(", ")}-${
-                          character.status
-                        }`
-                      : character.status}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </TabContent>

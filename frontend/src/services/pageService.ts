@@ -243,14 +243,32 @@ class PageService {
     }
   }
 
-  async getPageUrl(pageId: string): Promise<string> {
+  async batchCreatePagesWithAutoTextBoxes(
+    data: BatchCreatePageData
+  ): Promise<BatchPageUploadResponse> {
     try {
       const headers = await this.getAuthHeaders();
 
-      const response = await fetch(`${API_BASE_URL}/pages/${pageId}/url`, {
-        method: "GET",
-        headers,
+      const formData = new FormData();
+      formData.append("chapter_id", data.chapter_id);
+      formData.append("start_page_number", data.start_page_number.toString());
+
+      // Add all files
+      data.files.forEach((file) => {
+        formData.append("files", file);
       });
+
+      const response = await fetch(
+        `${API_BASE_URL}/pages/batch-upload-with-auto-textboxes`,
+        {
+          method: "POST",
+          headers: {
+            ...headers,
+            // Don't set Content-Type for FormData, let browser set it with boundary
+          },
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -259,10 +277,10 @@ class PageService {
         );
       }
 
-      const data = await response.json();
-      return data.url;
+      const result: BatchPageUploadResponse = await response.json();
+      return result;
     } catch (error) {
-      console.error("Error getting page URL:", error);
+      console.error("Error batch creating pages with auto text boxes:", error);
       throw error;
     }
   }

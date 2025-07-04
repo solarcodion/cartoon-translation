@@ -44,7 +44,8 @@ export default function BackButton({
 
   // Variant configurations
   const variantConfig = {
-    default: "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200",
+    default:
+      "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200",
     ghost: "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-800",
     outline: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300",
   };
@@ -59,7 +60,8 @@ export default function BackButton({
     }
   };
 
-  const iconElement = icon || (showIcon && <FiArrowLeft className="text-current" />);
+  const iconElement =
+    icon || (showIcon && <FiArrowLeft className="text-current" />);
 
   return (
     <button
@@ -80,12 +82,12 @@ export default function BackButton({
 }
 
 // Convenience components for common use cases
-export function BackToSeries({ 
-  seriesId, 
-  className 
-}: { 
-  seriesId?: string; 
-  className?: string; 
+export function BackToSeries({
+  seriesId,
+  className,
+}: {
+  seriesId?: string;
+  className?: string;
 }) {
   return (
     <BackButton
@@ -96,12 +98,12 @@ export function BackToSeries({
   );
 }
 
-export function BackToChapters({ 
-  seriesId, 
-  className 
-}: { 
-  seriesId: string; 
-  className?: string; 
+export function BackToChapters({
+  seriesId,
+  className,
+}: {
+  seriesId: string;
+  className?: string;
 }) {
   return (
     <BackButton
@@ -112,41 +114,13 @@ export function BackToChapters({
   );
 }
 
-export function BackToPages({ 
-  seriesId, 
-  chapterId, 
-  className 
-}: { 
-  seriesId: string; 
-  chapterId: string; 
-  className?: string; 
-}) {
-  return (
-    <BackButton
-      text="Back to Pages"
-      to={`/series/${seriesId}/chapters/${chapterId}/pages`}
-      className={className}
-    />
-  );
-}
-
-export function BackToUsers({ className }: { className?: string }) {
-  return (
-    <BackButton
-      text="Back to Users"
-      to="/users"
-      className={className}
-    />
-  );
-}
-
 // Simple back button without text (icon only)
-export function BackIconButton({ 
-  onClick, 
+export function BackIconButton({
+  onClick,
   className,
-  size = "md" 
-}: { 
-  onClick?: () => void; 
+  size = "md",
+}: {
+  onClick?: () => void;
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {

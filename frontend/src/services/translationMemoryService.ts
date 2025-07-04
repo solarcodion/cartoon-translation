@@ -25,7 +25,7 @@ class TranslationMemoryService {
       } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
-      console.error("❌ Error getting auth token:", error);
+      console.error("Error getting auth token:", error);
       return null;
     }
   }
@@ -49,7 +49,7 @@ class TranslationMemoryService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error creating TM entry:", error);
+      console.error("Error creating TM entry:", error);
       throw new Error(
         `Failed to create TM entry: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -73,7 +73,7 @@ class TranslationMemoryService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error fetching TM entries:", error);
+      console.error("Error fetching TM entries:", error);
       throw new Error(
         `Failed to fetch TM entries: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -101,7 +101,7 @@ class TranslationMemoryService {
 
       return response;
     } catch (error) {
-      console.error(`❌ Error updating TM entry ${id}:`, error);
+      console.error(`Error updating TM entry ${id}:`, error);
       throw new Error(
         `Failed to update TM entry: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -120,7 +120,7 @@ class TranslationMemoryService {
 
       await apiClient.delete(`/translation-memory/${id}`, token);
     } catch (error) {
-      console.error(`❌ Error deleting TM entry ${id}:`, error);
+      console.error(`Error deleting TM entry ${id}:`, error);
       throw new Error(
         `Failed to delete TM entry: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -149,7 +149,7 @@ class TranslationMemoryService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error searching TM entries:", error);
+      console.error("Error searching TM entries:", error);
       throw new Error(
         `Failed to search TM entries: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -174,7 +174,7 @@ class TranslationMemoryService {
 
       return response;
     } catch (error) {
-      console.error(`❌ Error incrementing TM entry usage ${id}:`, error);
+      console.error(`Error incrementing TM entry usage ${id}:`, error);
       throw new Error(
         `Failed to increment TM entry usage: ${
           error instanceof Error ? error.message : "Unknown error"

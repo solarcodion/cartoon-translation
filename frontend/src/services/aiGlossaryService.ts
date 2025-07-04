@@ -61,7 +61,7 @@ class AIGlossaryService {
       );
       return response;
     } catch (error: any) {
-      console.error("❌ AI glossary fetch error:", error);
+      console.error("AI glossary fetch error:", error);
 
       if (error.message.includes("404")) {
         // Return empty array if no entries found
@@ -93,7 +93,7 @@ class AIGlossaryService {
 
       return response;
     } catch (error: any) {
-      console.error("❌ AI glossary entry fetch error:", error);
+      console.error("AI glossary entry fetch error:", error);
 
       if (error.message.includes("404")) {
         throw new Error("AI glossary entry not found");
@@ -127,7 +127,7 @@ class AIGlossaryService {
 
       return response;
     } catch (error: any) {
-      console.error("❌ AI glossary entry creation error:", error);
+      console.error("AI glossary entry creation error:", error);
 
       if (error.message.includes("401")) {
         throw new Error("Authentication failed. Please log in again.");
@@ -160,7 +160,7 @@ class AIGlossaryService {
 
       return response;
     } catch (error: any) {
-      console.error("❌ AI glossary entry update error:", error);
+      console.error("AI glossary entry update error:", error);
 
       if (error.message.includes("404")) {
         throw new Error("AI glossary entry not found");
@@ -186,7 +186,7 @@ class AIGlossaryService {
 
       await apiClient.delete(`/ai-glossary/${entryId}`, token);
     } catch (error: any) {
-      console.error("❌ AI glossary entry deletion error:", error);
+      console.error("AI glossary entry deletion error:", error);
 
       if (error.message.includes("404")) {
         throw new Error("AI glossary entry not found");
@@ -220,7 +220,7 @@ class AIGlossaryService {
 
       return deletedCount;
     } catch (error: any) {
-      console.error("❌ AI glossary clear error:", error);
+      console.error("AI glossary clear error:", error);
 
       if (error.message.includes("401")) {
         throw new Error("Authentication failed. Please log in again.");

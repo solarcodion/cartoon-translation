@@ -1,5 +1,3 @@
-// People Analysis Service for AI Glossary functionality - DEPRECATED: Use TerminologyAnalysisService instead
-
 import { apiClient } from "./api";
 import { supabase } from "../lib/supabase";
 
@@ -94,7 +92,7 @@ class PeopleAnalysisService {
         throw new Error("People analysis failed");
       }
     } catch (error: any) {
-      console.error("❌ People analysis error:", error);
+      console.error("People analysis error:", error);
 
       // Handle different error types
       if (error.message.includes("404")) {
@@ -141,7 +139,7 @@ class PeopleAnalysisService {
         throw new Error("Terminology analysis failed");
       }
     } catch (error: any) {
-      console.error("❌ Terminology analysis error:", error);
+      console.error("Terminology analysis error:", error);
 
       // Handle different error types
       if (error.message.includes("404")) {
@@ -172,9 +170,6 @@ class PeopleAnalysisService {
     };
   }
 
-  /**
-   * Convert TerminologyInfo to GlossaryCharacter format for compatibility
-   */
   convertTerminologyToGlossaryCharacter(term: TerminologyInfo): any {
     return {
       id: term.id,
@@ -190,9 +185,6 @@ class PeopleAnalysisService {
     };
   }
 
-  /**
-   * Convert multiple PersonInfo objects to GlossaryCharacter format
-   */
   convertToGlossaryCharacters(people: PersonInfo[]): any[] {
     return people.map((person) => this.convertToGlossaryCharacter(person));
   }
@@ -222,9 +214,6 @@ class PeopleAnalysisService {
     return fallbackPeople;
   }
 
-  /**
-   * Get avatar URL for terminology based on name and category
-   */
   getSimpleAvatarUrl(name: string, category?: string): string | null {
     // Generate avatar based on category
     switch (category) {

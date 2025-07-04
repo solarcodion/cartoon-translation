@@ -34,7 +34,7 @@ class DashboardService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error fetching dashboard data:", error);
+      console.error("Error fetching dashboard data:", error);
       throw new Error(
         `Failed to fetch dashboard data: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -54,39 +54,13 @@ class DashboardService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error fetching dashboard statistics:", error);
+      console.error("Error fetching dashboard statistics:", error);
       throw new Error(
         `Failed to fetch dashboard statistics: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }
-  }
-
-  async refreshDashboardStats(): Promise<void> {
-    try {
-      const token = await this.getAuthToken();
-
-      await apiClient.post<{ success: boolean; message: string }>(
-        "/dashboard/refresh",
-        {},
-        token || undefined
-      );
-
-      console.log("✅ Dashboard statistics refreshed successfully");
-    } catch (error) {
-      console.error("❌ Error refreshing dashboard statistics:", error);
-      throw new Error(
-        `Failed to refresh dashboard statistics: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
-
-  // Helper method to format activity action text (now just returns the activity string)
-  formatActivityAction(activity: string): string {
-    return activity;
   }
 }
 

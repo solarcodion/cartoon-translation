@@ -20,13 +20,11 @@ export const useDashboardSync = () => {
   const syncAfterSeriesCreate = useCallback((seriesName: string) => {
     incrementDashboardSeries();
     addDashboardActivity(`Created series: ${seriesName}`);
-    console.log("📊 Dashboard updated: Series created");
   }, []);
 
   const syncAfterSeriesDelete = useCallback((seriesName: string) => {
     decrementDashboardSeries();
     addDashboardActivity(`Deleted series: ${seriesName}`);
-    console.log("📊 Dashboard updated: Series deleted");
   }, []);
 
   // Chapter operations
@@ -34,7 +32,6 @@ export const useDashboardSync = () => {
     (chapterTitle: string, seriesName: string) => {
       incrementDashboardProgressChapters();
       addDashboardActivity(`Created chapter: ${chapterTitle} in ${seriesName}`);
-      console.log("📊 Dashboard updated: Chapter created");
     },
     []
   );
@@ -45,7 +42,6 @@ export const useDashboardSync = () => {
       addDashboardActivity(
         `Deleted chapter: ${chapterTitle} from ${seriesName}`
       );
-      console.log("📊 Dashboard updated: Chapter deleted");
     },
     []
   );
@@ -60,7 +56,6 @@ export const useDashboardSync = () => {
       addDashboardActivity(
         `Chapter ${chapterTitle} status changed to ${newStatus}`
       );
-      console.log("📊 Dashboard updated: Chapter status changed");
     },
     []
   );
@@ -70,7 +65,6 @@ export const useDashboardSync = () => {
     (pageNumber: number, chapterTitle: string) => {
       incrementDashboardProcessedPages();
       addDashboardActivity(`Added page ${pageNumber} to ${chapterTitle}`);
-      console.log("📊 Dashboard updated: Page created");
     },
     []
   );
@@ -79,7 +73,6 @@ export const useDashboardSync = () => {
     (pageNumber: number, chapterTitle: string) => {
       decrementDashboardProcessedPages();
       addDashboardActivity(`Deleted page ${pageNumber} from ${chapterTitle}`);
-      console.log("📊 Dashboard updated: Page deleted");
     },
     []
   );
@@ -91,7 +84,6 @@ export const useDashboardSync = () => {
       addDashboardActivity(
         `Translated textbox in page ${pageNumber} of ${chapterTitle}`
       );
-      console.log("📊 Dashboard updated: Textbox translated");
     },
     []
   );
@@ -102,7 +94,6 @@ export const useDashboardSync = () => {
       addDashboardActivity(
         `Deleted translation from page ${pageNumber} of ${chapterTitle}`
       );
-      console.log("📊 Dashboard updated: Translation deleted");
     },
     []
   );
@@ -110,7 +101,6 @@ export const useDashboardSync = () => {
   // Generic activity logger
   const addActivity = useCallback((activity: string) => {
     addDashboardActivity(activity);
-    console.log(`📊 Dashboard activity added: ${activity}`);
   }, []);
 
   return {

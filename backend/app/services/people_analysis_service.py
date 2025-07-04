@@ -12,10 +12,7 @@ from app.services.terminology_analysis_service import TerminologyAnalysisService
 
 
 class PeopleAnalysisService:
-    """Service for AI-powered people/character analysis using OpenAI GPT - DEPRECATED: Use TerminologyAnalysisService instead"""
-
     def __init__(self, supabase: Client = None):
-        """Initialize people analysis service with OpenAI client and optional Supabase client"""
         self.target_language = settings.translation_target_language
         self.supabase = supabase
         self.ai_glossary_service = AIGlossaryService(supabase) if supabase else None
@@ -23,7 +20,7 @@ class PeopleAnalysisService:
         self.terminology_service = TerminologyAnalysisService(supabase) if supabase else None
 
         if not settings.openai_api_key:
-            print("⚠️ Warning: OpenAI API key not configured. People analysis service will not work.")
+            print("Warning: OpenAI API key not configured. People analysis service will not work.")
             self.client = None
             return
 
@@ -50,22 +47,11 @@ class PeopleAnalysisService:
         )
     
     async def analyze_people_in_series(
-        self, 
-        series_id: str, 
-        chapters_data: List[Dict[str, Any]], 
+        self,
+        series_id: str,
+        chapters_data: List[Dict[str, Any]],
         force_refresh: bool = False
     ) -> PeopleAnalysisResponse:
-        """
-        Analyze people/characters across all chapters in a series
-        
-        Args:
-            series_id: ID of the series to analyze
-            chapters_data: List of chapter data with pages and contexts
-            force_refresh: Whether to force re-analysis
-            
-        Returns:
-            PeopleAnalysisResponse with detected people information
-        """
         try:
             start_time = time.time()
 
@@ -87,7 +73,7 @@ class PeopleAnalysisService:
                 try:
                     tm_data = await self.tm_service.get_all_tm_entries_for_analysis(series_id)
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Failed to fetch TM data: {str(tm_error)}")
+                    print(f"Warning: Failed to fetch TM data: {str(tm_error)}")
 
             # Build the analysis prompt with TM data
             system_prompt = self._build_system_prompt_with_tm()
@@ -118,7 +104,7 @@ class PeopleAnalysisService:
                     for tm_id in useful_tm_ids:
                         await self.tm_service.increment_usage_count(tm_id)
                 except Exception as tm_error:
-                    print(f"⚠️ Warning: Failed to update TM usage counts: {str(tm_error)}")
+                    print(f"Warning: Failed to update TM usage counts: {str(tm_error)}")
 
             # Save results to database if AI glossary service is available
             if self.ai_glossary_service and people_list:
@@ -129,7 +115,7 @@ class PeopleAnalysisService:
                         clear_existing=True
                     )
                 except Exception as db_error:
-                    print(f"⚠️ Warning: Failed to save to database: {str(db_error)}")
+                    print(f"Warning: Failed to save to database: {str(db_error)}")
                     # Continue without failing the analysis
 
             return PeopleAnalysisResponse(
@@ -142,17 +128,16 @@ class PeopleAnalysisService:
             )
             
         except openai.RateLimitError as e:
-            print(f"❌ OpenAI rate limit exceeded: {str(e)}")
+            print(f"OpenAI rate limit exceeded: {str(e)}")
             raise Exception("People analysis service is currently busy. Please try again later.")
         except openai.APIError as e:
-            print(f"❌ OpenAI API error: {str(e)}")
+            print(f"OpenAI API error: {str(e)}")
             raise Exception(f"People analysis failed: {str(e)}")
         except Exception as e:
-            print(f"❌ People analysis error: {str(e)}")
+            print(f"People analysis error: {str(e)}")
             raise Exception(f"People analysis failed: {str(e)}")
     
     def _build_system_prompt(self) -> str:
-        """Build system prompt for people analysis"""
         return f"""You are an expert manga/manhwa character analyst specializing in identifying and describing people/characters in visual stories.
 
 Your task is to analyze all chapters of a series and identify the main people/characters that appear throughout the story. For each person/character you identify, provide:
@@ -240,12 +225,11 @@ Only return the JSON array, no additional text."""
                 return self._create_fallback_people(len(chapters_data))
                 
         except Exception as e:
-            print(f"⚠️ Warning: Could not parse people analysis result: {str(e)}")
+            print(f"Warning: Could not parse people analysis result: {str(e)}")
             # Fallback: create generic people
             return self._create_fallback_people(len(chapters_data))
     
     def _create_fallback_people(self, num_chapters: int) -> List[PersonInfo]:
-        """Create fallback people when AI analysis fails"""
         fallback_people = []
         
         # Create 2-3 generic people based on common manga/manhwa patterns
@@ -365,7 +349,6 @@ Only return the JSON object, no additional text."""
         return "\n".join(prompt_parts)
 
     def _parse_people_analysis_with_tm(self, analysis_result: str, chapters_data: List[Dict[str, Any]], tm_data: List[Any]) -> tuple[List[PersonInfo], List[str]]:
-        """Parse the AI analysis result into PersonInfo objects and useful TM IDs"""
         try:
             # Try to extract JSON from the response
             json_start = analysis_result.find('{')
@@ -404,25 +387,4 @@ Only return the JSON object, no additional text."""
             except:
                 return self._create_fallback_people(len(chapters_data)), []
 
-    async def health_check(self) -> dict:
-        """Check if people analysis service is working"""
-        try:
-            if not self.client:
-                return {
-                    "status": "unhealthy",
-                    "service": "OpenAI GPT People Analysis",
-                    "error": "OpenAI API key not configured"
-                }
-            
-            return {
-                "status": "healthy",
-                "service": "OpenAI GPT People Analysis",
-                "target_language": self.target_language,
-                "model": "gpt-4o-mini"
-            }
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "service": "OpenAI GPT People Analysis",
-                "error": str(e)
-            }
+

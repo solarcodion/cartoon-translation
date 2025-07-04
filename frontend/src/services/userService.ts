@@ -9,12 +9,6 @@ export interface CreateUserRequest {
   avatar_url?: string;
 }
 
-export interface UpdateUserRequest {
-  name?: string;
-  role?: "admin" | "editor" | "translator";
-  avatar_url?: string;
-}
-
 export interface UpdateProfileRequest {
   name?: string;
   avatar_url?: string;
@@ -91,17 +85,6 @@ class UserService {
   }
 
   /**
-   * Update any user's information (admin only for other users)
-   */
-  async updateUser(
-    userId: string,
-    userData: UpdateUserRequest,
-    token: string
-  ): Promise<UserResponse> {
-    return apiClient.put<UserResponse>(`/users/${userId}`, userData, token);
-  }
-
-  /**
    * Update user role specifically
    */
   async updateUserRole(
@@ -136,19 +119,6 @@ class UserService {
       avatar_url: userResponse.avatar_url,
       created_at: userResponse.created_at,
       updated_at: userResponse.updated_at,
-    };
-  }
-
-  /**
-   * Convert User to CreateUserRequest
-   */
-  convertToCreateRequest(user: User, userId: string): CreateUserRequest {
-    return {
-      user_id: userId,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      avatar_url: user.avatar_url,
     };
   }
 }

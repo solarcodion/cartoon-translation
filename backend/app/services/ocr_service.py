@@ -5,8 +5,9 @@ import easyocr
 import cv2
 import numpy as np
 from PIL import Image
+from typing import List
 
-from app.models import OCRResponse, OCRWithTranslationResponse
+from app.models import OCRResponse, OCRWithTranslationResponse, TextRegion, TextRegionDetectionResponse
 from app.services.translation_service import TranslationService
 from app.config import settings
 
@@ -21,26 +22,18 @@ except AttributeError:
 
 
 class OCRService:
-    """Service for OCR operations using EasyOCR"""
-
     def __init__(self):
-        """Initialize OCR service with EasyOCR reader"""
-        # Fix PIL compatibility issue first
         self._fix_pil_compatibility()
 
-        # Get OCR languages from configuration
         self.ocr_languages = settings.ocr_languages
         self.auto_detect_language = settings.ocr_auto_detect_language
 
-        # Initialize EasyOCR reader with multiple languages (CPU only)
         self.reader = None
-        self.specialized_readers = {}  # Cache for specialized language readers
+        self.specialized_readers = {}
         self._initialize_reader()
 
-        # Initialize translation service
         self.translation_service = TranslationService()
 
-        # Language mapping for better language detection
         self.language_names = {
             'ko': 'Korean',
             'ja': 'Japanese',
@@ -51,118 +44,99 @@ class OCRService:
             'en': 'English'
         }
 
-    def _initialize_reader(self):
-        """Initialize EasyOCR reader with multiple languages in CPU-only mode"""
-        print(f"🔧 Initializing EasyOCR with languages: {', '.join(self.ocr_languages)} (CPU-only mode)")
+        # Text grouping configuration for improved distance-based separation
+        self.grouping_config = {
+            # Hard distance limits (minimum pixel distances)
+            'max_horizontal_gap_pixels': 50,
+            'max_vertical_gap_pixels': 30,
 
-        # Define compatible language combinations using environment configurations
-        # Each language is paired only with English for optimal performance
+            # Relative distance multipliers
+            'max_horizontal_gap_multiplier': 1.5,
+            'max_vertical_gap_multiplier': 1.2,
+
+            # Same line detection
+            'same_line_vertical_threshold': 0.3,
+            'same_line_horizontal_gap_multiplier': 1.5,
+
+            # Vertical stacking detection
+            'vertical_stack_horizontal_threshold': 0.5,
+            'vertical_stack_gap_multiplier': 1.0,
+
+            # Nearby text detection
+            'nearby_vertical_threshold': 0.8,
+            'nearby_horizontal_threshold': 1.2,
+            'nearby_gap_multiplier': 0.8
+        }
+
+    def _initialize_reader(self):
         compatible_combinations = [
-            self.ocr_languages,  # Try original configuration first
-            # Language-specific combinations from environment
-            settings.ocr_language_korean,     # Korean + English
-            settings.ocr_language_japanese,   # Japanese + English
-            settings.ocr_language_chinese,    # Chinese + English
-            settings.ocr_language_vietnamese, # Vietnamese + English
-            settings.ocr_language_english     # English only as final fallback
+            self.ocr_languages,
+            settings.ocr_language_korean,
+            settings.ocr_language_japanese,
+            settings.ocr_language_chinese,
+            settings.ocr_language_vietnamese,
+            settings.ocr_language_english
         ]
 
         for i, lang_combo in enumerate(compatible_combinations):
             try:
-                if i == 0:
-                    print(f"🔧 Trying original configuration: {', '.join(lang_combo)}")
-                else:
-                    print(f"🔄 Fallback attempt {i}: {', '.join(lang_combo)}")
-
                 self.reader = easyocr.Reader(lang_combo, gpu=False, verbose=False)
                 self.ocr_languages = lang_combo
-                print(f"✅ EasyOCR initialized successfully with languages: {', '.join(lang_combo)}")
                 return
 
             except Exception as e:
-                print(f"❌ Failed with {', '.join(lang_combo)}: {str(e)}")
+                print(f"Failed with {', '.join(lang_combo)}: {str(e)}")
                 continue
 
-        # If all attempts failed
         raise Exception("OCR initialization failed: Unable to initialize EasyOCR with any language combination")
 
     def _get_specialized_reader(self, target_languages: list) -> 'easyocr.Reader':
-        """
-        Get or create a specialized reader for specific languages
-
-        Args:
-            target_languages: List of language codes
-
-        Returns:
-            EasyOCR reader optimized for the target languages
-        """
         cache_key = ','.join(sorted(target_languages))
 
         if cache_key in self.specialized_readers:
             return self.specialized_readers[cache_key]
 
         try:
-            # Ensure English is included for compatibility
             if 'en' not in target_languages:
                 target_languages = target_languages + ['en']
 
             reader = easyocr.Reader(target_languages, gpu=False, verbose=False)
             self.specialized_readers[cache_key] = reader
-            print(f"🔧 Created specialized reader for: {', '.join(target_languages)}")
+
             return reader
         except Exception as e:
-            print(f"❌ Failed to create specialized reader for {target_languages}: {str(e)}")
-            return self.reader  # Fallback to main reader
+            print(f"Failed to create specialized reader for {target_languages}: {str(e)}")
+            return self.reader
 
     def _fix_pil_compatibility(self):
-        """Fix PIL compatibility issues with newer versions"""
         try:
-            # Check if ANTIALIAS exists, if not, add it for backward compatibility
             if not hasattr(Image, 'ANTIALIAS'):
                 Image.ANTIALIAS = Image.Resampling.LANCZOS
         except Exception as e:
-            print(f"⚠️ PIL compatibility fix failed: {str(e)}")
-            # Continue anyway, might not be needed
+            print(f"PIL compatibility fix failed: {str(e)}")
 
     def _detect_language_from_text(self, text: str) -> tuple[str, float]:
-        """
-        Detect language from extracted text using character analysis
-
-        Args:
-            text: Extracted text to analyze
-
-        Returns:
-            Tuple of (language_code, confidence)
-        """
         if not text or not text.strip():
             return 'unknown', 0.0
 
-        # Count characters by script type
-        # Korean: Hangul syllables + Hangul Jamo + Hangul compatibility Jamo
         korean_chars = sum(1 for char in text if (
-            '\uAC00' <= char <= '\uD7AF' or  # Hangul Syllables
-            '\u1100' <= char <= '\u11FF' or  # Hangul Jamo
-            '\u3130' <= char <= '\u318F'     # Hangul Compatibility Jamo
+            '\uAC00' <= char <= '\uD7AF' or
+            '\u1100' <= char <= '\u11FF' or
+            '\u3130' <= char <= '\u318F'
         ))
 
-        # Japanese: Hiragana + Katakana + Japanese-specific Kanji patterns
-        japanese_hiragana = sum(1 for char in text if '\u3040' <= char <= '\u309F')  # Hiragana
-        japanese_katakana = sum(1 for char in text if '\u30A0' <= char <= '\u30FF')  # Katakana
-        japanese_kanji = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+        japanese_hiragana = sum(1 for char in text if '\u3040' <= char <= '\u309F')
+        japanese_katakana = sum(1 for char in text if '\u30A0' <= char <= '\u30FF')
+        japanese_kanji = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')
 
-        # Chinese: CJK Unified Ideographs (but exclude if Japanese kana present)
-        chinese_chars = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')  # CJK Unified Ideographs
+        chinese_chars = sum(1 for char in text if '\u4E00' <= char <= '\u9FFF')
 
-        # Additional Japanese indicators
-        japanese_punctuation = sum(1 for char in text if char in '。、！？')  # Japanese punctuation
+        japanese_punctuation = sum(1 for char in text if char in '。、！？')
 
-        # Additional Chinese indicators
-        chinese_punctuation = sum(1 for char in text if char in '。，！？；：')  # Chinese punctuation
+        chinese_punctuation = sum(1 for char in text if char in '。，！？；：')
 
-        # Vietnamese: Latin characters with Vietnamese diacritics
         vietnamese_chars = sum(1 for char in text if any(c in char for c in 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ'))
 
-        # English: Basic Latin characters (excluding Vietnamese diacritics)
         english_chars = sum(1 for char in text if (
             char.isalpha() and
             ord(char) < 256 and
@@ -283,13 +257,290 @@ class OCRService:
                     if avg_confidence > best_confidence:
                         best_results = results
                         best_confidence = avg_confidence
-                        print(f"🎯 Better results from {', '.join(lang_combo)} reader (confidence: {avg_confidence:.3f})")
 
             except Exception as e:
                 print(f"⚠️ Specialized reader {lang_combo} failed: {str(e)}")
                 continue
 
         return best_results
+
+    def _group_text_regions(self, ocr_results) -> List['TextRegion']:
+        """
+        Group OCR results into logical text regions based on spatial proximity and context
+
+        Args:
+            ocr_results: List of (bbox, text, confidence) tuples from EasyOCR
+
+        Returns:
+            List of grouped TextRegion objects
+        """
+        if not ocr_results:
+            return []
+
+        # First, convert all results to a standardized format
+        text_boxes = []
+        for (bbox, text, confidence) in ocr_results:
+            # Use adaptive confidence threshold
+            min_confidence = self._get_adaptive_confidence_threshold(text)
+            if confidence > min_confidence and text.strip():
+                # Convert bbox coordinates to our format
+                x_coords = [point[0] for point in bbox]
+                y_coords = [point[1] for point in bbox]
+
+                x = int(min(x_coords))
+                y = int(min(y_coords))
+                width = int(max(x_coords) - min(x_coords))
+                height = int(max(y_coords) - min(y_coords))
+
+                text_boxes.append({
+                    'x': x,
+                    'y': y,
+                    'width': width,
+                    'height': height,
+                    'text': text.strip(),
+                    'confidence': confidence,
+                    'center_x': x + width // 2,
+                    'center_y': y + height // 2
+                })
+
+        if not text_boxes:
+            return []
+
+        # Sort by vertical position (top to bottom), then horizontal (left to right)
+        text_boxes.sort(key=lambda box: (box['y'], box['x']))
+
+        # Filter out very small or low-confidence text boxes that might be noise
+        text_boxes = [box for box in text_boxes if
+                     box['width'] >= 5 and box['height'] >= 5 and
+                     len(box['text'].strip()) > 0]
+
+        # Group text boxes using improved algorithm for manga/comic text
+        grouped_regions = self._group_by_proximity_and_context(text_boxes)
+
+        return grouped_regions
+
+    def _group_by_proximity_and_context(self, text_boxes) -> List['TextRegion']:
+        """
+        Advanced grouping algorithm that considers both spatial proximity and text context
+        """
+        if not text_boxes:
+            return []
+
+        if len(text_boxes) == 1:
+            return [self._merge_text_boxes([text_boxes[0]])]
+
+        # Create a graph of text boxes and their relationships
+        groups = []
+        used_indices = set()
+
+        for i, box in enumerate(text_boxes):
+            if i in used_indices:
+                continue
+
+            # Start a new group with this box
+            current_group = [box]
+            used_indices.add(i)
+
+            # Find all boxes that should be grouped with this one
+            self._expand_group(text_boxes, current_group, used_indices)
+
+            # Create merged region from the group
+            if current_group:
+                merged_region = self._merge_text_boxes(current_group)
+                if merged_region:
+                    groups.append(merged_region)
+
+        return groups
+
+    def _expand_group(self, text_boxes, current_group, used_indices):
+        """
+        Recursively expand a group by finding nearby text boxes
+        """
+        for i, candidate_box in enumerate(text_boxes):
+            if i in used_indices:
+                continue
+
+            # Check if this box should be grouped with any box in the current group
+            should_add = False
+
+            for group_box in current_group:
+                if self._should_group_boxes(group_box, candidate_box):
+                    should_add = True
+                    break
+
+            if should_add:
+                current_group.append(candidate_box)
+                used_indices.add(i)
+                # Recursively check for more boxes to add
+                self._expand_group(text_boxes, current_group, used_indices)
+
+    def _should_group_boxes(self, box1, box2) -> bool:
+        """
+        Determine if two text boxes should be grouped together based on manga/comic patterns
+        with improved distance-based separation
+        """
+        # Calculate center-to-center distances and dimensions
+        vertical_distance = abs(box1['center_y'] - box2['center_y'])
+        horizontal_distance = abs(box1['center_x'] - box2['center_x'])
+        avg_height = (box1['height'] + box2['height']) / 2
+        avg_width = (box1['width'] + box2['width']) / 2
+
+        # Calculate edge-to-edge distances for more accurate separation
+        box1_right = box1['x'] + box1['width']
+        box1_bottom = box1['y'] + box1['height']
+        box2_right = box2['x'] + box2['width']
+        box2_bottom = box2['y'] + box2['height']
+
+        # Edge-to-edge distances (negative means overlap)
+        horizontal_gap = max(0, max(box1['x'] - box2_right, box2['x'] - box1_right))
+        vertical_gap = max(0, max(box1['y'] - box2_bottom, box2['y'] - box1_bottom))
+
+        # Hard distance limits - if text is too far apart, never group
+        max_absolute_horizontal_gap = max(
+            avg_width * self.grouping_config['max_horizontal_gap_multiplier'],
+            self.grouping_config['max_horizontal_gap_pixels']
+        )
+        max_absolute_vertical_gap = max(
+            avg_height * self.grouping_config['max_vertical_gap_multiplier'],
+            self.grouping_config['max_vertical_gap_pixels']
+        )
+
+        if horizontal_gap > max_absolute_horizontal_gap or vertical_gap > max_absolute_vertical_gap:
+            return False
+
+        # More restrictive grouping conditions using configuration
+
+        # 1. Same line text (horizontal alignment) - more restrictive
+        if vertical_distance <= avg_height * self.grouping_config['same_line_vertical_threshold']:
+            # Tighter horizontal gap allowance
+            return horizontal_gap <= avg_width * self.grouping_config['same_line_horizontal_gap_multiplier']
+
+        # 2. Vertically stacked text (common in manga) - more restrictive
+        if horizontal_distance <= avg_width * self.grouping_config['vertical_stack_horizontal_threshold']:
+            # Tighter vertical gap allowance
+            return vertical_gap <= avg_height * self.grouping_config['vertical_stack_gap_multiplier']
+
+        # 3. Nearby text within speech bubble range - more restrictive
+        if (vertical_distance <= avg_height * self.grouping_config['nearby_vertical_threshold'] and
+            horizontal_distance <= avg_width * self.grouping_config['nearby_horizontal_threshold']):
+            # Additional check: ensure actual gaps are reasonable
+            gap_multiplier = self.grouping_config['nearby_gap_multiplier']
+            return horizontal_gap <= avg_width * gap_multiplier and vertical_gap <= avg_height * gap_multiplier
+
+        # 4. Check for overlapping bounding boxes only (no proximity grouping)
+        horizontal_overlap = not (box1_right <= box2['x'] or box2_right <= box1['x'])
+        vertical_overlap = not (box1_bottom <= box2['y'] or box2_bottom <= box1['y'])
+
+        # Only group if there's actual overlap, not just proximity
+        return horizontal_overlap and vertical_overlap
+
+    def configure_text_grouping(self, **kwargs):
+        """
+        Configure text grouping parameters for distance-based separation
+
+        Args:
+            **kwargs: Configuration parameters to update
+                - max_horizontal_gap_pixels: Minimum pixel distance for horizontal separation
+                - max_vertical_gap_pixels: Minimum pixel distance for vertical separation
+                - max_horizontal_gap_multiplier: Multiplier for horizontal gap relative to text width
+                - max_vertical_gap_multiplier: Multiplier for vertical gap relative to text height
+                - same_line_vertical_threshold: Threshold for detecting same-line text
+                - same_line_horizontal_gap_multiplier: Horizontal gap multiplier for same-line text
+                - vertical_stack_horizontal_threshold: Threshold for detecting vertically stacked text
+                - vertical_stack_gap_multiplier: Gap multiplier for vertically stacked text
+                - nearby_vertical_threshold: Threshold for nearby text detection
+                - nearby_horizontal_threshold: Threshold for nearby text detection
+                - nearby_gap_multiplier: Gap multiplier for nearby text
+        """
+        for key, value in kwargs.items():
+            if key in self.grouping_config:
+                self.grouping_config[key] = value
+                print(f"✅ Updated text grouping config: {key} = {value}")
+            else:
+                print(f"⚠️ Unknown grouping config parameter: {key}")
+
+    def get_text_grouping_config(self):
+        """
+        Get current text grouping configuration
+
+        Returns:
+            Dictionary of current configuration parameters
+        """
+        return self.grouping_config.copy()
+
+    def _merge_text_boxes(self, text_boxes) -> 'TextRegion':
+        """
+        Merge multiple text boxes into a single TextRegion
+
+        Args:
+            text_boxes: List of text box dictionaries
+
+        Returns:
+            TextRegion object with merged bounding box and combined text
+        """
+        if not text_boxes:
+            return None
+
+        if len(text_boxes) == 1:
+            box = text_boxes[0]
+            return TextRegion(
+                x=box['x'],
+                y=box['y'],
+                width=box['width'],
+                height=box['height'],
+                text=box['text'],
+                confidence=box['confidence']
+            )
+
+        # Calculate bounding box that encompasses all text boxes
+        min_x = min(box['x'] for box in text_boxes)
+        min_y = min(box['y'] for box in text_boxes)
+        max_x = max(box['x'] + box['width'] for box in text_boxes)
+        max_y = max(box['y'] + box['height'] for box in text_boxes)
+
+        # Sort text boxes by reading order (top to bottom, left to right)
+        sorted_boxes = sorted(text_boxes, key=lambda box: (box['y'], box['x']))
+
+        # Combine text with improved spacing logic for better separation
+        combined_text = []
+        prev_box = None
+
+        for box in sorted_boxes:
+            if prev_box is not None:
+                # Calculate gaps more precisely
+                vertical_gap = box['y'] - (prev_box['y'] + prev_box['height'])
+                horizontal_gap = box['x'] - (prev_box['x'] + prev_box['width'])
+                avg_height = (box['height'] + prev_box['height']) / 2
+                avg_width = (box['width'] + prev_box['width']) / 2
+
+                # More conservative spacing logic
+                # 1. Significant vertical gap - always new line
+                if vertical_gap > avg_height * 0.5:  # Reduced threshold from 0.7
+                    combined_text.append('\n')
+                # 2. Same line text (very close vertically)
+                elif abs(box['center_y'] - prev_box['center_y']) <= avg_height * 0.3:  # Reduced from 0.4
+                    # Add space only if there's meaningful horizontal separation
+                    if horizontal_gap > avg_width * 0.2:  # More conservative spacing
+                        combined_text.append(' ')
+                # 3. Small vertical gap but still separate
+                elif vertical_gap > avg_height * 0.1:  # Reduced from 0.2
+                    # Add space for small separations
+                    combined_text.append(' ')
+
+            combined_text.append(box['text'])
+            prev_box = box
+
+        # Calculate average confidence
+        avg_confidence = sum(box['confidence'] for box in text_boxes) / len(text_boxes)
+
+        return TextRegion(
+            x=min_x,
+            y=min_y,
+            width=max_x - min_x,
+            height=max_y - min_y,
+            text=''.join(combined_text),
+            confidence=avg_confidence
+        )
 
     def get_language_specific_reader(self, language: str) -> 'easyocr.Reader':
         """
@@ -307,23 +558,23 @@ class OCRService:
     def process_image(self, image_data: str) -> OCRResponse:
         """
         Process base64 image data and extract text using OCR
-        
+
         Args:
             image_data: Base64 encoded image data (with or without data URL prefix)
-            
+
         Returns:
             OCRResponse with extracted text and metadata
         """
         try:
             start_time = time.time()
-            
+
             # Clean base64 data (remove data URL prefix if present)
             if image_data.startswith('data:image'):
                 image_data = image_data.split(',')[1]
-            
+
             # Decode base64 image
             image_bytes = base64.b64decode(image_data)
-            
+
             # Convert to PIL Image
             try:
                 pil_image = Image.open(io.BytesIO(image_bytes))
@@ -332,7 +583,7 @@ class OCRService:
             except Exception as img_error:
                 print(f"❌ Error processing image: {str(img_error)}")
                 raise Exception(f"Image processing failed: {str(img_error)}")
-            
+
             # Perform OCR using multiple specialized readers for better accuracy
             try:
                 if self.reader is None:
@@ -348,18 +599,18 @@ class OCRService:
                     detected_language=None,
                     language_confidence=None
                 )
-            
+
             # Extract text and calculate average confidence
             extracted_texts = []
             confidences = []
-            
+
             for (bbox, text, confidence) in results:
                 # Use adaptive confidence threshold based on text characteristics
                 min_confidence = self._get_adaptive_confidence_threshold(text)
                 if confidence > min_confidence:
                     extracted_texts.append(text.strip())
                     confidences.append(confidence)
-            
+
             # Combine all extracted text
             combined_text = ' '.join(extracted_texts)
 
@@ -379,13 +630,85 @@ class OCRService:
                 detected_language=detected_language,
                 language_confidence=language_confidence
             )
-            
+
         except Exception as e:
             print(f"❌ Error in OCR processing: {str(e)}")
             return OCRResponse(
                 success=False,
                 text="",
                 confidence=0.0,
+                processing_time=0.0,
+                detected_language=None,
+                language_confidence=None
+            )
+
+    def detect_text_regions(self, image_data: str) -> 'TextRegionDetectionResponse':
+        """
+        Detect text regions in an image and return bounding boxes with extracted text
+
+        Args:
+            image_data: Base64 encoded image data (with or without data URL prefix)
+
+        Returns:
+            TextRegionDetectionResponse with detected text regions and their bounding boxes
+        """
+        try:
+            start_time = time.time()
+
+            # Clean base64 data (remove data URL prefix if present)
+            if image_data.startswith('data:image'):
+                image_data = image_data.split(',')[1]
+
+            # Decode base64 image
+            image_bytes = base64.b64decode(image_data)
+
+            # Convert to PIL Image
+            try:
+                pil_image = Image.open(io.BytesIO(image_bytes))
+                # Convert PIL image to OpenCV format (numpy array)
+                opencv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            except Exception as img_error:
+                print(f"❌ Error processing image: {str(img_error)}")
+                raise Exception(f"Image processing failed: {str(img_error)}")
+
+            # Perform OCR using multiple specialized readers for better accuracy
+            try:
+                if self.reader is None:
+                    raise Exception("OCR reader not initialized")
+                results = self._process_with_multiple_readers(opencv_image)
+            except Exception as ocr_error:
+                print(f"❌ Error in OCR processing: {str(ocr_error)}")
+                return TextRegionDetectionResponse(
+                    success=False,
+                    text_regions=[],
+                    processing_time=time.time() - start_time,
+                    detected_language=None,
+                    language_confidence=None
+                )
+
+            # Process results and create grouped text regions
+            text_regions = self._group_text_regions(results)
+            all_texts = [region.text for region in text_regions]
+
+            # Detect language from all extracted text
+            combined_text = ' '.join(all_texts)
+            detected_language, language_confidence = self._detect_language_from_text(combined_text)
+
+            processing_time = time.time() - start_time
+
+            return TextRegionDetectionResponse(
+                success=True,
+                text_regions=text_regions,
+                processing_time=processing_time,
+                detected_language=detected_language,
+                language_confidence=language_confidence
+            )
+
+        except Exception as e:
+            print(f"❌ Error in text region detection: {str(e)}")
+            return TextRegionDetectionResponse(
+                success=False,
+                text_regions=[],
                 processing_time=0.0,
                 detected_language=None,
                 language_confidence=None

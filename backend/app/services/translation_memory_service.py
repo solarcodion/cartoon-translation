@@ -44,7 +44,6 @@ class TranslationMemoryService:
             raise Exception(f"Failed to create TM entry: {str(e)}")
     
     async def get_tm_entries_by_series(self, series_id: str, skip: int = 0, limit: int = 100) -> List[TranslationMemoryResponse]:
-        """Get all translation memory entries for a specific series with pagination"""
         try:
             # Query with pagination and ordering by created_at
             response = (
@@ -161,7 +160,6 @@ class TranslationMemoryService:
             raise Exception(f"Failed to increment usage count: {str(e)}")
     
     async def search_tm_entries(self, series_id: str, search_text: str, limit: int = 10) -> List[TranslationMemoryResponse]:
-        """Search translation memory entries by source or target text"""
         try:
             # Search in both source_text and target_text using ilike (case-insensitive)
             response = (
@@ -182,7 +180,7 @@ class TranslationMemoryService:
             return tm_entries_list
 
         except Exception as e:
-            print(f"❌ Error searching TM entries: {str(e)}")
+            print(f"Error searching TM entries: {str(e)}")
             raise Exception(f"Failed to search TM entries: {str(e)}")
 
     async def increment_usage_count(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
@@ -222,7 +220,6 @@ class TranslationMemoryService:
             raise Exception(f"Failed to increment usage count: {str(e)}")
 
     async def get_all_tm_entries_for_analysis(self, series_id: str) -> List[TranslationMemoryResponse]:
-        """Get all translation memory entries for a series for analysis purposes"""
         try:
             response = (
                 self.supabase.table(self.table_name)
@@ -240,5 +237,5 @@ class TranslationMemoryService:
             return tm_entries_list
 
         except Exception as e:
-            print(f"❌ Error fetching all TM entries for series {series_id}: {str(e)}")
+            print(f"Error fetching all TM entries for series {series_id}: {str(e)}")
             raise Exception(f"Failed to fetch TM entries for analysis: {str(e)}")

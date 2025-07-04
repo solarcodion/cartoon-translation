@@ -74,8 +74,6 @@ async def create_user(
         return result
 
     except ValidationError as e:
-        print(f"Validation error: {e}")
-        print(f"Validation error details: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Validation error: {e.errors()}"
@@ -87,15 +85,16 @@ async def create_user(
                 existing_user = await user_service.get_user_by_id(user_data.user_id)
                 if existing_user:
                     return existing_user
-            except Exception as fetch_error:
-                print(f"Failed to fetch existing user: {fetch_error}")
+            except Exception:
+                pass  # Failed to fetch existing user, continue with original error
 
         # Re-raise the original HTTP exception
         raise e
     except Exception as e:
-        print(f"Error in create_user endpoint: {str(e)}")
-        print(f"Error type: {type(e)}")
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
 
 @router.get("/", response_model=List[UserResponse])
@@ -180,9 +179,10 @@ async def update_my_profile(
             detail=f"Validation error: {e.errors()}"
         )
     except Exception as e:
-        print(f"Error in update_my_profile endpoint: {str(e)}")
-        print(f"Error type: {type(e)}")
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update profile: {str(e)}"
+        )
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -242,16 +242,15 @@ async def update_user_role(
         return await user_service.update_user_role(user_id, role_data.role)
 
     except ValidationError as e:
-        print(f"Validation error: {e}")
-        print(f"Validation error details: {e.errors()}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Validation error: {e.errors()}"
         )
     except Exception as e:
-        print(f"Error in update_user_role endpoint: {str(e)}")
-        print(f"Error type: {type(e)}")
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update user role: {str(e)}"
+        )
 
 
 @router.delete("/{user_id}", response_model=ApiResponse)

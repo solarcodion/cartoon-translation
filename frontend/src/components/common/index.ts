@@ -26,24 +26,18 @@ export {
   CardSkeleton,
   ButtonSkeleton,
   TableSkeleton,
+  SeriesTableSkeleton,
+  ChaptersTableSkeleton,
+  TranslationMemoryTableSkeleton,
+  AIGlossaryGridSkeleton,
+  PagesTableSkeleton,
+  TranslationsTableSkeleton,
 } from "./Skeleton";
-
-// Page skeletons are available but not exported by default
-// Only dashboard uses skeleton loading
-// export {
-//   SeriesPageSkeleton,
-//   ChaptersPageSkeleton,
-//   PagesPageSkeleton,
-//   UsersPageSkeleton,
-//   ListPageSkeleton,
-// } from "./PageSkeletons";
 
 export {
   BackButton,
   BackToSeries,
   BackToChapters,
-  BackToPages,
-  BackToUsers,
   BackIconButton,
 } from "./Buttons";
 

@@ -1,14 +1,34 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
+from pydantic import BaseModel
 
 from app.auth import get_current_user
 from app.services.ocr_service import OCRService
-from app.models import OCRRequest, OCRResponse, OCRWithTranslationResponse, ApiResponse
+from app.models import OCRRequest, OCRResponse, OCRWithTranslationResponse, ApiResponse, TextRegionDetectionResponse
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
 
 # Global OCR service instance (initialized once)
 ocr_service = None
+
+
+class TextGroupingConfigRequest(BaseModel):
+    """Request model for updating text grouping configuration"""
+    max_horizontal_gap_pixels: int = None
+    max_vertical_gap_pixels: int = None
+    max_horizontal_gap_multiplier: float = None
+    max_vertical_gap_multiplier: float = None
+    same_line_vertical_threshold: float = None
+    same_line_horizontal_gap_multiplier: float = None
+    vertical_stack_horizontal_threshold: float = None
+    vertical_stack_gap_multiplier: float = None
+    nearby_vertical_threshold: float = None
+    nearby_horizontal_threshold: float = None
+    nearby_gap_multiplier: float = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
 
 
 def get_ocr_service() -> OCRService:
@@ -272,4 +292,143 @@ async def ocr_health_check(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"OCR service health check failed: {str(e)}"
+        )
+
+
+@router.post("/detect-text-regions", response_model=TextRegionDetectionResponse, status_code=status.HTTP_200_OK)
+async def detect_text_regions(
+    request: OCRRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Detect text regions in an image and return bounding boxes with extracted text
+
+    This endpoint analyzes an image to detect all text regions and returns
+    their bounding boxes along with the extracted text for each region.
+    This is useful for automatically creating text boxes for translation.
+
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns a list of text regions with their coordinates and extracted text.
+    """
+    try:
+        # Validate input
+        if not request.image_data or not request.image_data.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required and cannot be empty"
+            )
+
+        # Detect text regions
+        result = ocr_service.detect_text_regions(request.image_data)
+
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to detect text regions in image"
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in detect_text_regions endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Text region detection failed: {str(e)}"
+        )
+
+
+@router.get("/text-grouping-config", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+async def get_text_grouping_config(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Get current text grouping configuration for distance-based separation
+
+    Returns the current configuration parameters that control how OCR text
+    regions are grouped together based on spatial proximity.
+    """
+    try:
+        config = ocr_service.get_text_grouping_config()
+
+        return ApiResponse(
+            success=True,
+            message="Text grouping configuration retrieved successfully",
+            data={
+                "config": config,
+                "description": {
+                    "max_horizontal_gap_pixels": "Minimum pixel distance for horizontal separation",
+                    "max_vertical_gap_pixels": "Minimum pixel distance for vertical separation",
+                    "max_horizontal_gap_multiplier": "Multiplier for horizontal gap relative to text width",
+                    "max_vertical_gap_multiplier": "Multiplier for vertical gap relative to text height",
+                    "same_line_vertical_threshold": "Threshold for detecting same-line text",
+                    "same_line_horizontal_gap_multiplier": "Horizontal gap multiplier for same-line text",
+                    "vertical_stack_horizontal_threshold": "Threshold for detecting vertically stacked text",
+                    "vertical_stack_gap_multiplier": "Gap multiplier for vertically stacked text",
+                    "nearby_vertical_threshold": "Threshold for nearby text detection",
+                    "nearby_horizontal_threshold": "Threshold for nearby text detection",
+                    "nearby_gap_multiplier": "Gap multiplier for nearby text"
+                }
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Error getting text grouping config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get text grouping configuration: {str(e)}"
+        )
+
+
+@router.post("/text-grouping-config", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+async def update_text_grouping_config(
+    request: TextGroupingConfigRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    ocr_service: OCRService = Depends(get_ocr_service)
+):
+    """
+    Update text grouping configuration for improved distance-based separation
+
+    This endpoint allows you to configure how OCR text regions are grouped together.
+    Lower values result in more aggressive separation (more individual text boxes),
+    while higher values result in more grouping (fewer, larger text boxes).
+
+    Use this to fine-tune text separation based on your specific manga/comic layout needs.
+    """
+    try:
+        # Convert request to dict, excluding None values
+        config_updates = {k: v for k, v in request.model_dump().items() if v is not None}
+
+        if not config_updates:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one configuration parameter must be provided"
+            )
+
+        # Update the configuration
+        ocr_service.configure_text_grouping(**config_updates)
+
+        # Get the updated configuration
+        updated_config = ocr_service.get_text_grouping_config()
+
+        return ApiResponse(
+            success=True,
+            message=f"Text grouping configuration updated successfully. {len(config_updates)} parameters changed.",
+            data={
+                "updated_parameters": config_updates,
+                "current_config": updated_config
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating text grouping config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update text grouping configuration: {str(e)}"
         )

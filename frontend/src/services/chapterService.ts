@@ -86,10 +86,7 @@ class ChapterService {
 
       return response;
     } catch (error) {
-      console.error(
-        `❌ Error fetching chapters for series ${seriesId}:`,
-        error
-      );
+      console.error(`Error fetching chapters for series ${seriesId}:`, error);
       throw new Error(
         `Failed to fetch chapters: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -109,7 +106,7 @@ class ChapterService {
 
       return response;
     } catch (error) {
-      console.error(`❌ Error fetching chapter ${chapterId}:`, error);
+      console.error(`Error fetching chapter ${chapterId}:`, error);
       throw new Error(
         `Failed to fetch chapter: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -133,7 +130,7 @@ class ChapterService {
 
       return response;
     } catch (error) {
-      console.error(`❌ Error updating chapter ${chapterId}:`, error);
+      console.error(`Error updating chapter ${chapterId}:`, error);
       throw new Error(
         `Failed to update chapter: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -161,7 +158,7 @@ class ChapterService {
 
       return response;
     } catch (error) {
-      console.error("❌ Error creating chapter:", error);
+      console.error("Error creating chapter:", error);
       throw new Error(
         `Failed to create chapter: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -180,7 +177,7 @@ class ChapterService {
 
       await apiClient.delete(`/chapters/${id}`, token);
     } catch (error) {
-      console.error(`❌ Error deleting chapter ${id}:`, error);
+      console.error(`Error deleting chapter ${id}:`, error);
       throw new Error(
         `Failed to delete chapter: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -201,7 +198,7 @@ class ChapterService {
       return response.count;
     } catch (error) {
       console.error(
-        `❌ Error fetching chapter count for series ${seriesId}:`,
+        `Error fetching chapter count for series ${seriesId}:`,
         error
       );
       throw new Error(
@@ -235,7 +232,7 @@ class ChapterService {
 
       return response.data;
     } catch (error) {
-      console.error(`❌ Error analyzing chapter ${chapterId}:`, error);
+      console.error(`Error analyzing chapter ${chapterId}:`, error);
       throw new Error(
         `Failed to analyze chapter: ${
           error instanceof Error ? error.message : "Unknown error"

@@ -71,8 +71,6 @@ class DashboardService:
                 "recent_activities": []
             }).execute()
             
-            print(f"✅ Dashboard record initialized with: series={series_count}, progress_chapters={progress_chapters_count}, pages={pages_count}, textboxes={textbox_count}")
-            
         except Exception as e:
             print(f"❌ Error initializing dashboard record: {str(e)}")
             raise Exception(f"Failed to initialize dashboard record: {str(e)}")
@@ -98,7 +96,6 @@ class DashboardService:
             
             # Update dashboard record
             self.supabase.table("dashboard").update(update_data).eq("id", 1).execute()
-            print(f"✅ Dashboard stats updated: {update_data}")
             
         except Exception as e:
             print(f"❌ Error updating dashboard statistics: {str(e)}")
@@ -125,8 +122,6 @@ class DashboardService:
                 processed_pages=pages_count,
                 translated_textbox=textbox_count
             )
-            
-            print(f"✅ Dashboard stats refreshed: series={series_count}, progress_chapters={progress_chapters_count}, pages={pages_count}, textboxes={textbox_count}")
             
         except Exception as e:
             print(f"❌ Error refreshing dashboard statistics: {str(e)}")

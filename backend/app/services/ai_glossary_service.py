@@ -16,7 +16,6 @@ class AIGlossaryService:
         glossary_data: AIGlossaryCreate,
         created_by: str
     ) -> AIGlossaryResponse:
-        """Create a new AI glossary entry"""
         try:
             # Prepare data for insertion with new terminology fields
             insert_data = {
@@ -91,12 +90,11 @@ class AIGlossaryService:
             raise Exception(f"Failed to fetch AI glossary entry: {str(e)}")
     
     async def update_glossary_entry(
-        self, 
-        entry_id: str, 
-        glossary_data: AIGlossaryUpdate, 
+        self,
+        entry_id: str,
+        glossary_data: AIGlossaryUpdate,
         updated_by: str
     ) -> Optional[AIGlossaryResponse]:
-        """Update an existing AI glossary entry"""
         try:
             # Prepare update data (only include non-None values)
             update_data = {}
@@ -204,7 +202,7 @@ class AIGlossaryService:
             return created_entries
 
         except Exception as e:
-            print(f"❌ Error saving people analysis results: {str(e)}")
+            print(f"Error saving people analysis results: {str(e)}")
             raise Exception(f"Failed to save people analysis results: {str(e)}")
 
     async def save_terminology_analysis_results(
@@ -239,28 +237,4 @@ class AIGlossaryService:
             print(f"❌ Error saving terminology analysis results: {str(e)}")
             raise Exception(f"Failed to save terminology analysis results: {str(e)}")
     
-    async def get_glossary_stats(self) -> Dict[str, Any]:
-        """Get AI glossary statistics"""
-        try:
-            # Get total count
-            response = self.supabase.table(self.table_name).select("id", count="exact").execute()
-            total_entries = response.count if response.count is not None else 0
-            
-            # Get count by series (top 5)
-            series_response = (
-                self.supabase.table(self.table_name)
-                .select("series_id", count="exact")
-                .execute()
-            )
-            
-            stats = {
-                "total_entries": total_entries,
-                "total_series_with_glossary": len(set(entry["series_id"] for entry in series_response.data)) if series_response.data else 0,
-                "average_entries_per_series": round(total_entries / max(1, len(set(entry["series_id"] for entry in series_response.data)) if series_response.data else 1), 2)
-            }
-            
-            return stats
-            
-        except Exception as e:
-            print(f"❌ Error getting AI glossary statistics: {str(e)}")
-            raise Exception(f"Failed to get AI glossary statistics: {str(e)}")
+

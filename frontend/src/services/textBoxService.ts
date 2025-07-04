@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export interface TextBoxApiItem {
   id: string;
   page_id: string;
-  image?: string;
+  image?: string; // URL of the original page image
   x: number;
   y: number;
   w: number;
@@ -21,7 +21,7 @@ export interface TextBoxApiItem {
 
 export interface CreateTextBoxData {
   page_id: string;
-  image?: string;
+  image?: string; // URL of the original page image
   x: number;
   y: number;
   w: number;
@@ -33,7 +33,7 @@ export interface CreateTextBoxData {
 }
 
 export interface UpdateTextBoxData {
-  image?: string;
+  image?: string; // URL of the original page image
   x?: number;
   y?: number;
   w?: number;
@@ -81,7 +81,7 @@ class TextBoxService {
 
       return result;
     } catch (error) {
-      console.error("❌ Error creating text box:", error);
+      console.error("Error creating text box:", error);
       throw error;
     }
   }
@@ -114,7 +114,7 @@ class TextBoxService {
 
       return result;
     } catch (error) {
-      console.error("❌ Error fetching text boxes:", error);
+      console.error("Error fetching text boxes:", error);
       throw error;
     }
   }
@@ -147,7 +147,7 @@ class TextBoxService {
 
       return result;
     } catch (error) {
-      console.error("❌ Error fetching text boxes:", error);
+      console.error("Error fetching text boxes:", error);
       throw error;
     }
   }
@@ -172,7 +172,7 @@ class TextBoxService {
 
       return result;
     } catch (error) {
-      console.error("❌ Error fetching text box:", error);
+      console.error("Error fetching text box:", error);
       throw error;
     }
   }
@@ -200,7 +200,7 @@ class TextBoxService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error("❌ Error updating text box:", error);
+      console.error("Error updating text box:", error);
       throw error;
     }
   }
@@ -221,7 +221,7 @@ class TextBoxService {
         );
       }
     } catch (error) {
-      console.error("❌ Error deleting text box:", error);
+      console.error("Error deleting text box:", error);
       throw error;
     }
   }

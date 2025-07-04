@@ -11,20 +11,20 @@ export interface OCRResponse {
   text: string;
   confidence?: number;
   processing_time?: number;
-  detected_language?: string; // Language code detected by OCR
-  language_confidence?: number; // Confidence of language detection
+  detected_language?: string;
+  language_confidence?: number;
 }
 
 export interface OCRWithTranslationResponse {
   success: boolean;
-  original_text: string; // Original text from OCR (any supported language)
-  translated_text: string; // English translation
+  original_text: string;
+  translated_text: string;
   confidence?: number;
   processing_time?: number;
   translation_time?: number;
   total_time?: number;
-  detected_language?: string; // Language code detected by OCR
-  language_confidence?: number; // Confidence of language detection
+  detected_language?: string;
+  language_confidence?: number;
 }
 
 export interface ApiResponse {
@@ -49,9 +49,6 @@ class OCRService {
     };
   }
 
-  /**
-   * Extract text from a base64 encoded image using OCR
-   */
   async extractText(imageData: string): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
@@ -80,9 +77,6 @@ class OCRService {
     }
   }
 
-  /**
-   * Extract text from a base64 encoded image using enhanced OCR with preprocessing
-   */
   async extractTextEnhanced(imageData: string): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
@@ -114,9 +108,6 @@ class OCRService {
     }
   }
 
-  /**
-   * Extract Vietnamese text from image and translate to English
-   */
   async extractTextWithTranslation(
     imageData: string
   ): Promise<OCRWithTranslationResponse> {
@@ -150,9 +141,6 @@ class OCRService {
     }
   }
 
-  /**
-   * Extract Vietnamese text from image using enhanced OCR and translate to English
-   */
   async extractTextEnhancedWithTranslation(
     imageData: string
   ): Promise<OCRWithTranslationResponse> {
@@ -189,9 +177,6 @@ class OCRService {
     }
   }
 
-  /**
-   * Check OCR service health
-   */
   async checkHealth(): Promise<ApiResponse> {
     try {
       const headers = await this.getAuthHeaders();
@@ -217,16 +202,10 @@ class OCRService {
     }
   }
 
-  /**
-   * Convert canvas to base64 data URL
-   */
   canvasToBase64(canvas: HTMLCanvasElement): string {
     return canvas.toDataURL("image/png");
   }
 
-  /**
-   * Convert image element to base64 data URL
-   */
   imageToBase64(img: HTMLImageElement): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
@@ -251,9 +230,6 @@ class OCRService {
     });
   }
 
-  /**
-   * Crop image and convert to base64
-   */
   async cropImageToBase64(
     img: HTMLImageElement,
     x: number,
@@ -271,22 +247,10 @@ class OCRService {
           return;
         }
 
-        // Set canvas size to the crop area
         canvas.width = width;
         canvas.height = height;
 
-        // Draw the cropped portion of the image
-        ctx.drawImage(
-          img,
-          x,
-          y,
-          width,
-          height, // Source rectangle
-          0,
-          0,
-          width,
-          height // Destination rectangle
-        );
+        ctx.drawImage(img, x, y, width, height, 0, 0, width, height);
 
         const dataURL = canvas.toDataURL("image/png");
         resolve(dataURL);
@@ -296,9 +260,6 @@ class OCRService {
     });
   }
 
-  /**
-   * Clean base64 data by removing data URL prefix
-   */
   cleanBase64Data(dataURL: string): string {
     if (dataURL.startsWith("data:image")) {
       return dataURL.split(",")[1];
@@ -307,5 +268,4 @@ class OCRService {
   }
 }
 
-// Export singleton instance
 export const ocrService = new OCRService();

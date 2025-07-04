@@ -1,7 +1,7 @@
 // Reusable Pages Table Component
 
 import type { Page } from "../../types";
-import { EmptyState } from "../common";
+import { EmptyState, PagesTableSkeleton } from "../common";
 import { PageItemRow } from "./Items";
 
 interface PagesTableProps {
@@ -15,6 +15,8 @@ interface PagesTableProps {
   onUploadPage?: () => void;
   /** Whether user can modify (edit/delete) pages */
   canModify?: boolean;
+  /** Whether data is currently loading */
+  isLoading?: boolean;
 }
 
 export default function PagesTable({
@@ -23,6 +25,7 @@ export default function PagesTable({
   onDeletePage,
   onUploadPage,
   canModify = true,
+  isLoading = false,
 }: PagesTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -44,26 +47,32 @@ export default function PagesTable({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {pages.map((page) => (
-            <PageItemRow
-              key={page.id}
-              page={page}
-              onEdit={
-                canModify && onEditPage ? () => onEditPage(page.id) : undefined
-              }
-              onDelete={
-                canModify && onDeletePage
-                  ? () => onDeletePage(page.id)
-                  : undefined
-              }
-              canModify={canModify}
-            />
-          ))}
+          {isLoading ? (
+            <PagesTableSkeleton rows={3} />
+          ) : (
+            pages.map((page) => (
+              <PageItemRow
+                key={page.id}
+                page={page}
+                onEdit={
+                  canModify && onEditPage
+                    ? () => onEditPage(page.id)
+                    : undefined
+                }
+                onDelete={
+                  canModify && onDeletePage
+                    ? () => onDeletePage(page.id)
+                    : undefined
+                }
+                canModify={canModify}
+              />
+            ))
+          )}
         </tbody>
       </table>
 
-      {/* Empty state */}
-      {pages.length === 0 && (
+      {/* Empty state - only show when not loading and no pages */}
+      {!isLoading && pages.length === 0 && (
         <EmptyState
           icon="📄"
           title="No pages found"
