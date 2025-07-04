@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FiX } from "react-icons/fi";
 
 interface UploadPageModalProps {
@@ -10,6 +10,7 @@ interface UploadPageModalProps {
     startPageNumber: number
   ) => Promise<void>;
   chapterNumber?: number;
+  nextPageNumber?: number;
 }
 
 export default function UploadPageModal({
@@ -17,9 +18,12 @@ export default function UploadPageModal({
   onClose,
   onUpload,
   onUploadWithAutoTextBoxes,
+  nextPageNumber,
 }: UploadPageModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [startPageNumber, setStartPageNumber] = useState("1");
+  const [startPageNumber, setStartPageNumber] = useState(
+    nextPageNumber ? nextPageNumber.toString() : "1"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -27,6 +31,13 @@ export default function UploadPageModal({
   const [isUploading, setIsUploading] = useState(false);
   const [autoDetectText, setAutoDetectText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update start page number when nextPageNumber changes
+  useEffect(() => {
+    if (nextPageNumber) {
+      setStartPageNumber(nextPageNumber.toString());
+    }
+  }, [nextPageNumber]);
 
   const handleUpload = async () => {
     const startNumber = parseInt(startPageNumber.trim());
@@ -87,7 +98,7 @@ export default function UploadPageModal({
     if (!isLoading) {
       // Reset form on close
       setSelectedFiles([]);
-      setStartPageNumber("1");
+      setStartPageNumber(nextPageNumber ? nextPageNumber.toString() : "1");
       // Clean up preview URLs
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
       setPreviewUrls([]);

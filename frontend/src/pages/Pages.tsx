@@ -125,13 +125,8 @@ export default function Pages() {
       const storeChapter = getChapterById(chapterId);
 
       if (storeChapter) {
-        // Use data from store
-        chapterData = {
-          id: storeChapter.id,
-          chapter_number: storeChapter.number,
-          page_count: pages.length, // Use pages from store
-          context: storeChapter.context,
-        };
+        // Use data from store - need to fetch from API to get next_page field
+        chapterData = await chapterService.getChapterById(chapterId);
       } else {
         // Fall back to API
         chapterData = await chapterService.getChapterById(chapterId);
@@ -144,6 +139,7 @@ export default function Pages() {
         title: `Chapter ${chapterData.chapter_number}`,
         series_name: "Loading...", // We'll need to fetch series name separately if needed
         total_pages: chapterData.page_count || pages.length,
+        next_page: chapterData.next_page || 1,
         context: chapterData.context,
       };
 
@@ -663,6 +659,7 @@ export default function Pages() {
         onUpload={handleConfirmUpload}
         onUploadWithAutoTextBoxes={handleConfirmUploadWithAutoTextBoxes}
         chapterNumber={chapterInfo?.number}
+        nextPageNumber={chapterInfo?.next_page}
       />
 
       {/* Edit Page Modal */}

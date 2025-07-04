@@ -55,6 +55,7 @@ export interface ChapterApiItem {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
+  next_page: number;
   context: string;
   created_at: string;
   updated_at: string;
@@ -79,5 +80,6 @@ export interface ChapterInfo {
   title: string;
   series_name: string;
   total_pages: number;
+  next_page: number;
   context: string;
 }

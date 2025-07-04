@@ -81,6 +81,13 @@ class PageService:
             public_url = self.get_page_url(original_path)
             page_data['file_path'] = public_url
 
+            # Update chapter next_page field if chapter_service is available
+            if self.chapter_service:
+                try:
+                    await self.chapter_service.update_next_page_number(page_data.chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
+
             return PageResponse(**page_data)
             
         except Exception as e:
@@ -162,6 +169,13 @@ class PageService:
                     print(f"❌ Error creating page {next_page_number + i}: {str(e)}")
                     failed_uploads.append(f"Page {next_page_number + i}: {str(e)}")
                     continue
+
+            # Update chapter next_page field if chapter_service is available and pages were created
+            if self.chapter_service and len(created_pages) > 0:
+                try:
+                    await self.chapter_service.update_next_page_number(chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
 
             return BatchPageUploadResponse(
                 success=len(created_pages) > 0,
@@ -461,6 +475,13 @@ class PageService:
             success_message = f"Successfully uploaded {len(created_pages)} pages"
             if total_text_boxes_created > 0:
                 success_message += f" with {total_text_boxes_created} auto-created text boxes"
+
+            # Update chapter next_page field if chapter_service is available and pages were created
+            if self.chapter_service and len(created_pages) > 0:
+                try:
+                    await self.chapter_service.update_next_page_number(chapter_id)
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update chapter next_page: {str(e)}")
 
             return BatchPageUploadResponse(
                 success=len(created_pages) > 0,

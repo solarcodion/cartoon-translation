@@ -105,6 +105,7 @@ CREATE TABLE chapters (
     )
   ),
   page_count INTEGER DEFAULT 0,
+  next_page INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE (series_id, chapter_number)

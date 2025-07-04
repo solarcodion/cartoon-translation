@@ -10,6 +10,7 @@ export interface ChapterUpdateRequest {
   chapter_number?: number;
   status?: "draft" | "in_progress" | "translated";
   page_count?: number;
+  next_page?: number;
   context?: string;
 }
 
@@ -19,6 +20,7 @@ export interface ChapterApiResponse {
   chapter_number: number;
   status: "draft" | "in_progress" | "translated";
   page_count: number;
+  next_page: number;
   context: string;
   created_at: string;
   updated_at: string;

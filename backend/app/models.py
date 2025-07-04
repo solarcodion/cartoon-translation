@@ -152,6 +152,7 @@ class ChapterBase(BaseModel):
     chapter_number: int
     status: ChapterStatus = ChapterStatus.DRAFT
     page_count: int = 0
+    next_page: int = 1
     context: str = ""
 
 
@@ -173,6 +174,7 @@ class ChapterUpdate(BaseModel):
     chapter_number: Optional[int] = None
     status: Optional[ChapterStatus] = None
     page_count: Optional[int] = None
+    next_page: Optional[int] = None
     context: Optional[str] = None
 
 
