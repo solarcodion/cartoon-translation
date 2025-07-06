@@ -622,6 +622,70 @@ export default function EditTextBoxModal({
     }
   }, [selectedPage]);
 
+  // Center the bounding box when modal opens with textBox data
+  useEffect(() => {
+    if (
+      isOpen &&
+      selectedPage &&
+      boundingBox.width > 0 &&
+      boundingBox.height > 0 &&
+      imageContainerRef.current
+    ) {
+      // Wait for the image to be rendered
+      const timer = setTimeout(() => {
+        if (imageRef.current && imageContainerRef.current) {
+          const img = imageRef.current;
+
+          // Calculate the center of the bounding box in image coordinates
+          const boundingBoxCenterX = boundingBox.x + boundingBox.width / 2;
+          const boundingBoxCenterY = boundingBox.y + boundingBox.height / 2;
+
+          // Get the actual image element's bounding rect to understand its current size
+          const imgRect = img.getBoundingClientRect();
+
+          // Calculate the scale factor from natural image to currently displayed image
+          const currentScaleX = imgRect.width / img.naturalWidth;
+          const currentScaleY = imgRect.height / img.naturalHeight;
+
+          // Convert bounding box center to currently displayed image coordinates
+          const displayedBoundingBoxCenterX =
+            boundingBoxCenterX * currentScaleX;
+          const displayedBoundingBoxCenterY =
+            boundingBoxCenterY * currentScaleY;
+
+          // Since transform-origin is "center center", we need to calculate offset from image center
+          const imageCenterX = imgRect.width / 2;
+          const imageCenterY = imgRect.height / 2;
+
+          // Calculate the offset of bounding box center from image center
+          const offsetFromImageCenterX =
+            displayedBoundingBoxCenterX - imageCenterX;
+          const offsetFromImageCenterY =
+            displayedBoundingBoxCenterY - imageCenterY;
+
+          // Calculate pan values to center the bounding box in the container
+          // Since transform-origin is center, we need to move the image so that
+          // the bounding box center aligns with the container center
+          const panX = -offsetFromImageCenterX;
+          const panY = -offsetFromImageCenterY;
+
+          // Set zoom to 100% and pan to center the bounding box
+          setZoom(1);
+          setPan({ x: panX, y: panY });
+        }
+      }, 100); // Small delay to ensure image is rendered
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    isOpen,
+    selectedPage,
+    boundingBox.x,
+    boundingBox.y,
+    boundingBox.width,
+    boundingBox.height,
+  ]);
+
   const handleCalculateTM = useCallback(async () => {
     if (!ocrText.trim() || !seriesId) return;
 
