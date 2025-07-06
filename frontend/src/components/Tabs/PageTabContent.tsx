@@ -33,7 +33,7 @@ import {
   useHasCachedTextBoxes,
   useTextBoxesIsStale,
 } from "../../stores";
-import TextBoxModal from "../Modals/TextBoxModal";
+import EditTextBoxModal from "../Modals/EditTextBoxModal";
 
 // Pages Tab Content
 interface PagesTabContentProps {
@@ -243,6 +243,11 @@ export function TranslationsTabContent({
       console.error("Error updating text box:", err);
       throw err; // Re-throw to let the modal handle the error
     }
+  };
+
+  const handleNavigateToTextBox = (textBox: TextBoxApiItem) => {
+    setSelectedTextBox(textBox);
+    // Modal will automatically update with the new textBox
   };
 
   const handleOpenDeleteModal = (textBox: TextBoxApiItem) => {
@@ -558,11 +563,13 @@ export function TranslationsTabContent({
       </div>
 
       {/* Edit Text Box Modal */}
-      <TextBoxModal
+      <EditTextBoxModal
         textBox={selectedTextBox}
+        textBoxes={textBoxes}
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
         onEdit={handleSaveTextBoxEdit}
+        onNavigateToTextBox={handleNavigateToTextBox}
         pages={pages}
         seriesId={seriesId}
       />

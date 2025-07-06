@@ -36,7 +36,7 @@ import {
   usePagesIsStale,
   useTextBoxesActions,
 } from "../stores";
-import TextBoxModal from "../components/Modals/TextBoxModal";
+import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -749,7 +749,7 @@ export default function Pages() {
       />
 
       {/* Add Text Box Modal */}
-      <TextBoxModal
+      <AddTextBoxModal
         isOpen={isAddTextBoxModalOpen}
         onClose={handleCloseAddTextBoxModal}
         onAdd={handleConfirmAddTextBox}

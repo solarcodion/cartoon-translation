@@ -5,16 +5,18 @@ import {
   FiZoomIn,
   FiZoomOut,
   FiMaximize2,
-  FiChevronDown,
   FiCheck,
   FiMousePointer,
   FiTrash2,
   FiCrop,
-  FiSave,
+  FiChevronLeft,
+  FiChevronRight,
+  FiList,
 } from "react-icons/fi";
 import { MdGTranslate } from "react-icons/md";
-import type { Page, TextBoxCreate, BoundingBox } from "../../types";
-import type { TextBoxApiItem, TextBoxApiUpdate } from "../../types/textbox";
+import type { Page, BoundingBox } from "../../types";
+import type { TextBoxApiItem } from "../../types/textbox";
+
 import { ocrService } from "../../services/ocrService";
 import { translationService } from "../../services/translationService";
 import {
@@ -22,29 +24,30 @@ import {
   type TMSuggestion,
 } from "../../services/tmCalculationService";
 
-interface TextBoxModalProps {
+interface EditTextBoxModalProps {
+  textBox: TextBoxApiItem | null;
+  textBoxes: TextBoxApiItem[];
   isOpen: boolean;
   onClose: () => void;
-  onAdd?: (textBoxData: TextBoxCreate, croppedImage?: string) => Promise<void>;
-  onEdit?: (textBoxId: string, textBoxData: TextBoxApiUpdate) => Promise<void>;
+  onEdit: (
+    textBoxId: string,
+    textBoxData: Partial<TextBoxApiItem>
+  ) => Promise<void>;
+  onNavigateToTextBox: (textBox: TextBoxApiItem) => void;
   pages: Page[];
-  selectedPageId?: string;
-  textBox?: TextBoxApiItem | null; // For edit mode
   seriesId?: string; // For TM calculation
 }
 
-export default function TextBoxModal({
+export default function EditTextBoxModal({
+  textBox,
+  textBoxes,
   isOpen,
   onClose,
-  onAdd,
   onEdit,
+  onNavigateToTextBox,
   pages,
-  selectedPageId,
-  textBox,
   seriesId,
-}: TextBoxModalProps) {
-  // Determine if we're in edit mode
-  const isEditMode = !!textBox;
+}: EditTextBoxModalProps) {
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [boundingBox, setBoundingBox] = useState<BoundingBox>({
     x: 0,
@@ -66,10 +69,6 @@ export default function TextBoxModal({
   const [copiedAI, setCopiedAI] = useState(false);
   const [copiedCorrected, setCopiedCorrected] = useState(false);
 
-  // Custom dropdown state
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   // TM calculation state
   const [tmScore, setTmScore] = useState<number>(0);
   const [tmSuggestions, setTmSuggestions] = useState<TMSuggestion[]>([]);
@@ -84,7 +83,6 @@ export default function TextBoxModal({
 
   // Cropped image state
   const [isCropped, setIsCropped] = useState(false);
-  const [croppedImageData, setCroppedImageData] = useState<string>("");
   // Pan and drag state
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -167,7 +165,6 @@ export default function TextBoxModal({
 
   // Zoom and pan handlers
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setZoom((prevZoom) => Math.max(0.1, Math.min(5, prevZoom + delta)));
   }, []);
@@ -239,6 +236,7 @@ export default function TextBoxModal({
       }
 
       setIsSelectingArea(false);
+      setIsDragSelectionMode(false);
     }
 
     setIsDragging(false);
@@ -262,7 +260,6 @@ export default function TextBoxModal({
     setBoundingBox({ x: 0, y: 0, width: 0, height: 0 });
     setIsDragSelectionMode(false);
     setIsCropped(false);
-    setCroppedImageData("");
   }, []);
 
   // Handle crop image
@@ -315,7 +312,6 @@ export default function TextBoxModal({
       // Convert canvas to data URL
       const croppedDataUrl = canvas.toDataURL("image/png");
       setIsCropped(true);
-      setCroppedImageData(croppedDataUrl);
 
       // Process with OCR
       try {
@@ -548,39 +544,32 @@ export default function TextBoxModal({
     };
   }, [isSelectingArea, selectionStart, selectionEnd]);
 
-  // Initialize selected page
+  // Initialize form data when textBox changes
   useEffect(() => {
-    if (isOpen && pages.length > 0) {
-      const page = selectedPageId
-        ? pages.find((p) => p.id === selectedPageId) || pages[0]
-        : pages[0];
-      setSelectedPage(page);
+    if (isOpen && textBox && pages.length > 0) {
+      // Find the page for this text box
+      const page = pages.find((p) => p.id === textBox.page_id);
+      if (page) {
+        setSelectedPage(page);
+        setBoundingBox({
+          x: textBox.x,
+          y: textBox.y,
+          width: textBox.w,
+          height: textBox.h,
+        });
+        setOcrText(textBox.ocr || "");
+        setAiTranslatedText(textBox.corrected || "");
+        setCorrectedText(textBox.corrected || "");
+        setCorrectionReason(textBox.reason || "");
+      }
     }
-  }, [isOpen, pages, selectedPageId]);
+  }, [isOpen, textBox, pages]);
 
   // Update bounding box overlay when input values change
   useEffect(() => {
     // This effect ensures the overlay updates when input values change
     // The getBoundingBoxStyle function will be called during render
   }, [boundingBox]);
-
-  // Handle click outside dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    if (isDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isDropdownOpen]);
 
   // Add event listeners for bounding box dragging
   useEffect(() => {
@@ -606,7 +595,7 @@ export default function TextBoxModal({
     }
   }, [isResizing, handleResizeMouseMove, handleMouseUp]);
 
-  // Reset form when modal opens/closes or populate with textBox data for edit mode
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setBoundingBox({ x: 0, y: 0, width: 0, height: 0 });
@@ -617,38 +606,13 @@ export default function TextBoxModal({
       setZoom(1);
       setPan({ x: 0, y: 0 });
       setIsCropped(false);
-      setCroppedImageData("");
       setSelectedPage(null);
       // Reset TM state
       setTmScore(0);
       setTmSuggestions([]);
       setTmQualityLabel("No Match");
-    } else if (isEditMode && textBox) {
-      // Populate form with textBox data for edit mode
-      setBoundingBox({
-        x: textBox.x,
-        y: textBox.y,
-        width: textBox.w,
-        height: textBox.h,
-      });
-      setOcrText(textBox.ocr || "");
-      setAiTranslatedText(""); // AI translation not stored in DB, start fresh
-      setCorrectedText(textBox.corrected || "");
-      setCorrectionReason(textBox.reason || "");
-
-      // Set TM data if available
-      if (textBox.tm !== undefined && textBox.tm !== null) {
-        setTmScore(textBox.tm);
-        setTmQualityLabel(tmCalculationService.getTMQualityLabel(textBox.tm));
-      }
-
-      // Find and set the page for this textBox
-      const page = pages.find((p) => p.id === textBox.page_id);
-      if (page) {
-        setSelectedPage(page);
-      }
     }
-  }, [isOpen, isEditMode, textBox, pages]);
+  }, [isOpen]);
 
   // Reset zoom and pan when page changes
   useEffect(() => {
@@ -658,56 +622,62 @@ export default function TextBoxModal({
     }
   }, [selectedPage]);
 
+  const handleCalculateTM = useCallback(async () => {
+    if (!ocrText.trim() || !seriesId) return;
+
+    try {
+      setIsCalculatingTM(true);
+
+      // Call the TM calculation API
+      const result = await tmCalculationService.calculateTMScore({
+        ocr_text: ocrText.trim(),
+        series_id: seriesId,
+        max_suggestions: 3,
+      });
+
+      setTmScore(result.best_score);
+      setTmSuggestions(result.suggestions);
+      setTmQualityLabel(result.quality_label);
+    } catch (error) {
+      console.error("Error calculating TM score:", error);
+      setTmScore(0);
+      setTmSuggestions([]);
+      setTmQualityLabel("No Match");
+    } finally {
+      setIsCalculatingTM(false);
+    }
+  }, [ocrText, seriesId]);
+
   // Auto-calculate TM when OCR text changes (with debounce)
   useEffect(() => {
-    if (!ocrText.trim() || !seriesId || isEditMode) return;
+    if (!ocrText.trim() || !seriesId) return;
 
     const timeoutId = setTimeout(() => {
       handleCalculateTM();
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timeoutId);
-  }, [ocrText, seriesId, isEditMode]);
+  }, [ocrText, seriesId, handleCalculateTM]);
 
   const handleSubmit = async () => {
-    if (!selectedPage || !ocrText.trim()) return;
+    if (!textBox || !selectedPage || !ocrText.trim()) return;
 
     try {
       setIsLoading(true);
 
-      if (isEditMode && textBox && onEdit) {
-        // Edit mode - update existing text box
-        const updateData: TextBoxApiUpdate = {
-          x: boundingBox.x,
-          y: boundingBox.y,
-          w: boundingBox.width,
-          h: boundingBox.height,
-          ocr: ocrText.trim() || undefined,
-          corrected: correctedText.trim() || undefined,
-          reason: correctionReason.trim() || undefined,
-        };
-        await onEdit(textBox.id, updateData);
-      } else if (!isEditMode && onAdd) {
-        // Add mode - create new text box
-        await onAdd(
-          {
-            pageId: selectedPage.id,
-            pageNumber: selectedPage.number,
-            boundingBox,
-            ocrText: ocrText.trim(),
-            aiTranslatedText: aiTranslatedText.trim() || undefined,
-            correctedText: correctedText.trim() || undefined,
-            correctionReason: correctionReason.trim() || undefined,
-          },
-          croppedImageData || undefined
-        );
-      }
+      // Edit mode - update existing text box
+      await onEdit(textBox.id, {
+        x: boundingBox.x,
+        y: boundingBox.y,
+        w: boundingBox.width,
+        h: boundingBox.height,
+        ocr: ocrText.trim(),
+        corrected: correctedText.trim() || undefined,
+        reason: correctionReason.trim() || undefined,
+      });
       onClose();
     } catch (error) {
-      console.error(
-        `Error ${isEditMode ? "updating" : "adding"} text box:`,
-        error
-      );
+      console.error("Error updating text box:", error);
     } finally {
       setIsLoading(false);
     }
@@ -737,32 +707,6 @@ export default function TextBoxModal({
     }
   };
 
-  const handleCalculateTM = async () => {
-    if (!ocrText.trim() || !seriesId) return;
-
-    try {
-      setIsCalculatingTM(true);
-
-      // Call the TM calculation API
-      const result = await tmCalculationService.calculateTMScore({
-        ocr_text: ocrText.trim(),
-        series_id: seriesId,
-        max_suggestions: 3,
-      });
-
-      setTmScore(result.best_score);
-      setTmSuggestions(result.suggestions);
-      setTmQualityLabel(result.quality_label);
-    } catch (error) {
-      console.error("Error calculating TM score:", error);
-      setTmScore(0);
-      setTmSuggestions([]);
-      setTmQualityLabel("No Match");
-    } finally {
-      setIsCalculatingTM(false);
-    }
-  };
-
   const handleCopyText = async (
     text: string,
     type: "ocr" | "ai" | "corrected"
@@ -786,6 +730,30 @@ export default function TextBoxModal({
     }
   };
 
+  // Get current text box index for navigation
+  const currentTextBoxIndex = textBox
+    ? textBoxes.findIndex((tb) => tb.id === textBox.id)
+    : -1;
+
+  // Navigation functions
+  const navigateToPrevious = () => {
+    if (
+      currentTextBoxIndex > 0 &&
+      textBoxes.length > 0 &&
+      onNavigateToTextBox
+    ) {
+      const prevTextBox = textBoxes[currentTextBoxIndex - 1];
+      onNavigateToTextBox(prevTextBox);
+    }
+  };
+
+  const navigateToNext = () => {
+    if (currentTextBoxIndex < textBoxes.length - 1 && onNavigateToTextBox) {
+      const nextTextBox = textBoxes[currentTextBoxIndex + 1];
+      onNavigateToTextBox(nextTextBox);
+    }
+  };
+
   const handleClose = () => {
     if (!isLoading) {
       onClose();
@@ -795,6 +763,17 @@ export default function TextBoxModal({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       handleClose();
+    } else {
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          navigateToPrevious();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          navigateToNext();
+          break;
+      }
     }
   };
 
@@ -808,14 +787,14 @@ export default function TextBoxModal({
           <div className="flex items-center justify-between w-full">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {isEditMode ? "Edit Text Box" : "Add New Text Box"}
+                Edit Text Box
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {isEditMode
-                  ? "Edit the text area and content. Use zoom/pan for precision."
-                  : "Manually define a text area. Use zoom/pan for precision."}
+                Edit text box content and position. Use arrow keys to navigate
+                between text boxes.
               </p>
             </div>
+
             <button
               onClick={handleClose}
               disabled={isLoading}
@@ -825,6 +804,34 @@ export default function TextBoxModal({
             </button>
           </div>
         </div>
+
+        {/* Navigation Controls */}
+        {textBoxes.length > 0 && (
+          <div className="flex items-center justify-center gap-2 p-4 bg-gray-50 border-b border-gray-200">
+            <button
+              onClick={navigateToPrevious}
+              disabled={currentTextBoxIndex <= 0}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              <FiChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+
+            <span className="text-sm text-gray-500 px-2 flex items-center gap-1">
+              <FiList className="w-4 h-4" />
+              {currentTextBoxIndex + 1} of {textBoxes.length}
+            </span>
+
+            <button
+              onClick={navigateToNext}
+              disabled={currentTextBoxIndex >= textBoxes.length - 1}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              Next
+              <FiChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div
@@ -972,87 +979,65 @@ export default function TextBoxModal({
             <div className="absolute top-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded-lg">
               <div>🖱️ Scroll to zoom</div>
               <div>✋ Drag to pan</div>
+              <div>← → Navigate text boxes</div>
             </div>
           </div>
 
           {/* Right Side - Form */}
           <div className="w-96 border-l border-gray-200 bg-white flex flex-col">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Page Selector */}
+              {/* Page Display (Read-only) */}
               <div className="bg-gray-50 p-4 rounded-lg border">
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Page{" "}
-                  {isEditMode && (
-                    <span className="text-xs text-gray-500">
-                      (read-only in edit mode)
-                    </span>
-                  )}
+                  Page
                 </label>
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      !isEditMode && setIsDropdownOpen(!isDropdownOpen)
-                    }
-                    disabled={isLoading || isEditMode}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-left flex items-center justify-between transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isEditMode
-                        ? "cursor-not-allowed"
-                        : "hover:border-gray-400 cursor-pointer"
-                    }`}
-                  >
-                    <span
-                      className={
-                        selectedPage ? "text-gray-900" : "text-gray-500"
-                      }
-                    >
-                      {selectedPage
-                        ? `Page ${selectedPage.number} (${selectedPage.dimensions})`
-                        : "Select a page"}
-                    </span>
-                    <FiChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-                        isDropdownOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {isDropdownOpen && !isEditMode && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {pages.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">
-                          No pages available
-                        </div>
-                      ) : (
-                        pages.map((page) => (
-                          <button
-                            key={page.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPage(page);
-                              setIsDropdownOpen(false);
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center justify-between cursor-pointer"
-                          >
-                            <span>
-                              Page {page.number} ({page.dimensions})
-                            </span>
-                            {selectedPage?.id === page.id && (
-                              <FiCheck className="w-4 h-4 text-blue-600" />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700">
+                  {selectedPage
+                    ? `Page ${selectedPage.number} (${selectedPage.dimensions})`
+                    : "No page selected"}
                 </div>
               </div>
 
               {/* Bounding Box */}
               <div className="bg-gray-50 p-4 rounded-lg border">
-                <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Bounding Box (x, y, w, h) - Original Dims
-                </label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-900">
+                    Bounding Box (x, y, w, h)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleToggleDragSelection}
+                      className={`p-1 text-xs rounded border transition-colors flex items-center ${
+                        isDragSelectionMode
+                          ? "border-blue-300 bg-blue-100 text-blue-600"
+                          : "border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      } ${isLoading ? "cursor-not-allowed" : "cursor-pointer"}`}
+                      disabled={isLoading}
+                      title="Toggle drag selection mode"
+                    >
+                      <FiMousePointer className="w-3 h-3" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleClearArea}
+                      className={`p-1 text-xs rounded border transition-colors flex items-center ${
+                        isLoading ||
+                        (boundingBox.width === 0 && boundingBox.height === 0)
+                          ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-red-300 bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer"
+                      }`}
+                      disabled={
+                        isLoading ||
+                        (boundingBox.width === 0 && boundingBox.height === 0)
+                      }
+                      title="Clear area position"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">
@@ -1127,75 +1112,6 @@ export default function TextBoxModal({
                     />
                   </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-4 pt-3 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={handleToggleDragSelection}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer flex items-center justify-center gap-2 ${
-                      isDragSelectionMode
-                        ? "bg-blue-100 border-blue-300 text-blue-700"
-                        : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
-                    }`}
-                    disabled={isLoading}
-                    title="Toggle drag selection mode"
-                  >
-                    <FiMousePointer className="w-4 h-4" />
-                    {isDragSelectionMode ? "Exit Drag Mode" : "Select Area"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleClearArea}
-                    className="px-4 py-2 text-sm rounded-lg border border-red-300 bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer flex items-center gap-2"
-                    disabled={
-                      isLoading ||
-                      (boundingBox.width === 0 && boundingBox.height === 0)
-                    }
-                    title="Clear area position"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                    Clear Area
-                  </button>
-                </div>
-
-                {/* Crop Button - Separate Line */}
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={handleCropImage}
-                    className={`w-full px-4 py-2 text-sm rounded-lg border transition-colors cursor-pointer flex items-center justify-center gap-2 ${
-                      isCropped
-                        ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                        : "border-green-300 bg-green-50 text-green-600 hover:bg-green-100"
-                    }`}
-                    disabled={
-                      isLoading ||
-                      isProcessingOCR ||
-                      (boundingBox.width === 0 && boundingBox.height === 0)
-                    }
-                    title={
-                      isProcessingOCR
-                        ? "Processing OCR..."
-                        : isCropped
-                        ? "Re-crop image and extract text"
-                        : "Crop image and extract text"
-                    }
-                  >
-                    {isProcessingOCR ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" />
-                        Processing OCR...
-                      </>
-                    ) : (
-                      <>
-                        <FiCrop className="w-4 h-4" />
-                        {isCropped ? "Re-crop & OCR" : "Crop & OCR"}
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
 
               {/* OCR Text */}
@@ -1204,30 +1120,69 @@ export default function TextBoxModal({
                   <label className="block text-sm font-medium text-gray-900">
                     OCR Text (Editable)
                   </label>
-                  <button
-                    onClick={() => handleCopyText(ocrText, "ocr")}
-                    className={`p-1 transition-colors ${
-                      !ocrText
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
-                    }`}
-                    disabled={!ocrText}
-                    title={
-                      !ocrText
-                        ? "No text to copy"
-                        : copiedOCR
-                        ? "Copied!"
-                        : "Copy text"
-                    }
-                  >
-                    {copiedOCR ? (
-                      <FiCheck className="text-sm text-green-500" />
-                    ) : (
-                      <FiCopy
-                        className={`text-sm ${!ocrText ? "text-gray-300" : ""}`}
-                      />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCropImage}
+                      className={`p-1 text-xs rounded border transition-colors flex items-center ${
+                        isProcessingOCR
+                          ? "border-blue-300 bg-blue-100 text-blue-600"
+                          : isCropped
+                          ? "border-blue-300 bg-blue-100 text-blue-600 hover:bg-blue-200"
+                          : boundingBox.width === 0 || boundingBox.height === 0
+                          ? "border-gray-300 bg-gray-100 text-gray-400"
+                          : "border-green-300 bg-green-100 text-green-600 hover:bg-green-200"
+                      } ${
+                        isLoading ||
+                        isProcessingOCR ||
+                        (boundingBox.width === 0 && boundingBox.height === 0)
+                          ? "cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`}
+                      disabled={
+                        isLoading ||
+                        isProcessingOCR ||
+                        (boundingBox.width === 0 && boundingBox.height === 0)
+                      }
+                      title={
+                        isProcessingOCR
+                          ? "Processing OCR..."
+                          : boundingBox.width === 0 || boundingBox.height === 0
+                          ? "Select an area first"
+                          : isCropped
+                          ? "Re-crop image and extract text"
+                          : "Crop image and extract text"
+                      }
+                    >
+                      {isProcessingOCR ? (
+                        <div className="w-3 h-3 border border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                      ) : (
+                        <FiCrop className="w-3 h-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleCopyText(ocrText, "ocr")}
+                      className={`p-1 text-xs rounded border transition-colors flex items-center ${
+                        !ocrText
+                          ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+                      }`}
+                      disabled={!ocrText}
+                      title={
+                        !ocrText
+                          ? "No text to copy"
+                          : copiedOCR
+                          ? "Copied!"
+                          : "Copy text"
+                      }
+                    >
+                      {copiedOCR ? (
+                        <FiCheck className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <FiCopy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   value={ocrText}
@@ -1238,55 +1193,65 @@ export default function TextBoxModal({
                 />
               </div>
 
-              {/* Translate with AI Button */}
-              <button
-                onClick={handleTranslateWithAI}
-                disabled={!ocrText.trim() || isTranslating || isLoading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <MdGTranslate className="text-lg" />
-                {isTranslating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Translating...
-                  </>
-                ) : (
-                  "Translate with AI"
-                )}
-              </button>
-
               {/* AI Translated Text */}
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-900">
                     AI Translated Text
                   </label>
-                  <button
-                    onClick={() => handleCopyText(aiTranslatedText, "ai")}
-                    className={`p-1 transition-colors ${
-                      !aiTranslatedText
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
-                    }`}
-                    disabled={!aiTranslatedText}
-                    title={
-                      !aiTranslatedText
-                        ? "No text to copy"
-                        : copiedAI
-                        ? "Copied!"
-                        : "Copy text"
-                    }
-                  >
-                    {copiedAI ? (
-                      <FiCheck className="text-sm text-green-500" />
-                    ) : (
-                      <FiCopy
-                        className={`text-sm ${
-                          !aiTranslatedText ? "text-gray-300" : ""
-                        }`}
-                      />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTranslateWithAI}
+                      className={`px-1 py-0.5 text-xs rounded border transition-colors flex items-center ${
+                        isTranslating
+                          ? "border-blue-300 bg-blue-100 text-blue-600"
+                          : !ocrText.trim()
+                          ? "border-gray-300 bg-gray-100 text-gray-400"
+                          : "border-blue-300 bg-blue-100 text-blue-600 hover:bg-blue-200"
+                      } ${
+                        isLoading || isTranslating || !ocrText.trim()
+                          ? "cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`}
+                      disabled={!ocrText.trim() || isTranslating || isLoading}
+                      title={
+                        isTranslating
+                          ? "Translating..."
+                          : !ocrText.trim()
+                          ? "Enter OCR text first"
+                          : "Translate with AI"
+                      }
+                    >
+                      {isTranslating ? (
+                        <div className="w-3 h-3 border border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                      ) : (
+                        <MdGTranslate className="w-3 h-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleCopyText(aiTranslatedText, "ai")}
+                      className={`px-1 py-0.5 text-xs rounded border transition-colors flex items-center ${
+                        !aiTranslatedText
+                          ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+                      }`}
+                      disabled={!aiTranslatedText}
+                      title={
+                        !aiTranslatedText
+                          ? "No text to copy"
+                          : copiedAI
+                          ? "Copied!"
+                          : "Copy text"
+                      }
+                    >
+                      {copiedAI ? (
+                        <FiCheck className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <FiCopy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   value={aiTranslatedText}
@@ -1305,10 +1270,10 @@ export default function TextBoxModal({
                   </label>
                   <button
                     onClick={() => handleCopyText(correctedText, "corrected")}
-                    className={`p-1 transition-colors ${
+                    className={`p-1 text-xs rounded border transition-colors flex items-center ${
                       !correctedText
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
+                        ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
                     }`}
                     disabled={!correctedText}
                     title={
@@ -1320,13 +1285,9 @@ export default function TextBoxModal({
                     }
                   >
                     {copiedCorrected ? (
-                      <FiCheck className="text-sm text-green-500" />
+                      <FiCheck className="w-3 h-3 text-green-500" />
                     ) : (
-                      <FiCopy
-                        className={`text-sm ${
-                          !correctedText ? "text-gray-300" : ""
-                        }`}
-                      />
+                      <FiCopy className="w-3 h-3" />
                     )}
                   </button>
                 </div>
@@ -1447,14 +1408,6 @@ export default function TextBoxModal({
                     </div>
                   </div>
                 )}
-
-                {tmSuggestions.length === 0 &&
-                  tmScore === 0 &&
-                  !isCalculatingTM && (
-                    <div className="text-sm text-gray-500 text-center py-2">
-                      Click "Calculate TM" to find translation memory matches
-                    </div>
-                  )}
               </div>
             </div>
           </div>
@@ -1471,19 +1424,16 @@ export default function TextBoxModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!selectedPage || !ocrText.trim() || isLoading}
+            disabled={!textBox || !selectedPage || !ocrText.trim() || isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
           >
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {isEditMode ? "Updating..." : "Saving..."}
+                Saving...
               </>
             ) : (
-              <>
-                {isEditMode ? <FiSave className="w-4 h-4" /> : null}
-                {isEditMode ? "Update Text Box" : "Save Text Box"}
-              </>
+              "Save Changes"
             )}
           </button>
         </div>
