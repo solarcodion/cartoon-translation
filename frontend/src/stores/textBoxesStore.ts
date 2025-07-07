@@ -18,6 +18,11 @@ export interface TextBoxesData {
     lastFetched: number;
     isLoading: boolean;
     error: string | null;
+    // Pagination state
+    currentPage: number;
+    itemsPerPage: number;
+    totalCount: number;
+    hasNextPage: boolean;
   };
 }
 
@@ -28,7 +33,11 @@ export interface TextBoxesState {
 }
 
 export interface TextBoxesActions {
-  fetchTextBoxesByChapterId: (chapterId: string) => Promise<void>;
+  fetchTextBoxesByChapterId: (
+    chapterId: string,
+    page?: number,
+    forceRefetch?: boolean
+  ) => Promise<void>;
   fetchTextBoxesByPageId: (pageId: string) => Promise<TextBoxApiItem[]>;
   createTextBox: (
     chapterId: string,
@@ -47,6 +56,13 @@ export interface TextBoxesActions {
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
+  // Pagination actions
+  setPage: (chapterId: string, page: number) => void;
+  setItemsPerPage: (chapterId: string, itemsPerPage: number) => void;
+  setItemsPerPageAndFetch: (
+    chapterId: string,
+    itemsPerPage: number
+  ) => Promise<void>;
 }
 
 export type TextBoxesStore = TextBoxesState & TextBoxesActions;
@@ -57,20 +73,36 @@ const initialState: TextBoxesState = {
   globalError: null,
 };
 
+// Default pagination values
+const defaultPagination = {
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalCount: 0,
+  hasNextPage: false,
+};
+
 export const useTextBoxesStore = create<TextBoxesStore>()(
   devtools(
     (set, get) => ({
       ...initialState,
 
-      fetchTextBoxesByChapterId: async (chapterId: string) => {
+      fetchTextBoxesByChapterId: async (
+        chapterId: string,
+        page?: number,
+        forceRefetch = false
+      ) => {
         const state = get();
         const chapterData = state.data[chapterId];
+        const currentPage = page || chapterData?.currentPage || 1;
+        const itemsPerPage = chapterData?.itemsPerPage || 10;
 
-        // Check if data is still fresh (within cache duration)
+        // Check if data is still fresh (within cache duration) and not forcing refetch
         if (
+          !forceRefetch &&
           chapterData?.textBoxes.length > 0 &&
           chapterData.lastFetched &&
-          Date.now() - chapterData.lastFetched < CACHE_DURATION
+          Date.now() - chapterData.lastFetched < CACHE_DURATION &&
+          chapterData.currentPage === currentPage
         ) {
           return; // Use cached data
         }
@@ -85,6 +117,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                 lastFetched: chapterData?.lastFetched || 0,
                 isLoading: true,
                 error: null,
+                currentPage,
+                itemsPerPage,
+                totalCount: chapterData?.totalCount || 0,
+                hasNextPage: chapterData?.hasNextPage || false,
               },
             },
             globalError: null,
@@ -94,8 +130,11 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         );
 
         try {
-          const textBoxes = await textBoxService.getTextBoxesByChapter(
-            chapterId
+          const skip = (currentPage - 1) * itemsPerPage;
+          const result = await textBoxService.getTextBoxesByChapterPaginated(
+            chapterId,
+            skip,
+            itemsPerPage
           );
 
           set(
@@ -103,10 +142,14 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
               data: {
                 ...get().data,
                 [chapterId]: {
-                  textBoxes,
+                  textBoxes: result.textBoxes,
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage,
+                  itemsPerPage,
+                  totalCount: result.totalCount,
+                  hasNextPage: result.hasNextPage,
                 },
               },
             },
@@ -128,6 +171,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                   lastFetched: chapterData?.lastFetched || 0,
                   isLoading: false,
                   error: errorMessage,
+                  currentPage,
+                  itemsPerPage,
+                  totalCount: chapterData?.totalCount || 0,
+                  hasNextPage: false,
                 },
               },
               globalError: errorMessage,
@@ -187,6 +234,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentChapterData?.currentPage || 1,
+                  itemsPerPage: currentChapterData?.itemsPerPage || 10,
+                  totalCount: (currentChapterData?.totalCount || 0) + 1,
+                  hasNextPage: currentChapterData?.hasNextPage || false,
                 },
               },
             },
@@ -273,6 +324,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentChapterData?.currentPage || 1,
+                  itemsPerPage: currentChapterData?.itemsPerPage || 10,
+                  totalCount: currentChapterData?.totalCount || 0,
+                  hasNextPage: currentChapterData?.hasNextPage || false,
                 },
               },
             },
@@ -343,6 +398,13 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentChapterData?.currentPage || 1,
+                  itemsPerPage: currentChapterData?.itemsPerPage || 10,
+                  totalCount: Math.max(
+                    (currentChapterData?.totalCount || 0) - 1,
+                    0
+                  ),
+                  hasNextPage: currentChapterData?.hasNextPage || false,
                 },
               },
             },
@@ -387,6 +449,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: 1,
+                  itemsPerPage: chapterData.itemsPerPage || 10,
+                  totalCount: 0,
+                  hasNextPage: false,
                 },
               },
             },
@@ -446,6 +512,10 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
                 lastFetched: Date.now(),
                 isLoading: false,
                 error: null,
+                currentPage: currentChapterData?.currentPage || 1,
+                itemsPerPage: currentChapterData?.itemsPerPage || 10,
+                totalCount: allTextBoxes.length,
+                hasNextPage: false, // Since we're adding all text boxes, there's no next page
               },
             },
           },
@@ -490,6 +560,57 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
             "textBoxes/invalidateAllCache"
           );
         }
+      },
+
+      // Pagination actions
+      setPage: (chapterId: string, page: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  currentPage: page,
+                },
+              },
+            },
+            false,
+            "textBoxes/setPage"
+          );
+        }
+      },
+
+      setItemsPerPage: (chapterId: string, itemsPerPage: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "textBoxes/setItemsPerPage"
+          );
+        }
+      },
+
+      setItemsPerPageAndFetch: async (
+        chapterId: string,
+        itemsPerPage: number
+      ) => {
+        const { setItemsPerPage, fetchTextBoxesByChapterId } = get();
+        setItemsPerPage(chapterId, itemsPerPage);
+        await fetchTextBoxesByChapterId(chapterId, 1, true);
       },
     }),
     {
@@ -547,6 +668,34 @@ export const useHasCachedTextBoxes = (chapterId: string) => {
   });
 };
 
+// Pagination selectors (removed unused selectPaginationByChapterId)
+
+// Pagination hook with individual value selectors to avoid object recreation
+export const useTextBoxesPagination = (chapterId: string) => {
+  const currentPage = useTextBoxesStore(
+    (state) => state.data[chapterId]?.currentPage || 1
+  );
+  const itemsPerPage = useTextBoxesStore(
+    (state) => state.data[chapterId]?.itemsPerPage || 10
+  );
+  const totalCount = useTextBoxesStore(
+    (state) => state.data[chapterId]?.totalCount || 0
+  );
+  const hasNextPage = useTextBoxesStore(
+    (state) => state.data[chapterId]?.hasNextPage || false
+  );
+
+  return useMemo(
+    () => ({
+      currentPage,
+      itemsPerPage,
+      totalCount,
+      hasNextPage,
+    }),
+    [currentPage, itemsPerPage, totalCount, hasNextPage]
+  );
+};
+
 // Actions hook for better performance
 export const useTextBoxesActions = () => {
   const fetchTextBoxesByChapterId = useTextBoxesStore(
@@ -567,6 +716,11 @@ export const useTextBoxesActions = () => {
   const clearError = useTextBoxesStore((state) => state.clearError);
   const reset = useTextBoxesStore((state) => state.reset);
   const invalidateCache = useTextBoxesStore((state) => state.invalidateCache);
+  const setPage = useTextBoxesStore((state) => state.setPage);
+  const setItemsPerPage = useTextBoxesStore((state) => state.setItemsPerPage);
+  const setItemsPerPageAndFetch = useTextBoxesStore(
+    (state) => state.setItemsPerPageAndFetch
+  );
 
   return useMemo(
     () => ({
@@ -580,6 +734,9 @@ export const useTextBoxesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     }),
     [
       fetchTextBoxesByChapterId,
@@ -592,6 +749,9 @@ export const useTextBoxesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     ]
   );
 };

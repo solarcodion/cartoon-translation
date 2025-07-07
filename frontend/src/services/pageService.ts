@@ -169,6 +169,38 @@ class PageService {
     }
   }
 
+  async getPageCountByChapter(chapterId: string): Promise<number> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const url = new URL(`${API_BASE_URL}/pages/chapter/${chapterId}/count`);
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        // If count endpoint doesn't exist, fall back to getting all pages
+        const allPages = await this.getPagesByChapter(chapterId, 0, 1000);
+        return allPages.length;
+      }
+
+      const result = await response.json();
+      return result.count || 0;
+    } catch (error) {
+      console.error("Error fetching page count:", error);
+      // Fall back to getting all pages
+      try {
+        const allPages = await this.getPagesByChapter(chapterId, 0, 1000);
+        return allPages.length;
+      } catch (fallbackError) {
+        console.error("Error in fallback page count:", fallbackError);
+        return 0;
+      }
+    }
+  }
+
   async getPageById(pageId: string): Promise<PageApiItem> {
     try {
       const headers = await this.getAuthHeaders();

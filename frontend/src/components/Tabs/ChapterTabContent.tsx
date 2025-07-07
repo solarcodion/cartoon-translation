@@ -16,6 +16,7 @@ import {
   ChaptersTableSkeleton,
   TranslationMemoryTableSkeleton,
   AIGlossaryGridSkeleton,
+  Pagination,
 } from "../common";
 import DropdownMenu from "../common/DropdownMenu";
 import type {
@@ -34,6 +35,13 @@ interface ChaptersTabContentProps {
   onDeleteChapter?: (chapterId: string) => void;
   canModify?: boolean;
   isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (itemsPerPage: number) => void;
+  };
 }
 
 export function ChaptersTabContent({
@@ -45,6 +53,7 @@ export function ChaptersTabContent({
   onDeleteChapter,
   canModify = true,
   isLoading = false,
+  pagination,
 }: ChaptersTabContentProps) {
   const navigate = useNavigate();
 
@@ -199,6 +208,18 @@ export function ChaptersTabContent({
               }
             />
           )}
+
+          {/* Pagination */}
+          {pagination && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalItems={pagination.totalItems}
+              itemsPerPage={pagination.itemsPerPage}
+              onPageChange={pagination.onPageChange}
+              onItemsPerPageChange={pagination.onItemsPerPageChange}
+              disabled={isLoading}
+            />
+          )}
         </div>
       </div>
     </TabContent>
@@ -216,6 +237,13 @@ interface TranslationMemoryTabContentProps {
   onDeleteEntry?: (tmId: string) => void;
   canModifyTM?: boolean;
   isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (itemsPerPage: number) => void;
+  };
 }
 
 export function TranslationMemoryTabContent({
@@ -228,6 +256,7 @@ export function TranslationMemoryTabContent({
   onDeleteEntry,
   canModifyTM = true,
   isLoading = false,
+  pagination,
 }: TranslationMemoryTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="translation">
@@ -356,6 +385,18 @@ export function TranslationMemoryTabContent({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination - Always show but disable when no data */}
+        {pagination && (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={pagination.onPageChange}
+            onItemsPerPageChange={pagination.onItemsPerPageChange}
+            disabled={isLoading || pagination.totalItems === 0}
+          />
+        )}
       </div>
     </TabContent>
   );

@@ -19,6 +19,11 @@ export interface ChaptersData {
     lastFetched: number;
     isLoading: boolean;
     error: string | null;
+    // Pagination state
+    currentPage: number;
+    itemsPerPage: number;
+    totalCount: number;
+    hasNextPage: boolean;
   };
 }
 
@@ -29,7 +34,7 @@ export interface ChaptersState {
 }
 
 export interface ChaptersActions {
-  fetchChaptersBySeriesId: (seriesId: string) => Promise<void>;
+  fetchChaptersBySeriesId: (seriesId: string, page?: number) => Promise<void>;
   createChapter: (
     seriesId: string,
     data: ChapterCreateRequest
@@ -40,6 +45,8 @@ export interface ChaptersActions {
   ) => Promise<Chapter>;
   deleteChapter: (seriesId: string, chapterId: string) => Promise<void>;
   resetChapterContextAndTranslations: (chapterId: string) => Promise<void>;
+  setPage: (seriesId: string, page: number) => void;
+  setItemsPerPage: (seriesId: string, itemsPerPage: number) => void;
   clearError: (seriesId?: string) => void;
   reset: () => void;
   invalidateCache: (seriesId?: string) => void;
@@ -58,15 +65,17 @@ export const useChaptersStore = create<ChaptersStore>()(
     (set, get) => ({
       ...initialState,
 
-      fetchChaptersBySeriesId: async (seriesId: string) => {
+      fetchChaptersBySeriesId: async (seriesId: string, page: number = 1) => {
         const state = get();
         const seriesData = state.data[seriesId];
+        const itemsPerPage = seriesData?.itemsPerPage || 10;
 
-        // Check if data is still fresh (within cache duration)
+        // Check if data is still fresh (within cache duration) and same page
         if (
           seriesData?.chapters.length > 0 &&
           seriesData.lastFetched &&
-          Date.now() - seriesData.lastFetched < CACHE_DURATION
+          Date.now() - seriesData.lastFetched < CACHE_DURATION &&
+          seriesData.currentPage === page
         ) {
           return; // Use cached data
         }
@@ -81,6 +90,10 @@ export const useChaptersStore = create<ChaptersStore>()(
                 lastFetched: seriesData?.lastFetched || 0,
                 isLoading: true,
                 error: null,
+                currentPage: page,
+                itemsPerPage: itemsPerPage,
+                totalCount: seriesData?.totalCount || 0,
+                hasNextPage: seriesData?.hasNextPage || false,
               },
             },
             globalError: null,
@@ -90,15 +103,22 @@ export const useChaptersStore = create<ChaptersStore>()(
         );
 
         try {
-          const apiChapters = await chapterService.getChaptersBySeriesId(
-            seriesId
-          );
+          const skip = (page - 1) * itemsPerPage;
+
+          // Fetch chapters and total count in parallel
+          const [apiChapters, totalCount] = await Promise.all([
+            chapterService.getChaptersBySeriesId(seriesId, skip, itemsPerPage),
+            chapterService.getChapterCount(seriesId),
+          ]);
+
           const legacyChapters = apiChapters.map(convertApiChapterToLegacy);
 
           // Sort chapters by chapter number in ascending order
           const sortedChapters = legacyChapters.sort(
             (a, b) => a.number - b.number
           );
+
+          const hasNextPage = skip + apiChapters.length < totalCount;
 
           set(
             {
@@ -109,6 +129,10 @@ export const useChaptersStore = create<ChaptersStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: page,
+                  itemsPerPage: itemsPerPage,
+                  totalCount: totalCount,
+                  hasNextPage: hasNextPage,
                 },
               },
             },
@@ -128,6 +152,10 @@ export const useChaptersStore = create<ChaptersStore>()(
                   lastFetched: seriesData?.lastFetched || 0,
                   isLoading: false,
                   error: errorMessage,
+                  currentPage: page,
+                  itemsPerPage: itemsPerPage,
+                  totalCount: seriesData?.totalCount || 0,
+                  hasNextPage: seriesData?.hasNextPage || false,
                 },
               },
               globalError: errorMessage,
@@ -178,10 +206,12 @@ export const useChaptersStore = create<ChaptersStore>()(
               data: {
                 ...currentState.data,
                 [seriesId]: {
+                  ...currentSeriesData,
                   chapters: sortedChapters,
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: (currentSeriesData?.totalCount || 0) + 1,
                 },
               },
             },
@@ -335,10 +365,15 @@ export const useChaptersStore = create<ChaptersStore>()(
               data: {
                 ...currentState.data,
                 [seriesId]: {
+                  ...currentSeriesData,
                   chapters: filteredChapters,
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: Math.max(
+                    0,
+                    (currentSeriesData?.totalCount || 0) - 1
+                  ),
                 },
               },
             },
@@ -444,6 +479,50 @@ export const useChaptersStore = create<ChaptersStore>()(
         set(initialState, false, "chapters/reset");
       },
 
+      setPage: (seriesId: string, page: number) => {
+        const state = get();
+        const seriesData = state.data[seriesId];
+
+        if (seriesData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [seriesId]: {
+                  ...seriesData,
+                  currentPage: page,
+                },
+              },
+            },
+            false,
+            "chapters/setPage"
+          );
+        }
+      },
+
+      setItemsPerPage: (seriesId: string, itemsPerPage: number) => {
+        const state = get();
+        const seriesData = state.data[seriesId];
+
+        if (seriesData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [seriesId]: {
+                  ...seriesData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                  lastFetched: 0, // Force refetch with new page size
+                },
+              },
+            },
+            false,
+            "chapters/setItemsPerPage"
+          );
+        }
+      },
+
       invalidateCache: (seriesId?: string) => {
         const state = get();
 
@@ -487,6 +566,13 @@ export const useChaptersStore = create<ChaptersStore>()(
 
 // Cached selectors to prevent infinite loops
 const emptyChapters: Chapter[] = [];
+const defaultPagination = {
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalCount: 0,
+  hasNextPage: false,
+};
+
 const selectChaptersBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
   state.data[seriesId]?.chapters || emptyChapters;
 
@@ -495,6 +581,19 @@ const selectLoadingBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
 
 const selectErrorBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
   state.data[seriesId]?.error || null;
+
+const selectPaginationBySeriesId =
+  (seriesId: string) => (state: ChaptersStore) => {
+    const seriesData = state.data[seriesId];
+    if (!seriesData) return defaultPagination;
+
+    return {
+      currentPage: seriesData.currentPage || 1,
+      itemsPerPage: seriesData.itemsPerPage || 10,
+      totalCount: seriesData.totalCount || 0,
+      hasNextPage: seriesData.hasNextPage || false,
+    };
+  };
 
 const selectGlobalLoading = (state: ChaptersStore) => state.globalLoading;
 const selectGlobalError = (state: ChaptersStore) => state.globalError;
@@ -530,6 +629,32 @@ export const useHasCachedChapters = (seriesId: string) => {
   });
 };
 
+// Pagination selectors with individual value selectors to avoid object recreation
+export const useChaptersPagination = (seriesId: string) => {
+  const currentPage = useChaptersStore(
+    (state) => state.data[seriesId]?.currentPage || 1
+  );
+  const itemsPerPage = useChaptersStore(
+    (state) => state.data[seriesId]?.itemsPerPage || 10
+  );
+  const totalCount = useChaptersStore(
+    (state) => state.data[seriesId]?.totalCount || 0
+  );
+  const hasNextPage = useChaptersStore(
+    (state) => state.data[seriesId]?.hasNextPage || false
+  );
+
+  return useMemo(
+    () => ({
+      currentPage,
+      itemsPerPage,
+      totalCount,
+      hasNextPage,
+    }),
+    [currentPage, itemsPerPage, totalCount, hasNextPage]
+  );
+};
+
 // Actions hook with memoization
 export const useChaptersActions = () => {
   const fetchChaptersBySeriesId = useChaptersStore(
@@ -541,6 +666,8 @@ export const useChaptersActions = () => {
   const resetChapterContextAndTranslations = useChaptersStore(
     (state) => state.resetChapterContextAndTranslations
   );
+  const setPage = useChaptersStore((state) => state.setPage);
+  const setItemsPerPage = useChaptersStore((state) => state.setItemsPerPage);
   const clearError = useChaptersStore((state) => state.clearError);
   const reset = useChaptersStore((state) => state.reset);
   const invalidateCache = useChaptersStore((state) => state.invalidateCache);
@@ -552,6 +679,8 @@ export const useChaptersActions = () => {
       updateChapter,
       deleteChapter,
       resetChapterContextAndTranslations,
+      setPage,
+      setItemsPerPage,
       clearError,
       reset,
       invalidateCache,
@@ -562,6 +691,8 @@ export const useChaptersActions = () => {
       updateChapter,
       deleteChapter,
       resetChapterContextAndTranslations,
+      setPage,
+      setItemsPerPage,
       clearError,
       reset,
       invalidateCache,

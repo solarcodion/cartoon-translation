@@ -20,6 +20,11 @@ export interface PagesData {
     lastFetched: number;
     isLoading: boolean;
     error: string | null;
+    // Pagination state
+    currentPage: number;
+    itemsPerPage: number;
+    totalCount: number;
+    hasNextPage: boolean;
   };
 }
 
@@ -30,7 +35,11 @@ export interface PagesState {
 }
 
 export interface PagesActions {
-  fetchPagesByChapterId: (chapterId: string) => Promise<void>;
+  fetchPagesByChapterId: (
+    chapterId: string,
+    page?: number,
+    force?: boolean
+  ) => Promise<void>;
   createPage: (chapterId: string, data: CreatePageData) => Promise<Page>;
   batchCreatePages: (
     chapterId: string,
@@ -45,6 +54,13 @@ export interface PagesActions {
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
+  // Pagination actions
+  setPage: (chapterId: string, page: number) => void;
+  setItemsPerPage: (chapterId: string, itemsPerPage: number) => void;
+  setItemsPerPageAndFetch: (
+    chapterId: string,
+    itemsPerPage: number
+  ) => Promise<void>;
 }
 
 export type PagesStore = PagesState & PagesActions;
@@ -60,15 +76,26 @@ export const usePagesStore = create<PagesStore>()(
     (set, get) => ({
       ...initialState,
 
-      fetchPagesByChapterId: async (chapterId: string) => {
+      fetchPagesByChapterId: async (
+        chapterId: string,
+        page = 1,
+        force = false
+      ) => {
         const state = get();
         const chapterData = state.data[chapterId];
 
-        // Check if data is still fresh (within cache duration)
+        // Initialize pagination defaults if not set
+        const currentPage = page || chapterData?.currentPage || 1;
+        const itemsPerPage = chapterData?.itemsPerPage || 10;
+
+        // Check if data is still fresh (within cache duration) and for the same page
         if (
+          !force &&
           chapterData?.pages.length > 0 &&
           chapterData.lastFetched &&
-          Date.now() - chapterData.lastFetched < CACHE_DURATION
+          Date.now() - chapterData.lastFetched < CACHE_DURATION &&
+          chapterData.currentPage === currentPage &&
+          chapterData.itemsPerPage === itemsPerPage
         ) {
           return; // Use cached data
         }
@@ -83,6 +110,10 @@ export const usePagesStore = create<PagesStore>()(
                 lastFetched: chapterData?.lastFetched || 0,
                 isLoading: true,
                 error: null,
+                currentPage: currentPage,
+                itemsPerPage: itemsPerPage,
+                totalCount: chapterData?.totalCount || 0,
+                hasNextPage: chapterData?.hasNextPage || false,
               },
             },
             globalError: null,
@@ -92,11 +123,21 @@ export const usePagesStore = create<PagesStore>()(
         );
 
         try {
-          const apiPages = await pageService.getPagesByChapter(chapterId);
+          // Calculate skip value for pagination
+          const skip = (currentPage - 1) * itemsPerPage;
+
+          // Fetch pages with pagination and total count
+          const [apiPages, totalCount] = await Promise.all([
+            pageService.getPagesByChapter(chapterId, skip, itemsPerPage),
+            pageService.getPageCountByChapter(chapterId),
+          ]);
           const legacyPages = apiPages.map(convertApiPageToLegacy);
 
           // Sort pages by page number in ascending order
           const sortedPages = legacyPages.sort((a, b) => a.number - b.number);
+
+          // Calculate if there's a next page
+          const hasNextPage = skip + apiPages.length < totalCount;
 
           set(
             {
@@ -107,6 +148,10 @@ export const usePagesStore = create<PagesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentPage,
+                  itemsPerPage: itemsPerPage,
+                  totalCount: totalCount,
+                  hasNextPage: hasNextPage,
                 },
               },
             },
@@ -126,6 +171,10 @@ export const usePagesStore = create<PagesStore>()(
                   lastFetched: chapterData?.lastFetched || 0,
                   isLoading: false,
                   error: errorMessage,
+                  currentPage: currentPage,
+                  itemsPerPage: itemsPerPage,
+                  totalCount: chapterData?.totalCount || 0,
+                  hasNextPage: chapterData?.hasNextPage || false,
                 },
               },
               globalError: errorMessage,
@@ -175,6 +224,10 @@ export const usePagesStore = create<PagesStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentChapterData?.currentPage || 1,
+                  itemsPerPage: currentChapterData?.itemsPerPage || 10,
+                  totalCount: (currentChapterData?.totalCount || 0) + 1,
+                  hasNextPage: currentChapterData?.hasNextPage || false,
                 },
               },
             },
@@ -593,6 +646,80 @@ export const usePagesStore = create<PagesStore>()(
           );
         }
       },
+
+      // Pagination actions
+      setPage: (chapterId: string, page: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  currentPage: page,
+                },
+              },
+            },
+            false,
+            "pages/setPage"
+          );
+        }
+      },
+
+      setItemsPerPage: (chapterId: string, itemsPerPage: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "pages/setItemsPerPage"
+          );
+        }
+      },
+
+      setItemsPerPageAndFetch: async (
+        chapterId: string,
+        itemsPerPage: number
+      ) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          // Update the state first
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "pages/setItemsPerPageAndFetch"
+          );
+
+          // Then fetch with the new settings
+          const { fetchPagesByChapterId } = get();
+          await fetchPagesByChapterId(chapterId, 1, true);
+        }
+      },
     }),
     {
       name: "pages-store",
@@ -614,6 +741,27 @@ const selectErrorByChapterId = (chapterId: string) => (state: PagesStore) =>
 const selectGlobalLoading = (state: PagesStore) => state.globalLoading;
 const selectGlobalError = (state: PagesStore) => state.globalError;
 
+// Pagination selectors
+const defaultPagination = {
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalCount: 0,
+  hasNextPage: false,
+};
+
+const selectPaginationByChapterId =
+  (chapterId: string) => (state: PagesStore) => {
+    const chapterData = state.data[chapterId];
+    if (!chapterData) return defaultPagination;
+
+    return {
+      currentPage: chapterData.currentPage || 1,
+      itemsPerPage: chapterData.itemsPerPage || 10,
+      totalCount: chapterData.totalCount || 0,
+      hasNextPage: chapterData.hasNextPage || false,
+    };
+  };
+
 // Selector hooks for better performance
 export const usePagesByChapterId = (chapterId: string) =>
   usePagesStore(selectPagesByChapterId(chapterId));
@@ -627,6 +775,32 @@ export const usePagesErrorByChapterId = (chapterId: string) =>
 export const usePagesGlobalLoading = () => usePagesStore(selectGlobalLoading);
 
 export const usePagesGlobalError = () => usePagesStore(selectGlobalError);
+
+// Pagination hook with individual value selectors to avoid object recreation
+export const usePagesPagination = (chapterId: string) => {
+  const currentPage = usePagesStore(
+    (state) => state.data[chapterId]?.currentPage || 1
+  );
+  const itemsPerPage = usePagesStore(
+    (state) => state.data[chapterId]?.itemsPerPage || 10
+  );
+  const totalCount = usePagesStore(
+    (state) => state.data[chapterId]?.totalCount || 0
+  );
+  const hasNextPage = usePagesStore(
+    (state) => state.data[chapterId]?.hasNextPage || false
+  );
+
+  return useMemo(
+    () => ({
+      currentPage,
+      itemsPerPage,
+      totalCount,
+      hasNextPage,
+    }),
+    [currentPage, itemsPerPage, totalCount, hasNextPage]
+  );
+};
 
 // Check if data is stale (older than cache duration)
 export const usePagesIsStale = (chapterId: string) => {
@@ -660,6 +834,11 @@ export const usePagesActions = () => {
   const clearError = usePagesStore((state) => state.clearError);
   const reset = usePagesStore((state) => state.reset);
   const invalidateCache = usePagesStore((state) => state.invalidateCache);
+  const setPage = usePagesStore((state) => state.setPage);
+  const setItemsPerPage = usePagesStore((state) => state.setItemsPerPage);
+  const setItemsPerPageAndFetch = usePagesStore(
+    (state) => state.setItemsPerPageAndFetch
+  );
 
   return useMemo(
     () => ({
@@ -672,6 +851,9 @@ export const usePagesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     }),
     [
       fetchPagesByChapterId,
@@ -683,6 +865,9 @@ export const usePagesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     ]
   );
 };

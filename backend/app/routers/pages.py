@@ -276,6 +276,29 @@ async def get_pages_by_chapter(
         )
 
 
+@router.get("/chapter/{chapter_id}/count")
+async def get_pages_count_by_chapter(
+    chapter_id: str = Path(..., description="Chapter ID"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    page_service: PageService = Depends(get_page_service)
+):
+    """
+    Get total count of pages for a specific chapter
+
+    - **chapter_id**: ID of the chapter
+    """
+    try:
+        count = await page_service.get_pages_count_by_chapter(chapter_id)
+        return {"count": count}
+
+    except Exception as e:
+        print(f"❌ Error in get_pages_count_by_chapter endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch pages count: {str(e)}"
+        )
+
+
 @router.get("/{page_id}", response_model=PageResponse)
 async def get_page(
     page_id: str = Path(..., description="Page ID"),
@@ -284,23 +307,23 @@ async def get_page(
 ):
     """
     Get a specific page by ID
-    
+
     - **page_id**: ID of the page
     """
     try:
         page = await page_service.get_page_by_id(page_id)
-        
+
         if not page:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Page not found"
             )
-        
+
         # Add public URL
         page.file_path = page_service.get_page_url(page.file_path)
-        
+
         return page
-        
+
     except HTTPException:
         raise
     except Exception as e:

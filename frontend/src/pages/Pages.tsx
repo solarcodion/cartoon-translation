@@ -34,6 +34,7 @@ import {
   usePagesActions,
   useHasCachedPages,
   usePagesIsStale,
+  usePagesPagination,
   useTextBoxesActions,
 } from "../stores";
 import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
@@ -65,12 +66,15 @@ export default function Pages() {
   const pagesError = usePagesErrorByChapterId(chapterId || "");
   const hasCachedPages = useHasCachedPages(chapterId || "");
   const isPagesStale = usePagesIsStale(chapterId || "");
+  const pagesPagination = usePagesPagination(chapterId || "");
   const {
     fetchPagesByChapterId,
     batchCreatePages,
     batchCreatePagesWithAutoTextBoxes,
     updatePage,
     deletePage,
+    setPage,
+    setItemsPerPageAndFetch,
   } = usePagesActions();
 
   // Use text boxes store actions
@@ -415,6 +419,26 @@ export default function Pages() {
     setIsAddTextBoxModalOpen(false);
   };
 
+  // Pagination handlers
+  const handlePageChange = useCallback(
+    (page: number) => {
+      if (chapterId) {
+        setPage(chapterId, page);
+        fetchPagesByChapterId(chapterId, page, true); // Force refetch for new page
+      }
+    },
+    [chapterId, setPage, fetchPagesByChapterId]
+  );
+
+  const handleItemsPerPageChange = useCallback(
+    async (itemsPerPage: number) => {
+      if (chapterId) {
+        await setItemsPerPageAndFetch(chapterId, itemsPerPage);
+      }
+    },
+    [chapterId, setItemsPerPageAndFetch]
+  );
+
   const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
     try {
       if (!chapterId) {
@@ -675,6 +699,13 @@ export default function Pages() {
             onDeletePage={canModify ? handleDeletePage : undefined}
             canModify={canModify}
             isLoading={isLoading}
+            pagination={{
+              currentPage: pagesPagination.currentPage,
+              totalItems: pagesPagination.totalCount,
+              itemsPerPage: pagesPagination.itemsPerPage,
+              onPageChange: handlePageChange,
+              onItemsPerPageChange: handleItemsPerPageChange,
+            }}
           />
 
           {/* Translations Tab Content */}

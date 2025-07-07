@@ -2,7 +2,7 @@
 
 import { useNavigate } from "react-router-dom";
 import type { Chapter } from "../../types";
-import { EmptyState, ChaptersTableSkeleton } from "../common";
+import { EmptyState, ChaptersTableSkeleton, Pagination } from "../common";
 import { ChapterItemRow } from "./Items";
 
 interface ChaptersTableProps {
@@ -18,6 +18,13 @@ interface ChaptersTableProps {
   onAddChapter: () => void;
   /** Whether data is currently loading */
   isLoading?: boolean;
+  /** Pagination props */
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+  };
 }
 
 export default function ChaptersTable({
@@ -27,6 +34,7 @@ export default function ChaptersTable({
   onDeleteChapter,
   onAddChapter,
   isLoading = false,
+  pagination,
 }: ChaptersTableProps) {
   const navigate = useNavigate();
 
@@ -79,6 +87,17 @@ export default function ChaptersTable({
               Add First Chapter
             </button>
           }
+        />
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.totalItems > 0 && (
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalItems={pagination.totalItems}
+          itemsPerPage={pagination.itemsPerPage}
+          onPageChange={pagination.onPageChange}
+          disabled={isLoading}
         />
       )}
     </div>

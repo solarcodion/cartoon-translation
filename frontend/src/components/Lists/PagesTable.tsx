@@ -1,7 +1,7 @@
 // Reusable Pages Table Component
 
 import type { Page } from "../../types";
-import { EmptyState, PagesTableSkeleton } from "../common";
+import { EmptyState, PagesTableSkeleton, Pagination } from "../common";
 import { PageItemRow } from "./Items";
 
 interface PagesTableProps {
@@ -17,6 +17,14 @@ interface PagesTableProps {
   canModify?: boolean;
   /** Whether data is currently loading */
   isLoading?: boolean;
+  /** Pagination props */
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (itemsPerPage: number) => void;
+  };
 }
 
 export default function PagesTable({
@@ -26,6 +34,7 @@ export default function PagesTable({
   onUploadPage,
   canModify = true,
   isLoading = false,
+  pagination,
 }: PagesTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -91,6 +100,18 @@ export default function PagesTable({
               </button>
             ) : null
           }
+        />
+      )}
+
+      {/* Pagination */}
+      {pagination && (
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalItems={pagination.totalItems}
+          itemsPerPage={pagination.itemsPerPage}
+          onPageChange={pagination.onPageChange}
+          onItemsPerPageChange={pagination.onItemsPerPageChange}
+          disabled={isLoading}
         />
       )}
     </div>

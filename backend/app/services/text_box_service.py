@@ -208,10 +208,40 @@ class TextBoxService:
                 text_boxes.append(TextBoxResponse(**text_box_data))
             
             return text_boxes
-            
+
         except Exception as e:
             print(f"❌ Error fetching text boxes for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch text boxes: {str(e)}")
+
+    async def get_text_boxes_count_by_chapter(self, chapter_id: str) -> int:
+        """Get total count of text boxes for a specific chapter"""
+        try:
+            # First get all pages for the chapter
+            pages_response = (
+                self.supabase.table("pages")
+                .select("id")
+                .eq("chapter_id", chapter_id)
+                .execute()
+            )
+
+            if not pages_response.data:
+                return 0
+
+            page_ids = [page["id"] for page in pages_response.data]
+
+            # Count text boxes for those pages
+            response = (
+                self.supabase.table(self.table_name)
+                .select("id", count="exact")
+                .in_("page_id", page_ids)
+                .execute()
+            )
+
+            return response.count or 0
+
+        except Exception as e:
+            print(f"❌ Error counting text boxes for chapter {chapter_id}: {str(e)}")
+            return 0
 
     async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
         """Clear all text boxes for a chapter (used when resetting chapter translations)"""

@@ -202,7 +202,7 @@ class PageService:
                 .range(skip, skip + limit - 1)
                 .execute()
             )
-            
+
             if not response.data:
                 return []
 
@@ -217,10 +217,26 @@ class PageService:
             pages_list = [PageResponse(**page) for page in pages_data]
 
             return pages_list
-            
+
         except Exception as e:
             print(f"❌ Error fetching pages for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch pages: {str(e)}")
+
+    async def get_pages_count_by_chapter(self, chapter_id: str) -> int:
+        """Get total count of pages for a specific chapter"""
+        try:
+            response = (
+                self.supabase.table(self.table_name)
+                .select("id", count="exact")
+                .eq("chapter_id", chapter_id)
+                .execute()
+            )
+
+            return response.count or 0
+
+        except Exception as e:
+            print(f"❌ Error fetching page count for chapter {chapter_id}: {str(e)}")
+            raise Exception(f"Failed to fetch page count: {str(e)}")
     
     async def get_page_by_id(self, page_id: str) -> Optional[PageResponse]:
         """Get a specific page by ID"""

@@ -85,7 +85,7 @@ async def get_tm_entries_by_series(
 ):
     """
     Get all translation memory entries for a specific series.
-    
+
     - **series_id**: The ID of the series
     - **skip**: Number of entries to skip (for pagination)
     - **limit**: Maximum number of entries to return
@@ -100,6 +100,30 @@ async def get_tm_entries_by_series(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get TM entries: {str(e)}"
+        )
+
+
+@router.get("/series/{series_id}/count", response_model=Dict[str, int])
+async def get_tm_entries_count_by_series(
+    series_id: str = Path(..., description="The ID of the series"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    tm_service: TranslationMemoryService = Depends(get_tm_service)
+):
+    """
+    Get the total count of translation memory entries for a specific series.
+
+    - **series_id**: The ID of the series
+    """
+    try:
+        count = await tm_service.get_tm_entries_count_by_series(series_id)
+
+        return {"count": count}
+
+    except Exception as e:
+        print(f"❌ Error getting TM entries count for series {series_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get TM entries count: {str(e)}"
         )
 
 
