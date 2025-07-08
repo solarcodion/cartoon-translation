@@ -106,7 +106,6 @@ export {
   useTextBoxesErrorByChapterId,
   useTextBoxesGlobalLoading,
   useTextBoxesGlobalError,
-  useTextBoxesPagination,
   useTextBoxesActions,
   useHasCachedTextBoxes,
   useTextBoxesIsStale,

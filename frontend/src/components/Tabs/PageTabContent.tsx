@@ -13,12 +13,7 @@ import {
   FiArrowRight,
 } from "react-icons/fi";
 import { BiSolidEdit } from "react-icons/bi";
-import {
-  TabContent,
-  TranslationsTableSkeleton,
-  TextSkeleton,
-  Pagination,
-} from "../common";
+import { TabContent, TranslationsTableSkeleton, TextSkeleton } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import { PagesTable } from "../Lists";
 import DeleteTextBoxModal from "../Modals/DeleteTextBoxModal";
@@ -37,7 +32,6 @@ import {
   useTextBoxesActions,
   useHasCachedTextBoxes,
   useTextBoxesIsStale,
-  useTextBoxesPagination,
 } from "../../stores";
 import EditTextBoxModal from "../Modals/EditTextBoxModal";
 
@@ -163,16 +157,8 @@ export function TranslationsTabContent({
   const textBoxesError = useTextBoxesErrorByChapterId(chapterId);
   const hasCachedTextBoxes = useHasCachedTextBoxes(chapterId);
   const isTextBoxesStale = useTextBoxesIsStale(chapterId);
-  const {
-    fetchTextBoxesByChapterId,
-    updateTextBox,
-    deleteTextBox,
-    setPage,
-    setItemsPerPageAndFetch,
-  } = useTextBoxesActions();
-
-  // Use pagination state
-  const pagination = useTextBoxesPagination(chapterId);
+  const { fetchTextBoxesByChapterId, updateTextBox, deleteTextBox } =
+    useTextBoxesActions();
 
   // Create a mapping from page_id to page_number
   const pageIdToNumberMap = useMemo(() => {
@@ -193,16 +179,6 @@ export function TranslationsTabContent({
   const [selectedTextBox, setSelectedTextBox] = useState<TextBoxApiItem | null>(
     null
   );
-
-  // Pagination handlers
-  const handlePageChange = (page: number) => {
-    setPage(chapterId, page);
-    fetchTextBoxesByChapterId(chapterId, page, true); // Force refetch
-  };
-
-  const handleItemsPerPageChange = async (itemsPerPage: number) => {
-    await setItemsPerPageAndFetch(chapterId, itemsPerPage);
-  };
 
   // Fetch text boxes for the chapter using store
   useEffect(() => {
@@ -593,18 +569,6 @@ export function TranslationsTabContent({
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="mx-6 mb-6">
-          <Pagination
-            currentPage={pagination.currentPage}
-            totalItems={pagination.totalCount}
-            itemsPerPage={pagination.itemsPerPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-            disabled={isTextBoxesLoading}
-          />
         </div>
       </div>
 

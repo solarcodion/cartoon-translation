@@ -517,25 +517,6 @@ const selectGlobalLoading = (state: PagesStore) => state.globalLoading;
 const selectGlobalError = (state: PagesStore) => state.globalError;
 
 // Pagination selectors
-const defaultPagination = {
-  currentPage: 1,
-  itemsPerPage: 10,
-  totalCount: 0,
-  hasNextPage: false,
-};
-
-const selectPaginationByChapterId =
-  (chapterId: string) => (state: PagesStore) => {
-    const chapterData = state.data[chapterId];
-    if (!chapterData) return defaultPagination;
-
-    return {
-      currentPage: chapterData.currentPage || 1,
-      itemsPerPage: chapterData.itemsPerPage || 10,
-      totalCount: chapterData.totalCount || 0,
-      hasNextPage: chapterData.hasNextPage || false,
-    };
-  };
 
 // Selector hooks for better performance
 export const usePagesByChapterId = (chapterId: string) =>

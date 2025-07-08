@@ -129,7 +129,7 @@ class TextBoxService {
   async getTextBoxesByChapter(
     chapterId: string,
     skip = 0,
-    limit = 1000
+    limit = 10000
   ): Promise<TextBoxApiItem[]> {
     try {
       const headers = await this.getAuthHeaders();

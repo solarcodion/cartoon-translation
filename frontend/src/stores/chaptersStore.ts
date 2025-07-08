@@ -301,6 +301,10 @@ export const useChaptersStore = create<ChaptersStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  currentPage: currentSeriesData?.currentPage || 1,
+                  itemsPerPage: currentSeriesData?.itemsPerPage || 10,
+                  totalCount: currentSeriesData?.totalCount || 0,
+                  hasNextPage: currentSeriesData?.hasNextPage || false,
                 },
               },
             },
@@ -566,12 +570,6 @@ export const useChaptersStore = create<ChaptersStore>()(
 
 // Cached selectors to prevent infinite loops
 const emptyChapters: Chapter[] = [];
-const defaultPagination = {
-  currentPage: 1,
-  itemsPerPage: 10,
-  totalCount: 0,
-  hasNextPage: false,
-};
 
 const selectChaptersBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
   state.data[seriesId]?.chapters || emptyChapters;
@@ -581,19 +579,6 @@ const selectLoadingBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
 
 const selectErrorBySeriesId = (seriesId: string) => (state: ChaptersStore) =>
   state.data[seriesId]?.error || null;
-
-const selectPaginationBySeriesId =
-  (seriesId: string) => (state: ChaptersStore) => {
-    const seriesData = state.data[seriesId];
-    if (!seriesData) return defaultPagination;
-
-    return {
-      currentPage: seriesData.currentPage || 1,
-      itemsPerPage: seriesData.itemsPerPage || 10,
-      totalCount: seriesData.totalCount || 0,
-      hasNextPage: seriesData.hasNextPage || false,
-    };
-  };
 
 const selectGlobalLoading = (state: ChaptersStore) => state.globalLoading;
 const selectGlobalError = (state: ChaptersStore) => state.globalError;

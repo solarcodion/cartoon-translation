@@ -126,7 +126,7 @@ async def get_text_boxes_by_page(
 async def get_text_boxes_by_chapter(
     chapter_id: str = Path(..., description="Chapter ID"),
     skip: int = Query(0, ge=0, description="Number of text boxes to skip"),
-    limit: int = Query(1000, ge=1, le=10000, description="Number of text boxes to return"),
+    limit: int = Query(10000, ge=1, le=10000, description="Number of text boxes to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     text_box_service: TextBoxService = Depends(get_text_box_service)
 ):
