@@ -239,64 +239,7 @@ class TranslationMemoryInDB(TranslationMemoryResponse):
     pass
 
 
-# Page Models
-class PageBase(BaseModel):
-    """Base page model"""
-    chapter_id: str
-    page_number: int
-    file_path: str
-    file_name: str
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
 
-
-class PageCreate(BaseModel):
-    """Page creation model"""
-    chapter_id: str
-    page_number: int
-    file_name: str
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
-
-    class Config:
-        str_strip_whitespace = True
-        validate_assignment = True
-
-
-class PageUpdate(BaseModel):
-    """Page update model"""
-    page_number: Optional[int] = None
-    file_path: Optional[str] = None
-    file_name: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
-
-
-class PageResponse(PageBase):
-    """Page response model"""
-    id: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class PageInDB(PageResponse):
-    """Page model as stored in database"""
-    pass
-
-
-class BatchPageUploadResponse(BaseModel):
-    """Batch page upload response model"""
-    success: bool
-    message: str
-    pages: List[PageResponse]
-    total_uploaded: int
-    failed_uploads: List[str] = []
 
     class Config:
         from_attributes = True

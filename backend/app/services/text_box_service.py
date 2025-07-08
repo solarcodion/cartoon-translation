@@ -246,39 +246,9 @@ class TextBoxService:
     async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
         """Clear all text boxes for a chapter (used when resetting chapter translations)"""
         try:
-            # Delete all text boxes for this chapter
-            response = (
-                self.supabase.table(self.table_name)
-                .delete()
-                .eq("page_id", chapter_id)  # This will need to be updated to use a proper join
-                .execute()
-            )
-
-            # Since we can't directly join in Supabase, we need to get pages first
-            # Get all pages for this chapter
-            from app.services.page_service import PageService
-            page_service = PageService(self.supabase)
-            pages = await page_service.get_pages_by_chapter(chapter_id)
-
-            if not pages:
-                return 0
-
-            page_ids = [page.id for page in pages]
-
-            # Delete text boxes for all pages in this chapter
-            deleted_count = 0
-            for page_id in page_ids:
-                response = (
-                    self.supabase.table(self.table_name)
-                    .delete()
-                    .eq("page_id", page_id)
-                    .execute()
-                )
-                if response.data:
-                    deleted_count += len(response.data)
-
-            print(f"✅ Cleared {deleted_count} text boxes for chapter {chapter_id}")
-            return deleted_count
+            # Since pages functionality is removed, we can't clear text boxes by chapter
+            # Return 0 as no text boxes were cleared
+            return 0
 
         except Exception as e:
             print(f"❌ Error clearing text boxes for chapter {chapter_id}: {str(e)}")
@@ -334,27 +304,9 @@ class TextBoxService:
 
     async def _get_page_image_url(self, page_id: str) -> str:
         """Get the page image URL from the page data"""
-        try:
-            # Fetch page data from database
-            response = self.supabase.table("pages").select("file_path").eq("id", page_id).execute()
-
-            if not response.data:
-                print(f"⚠️ Page not found: {page_id}")
-                return ""
-
-            page_data = response.data[0]
-            file_path = page_data.get("file_path", "")
-
-            if not file_path:
-                print(f"⚠️ No file_path found for page: {page_id}")
-                return ""
-
-            # Use the same URL construction logic as PageService
-            return self._get_page_url(file_path)
-
-        except Exception as e:
-            print(f"❌ Error getting page image URL for page {page_id}: {str(e)}")
-            return ""
+        # Since pages functionality is removed, return empty string
+        print(f"⚠️ Pages functionality disabled - cannot get image URL for page: {page_id}")
+        return ""
 
     def _get_page_url(self, file_path: str) -> str:
         """Get public URL for a page file (same logic as PageService)"""

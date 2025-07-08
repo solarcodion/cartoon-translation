@@ -88,497 +88,54 @@ export const usePagesStore = create<PagesStore>()(
         const currentPage = page || chapterData?.currentPage || 1;
         const itemsPerPage = chapterData?.itemsPerPage || 10;
 
-        // Check if data is still fresh (within cache duration) and for the same page
-        if (
-          !force &&
-          chapterData?.pages.length > 0 &&
-          chapterData.lastFetched &&
-          Date.now() - chapterData.lastFetched < CACHE_DURATION &&
-          chapterData.currentPage === currentPage &&
-          chapterData.itemsPerPage === itemsPerPage
-        ) {
-          return; // Use cached data
-        }
-
-        // Set loading state for this chapter
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                pages: chapterData?.pages || [],
-                lastFetched: chapterData?.lastFetched || 0,
-                isLoading: true,
-                error: null,
-                currentPage: currentPage,
-                itemsPerPage: itemsPerPage,
-                totalCount: chapterData?.totalCount || 0,
-                hasNextPage: chapterData?.hasNextPage || false,
-              },
+        // Backend functionality removed - return empty data for UI compatibility
+        set({
+          data: {
+            ...state.data,
+            [chapterId]: {
+              pages: [], // Always return empty pages
+              lastFetched: Date.now(),
+              isLoading: false,
+              error: null,
+              currentPage: currentPage,
+              itemsPerPage: itemsPerPage,
+              totalCount: 0,
+              hasNextPage: false,
             },
-            globalError: null,
           },
-          false,
-          "pages/fetchStart"
-        );
-
-        try {
-          // Calculate skip value for pagination
-          const skip = (currentPage - 1) * itemsPerPage;
-
-          // Fetch pages with pagination and total count
-          const [apiPages, totalCount] = await Promise.all([
-            pageService.getPagesByChapter(chapterId, skip, itemsPerPage),
-            pageService.getPageCountByChapter(chapterId),
-          ]);
-          const legacyPages = apiPages.map(convertApiPageToLegacy);
-
-          // Sort pages by page number in ascending order
-          const sortedPages = legacyPages.sort((a, b) => a.number - b.number);
-
-          // Calculate if there's a next page
-          const hasNextPage = skip + apiPages.length < totalCount;
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                  currentPage: currentPage,
-                  itemsPerPage: itemsPerPage,
-                  totalCount: totalCount,
-                  hasNextPage: hasNextPage,
-                },
-              },
-            },
-            false,
-            "pages/fetchSuccess"
-          );
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to fetch pages";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  pages: chapterData?.pages || [],
-                  lastFetched: chapterData?.lastFetched || 0,
-                  isLoading: false,
-                  error: errorMessage,
-                  currentPage: currentPage,
-                  itemsPerPage: itemsPerPage,
-                  totalCount: chapterData?.totalCount || 0,
-                  hasNextPage: chapterData?.hasNextPage || false,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/fetchError"
-          );
-          throw error;
-        }
+          globalError: null,
+        });
       },
 
       createPage: async (chapterId: string, data: CreatePageData) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/createStart"
-        );
-
-        try {
-          const apiPage = await pageService.createPage(data);
-          const newPage = convertApiPageToLegacy(apiPage);
-
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [...(currentChapterData?.pages || []), newPage];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
-
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                  currentPage: currentChapterData?.currentPage || 1,
-                  itemsPerPage: currentChapterData?.itemsPerPage || 10,
-                  totalCount: (currentChapterData?.totalCount || 0) + 1,
-                  hasNextPage: currentChapterData?.hasNextPage || false,
-                },
-              },
-            },
-            false,
-            "pages/createSuccess"
-          );
-
-          return newPage;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to create page";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/createError"
-          );
-          throw error;
-        }
+        // Backend functionality removed - throw error for UI compatibility
+        throw new Error("Pages functionality has been disabled");
       },
 
       batchCreatePages: async (
         chapterId: string,
         data: BatchCreatePageData
       ) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/batchCreateStart"
-        );
-
-        try {
-          const response = await pageService.createPagesBatch(data);
-          const newPages = response.pages.map(convertApiPageToLegacy);
-
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [
-            ...(currentChapterData?.pages || []),
-            ...newPages,
-          ];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
-
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/batchCreateSuccess"
-          );
-
-          return response;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to batch create pages";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/batchCreateError"
-          );
-          throw error;
-        }
+        // Backend functionality removed - throw error for UI compatibility
+        throw new Error("Pages functionality has been disabled");
       },
 
       batchCreatePagesWithAutoTextBoxes: async (
         chapterId: string,
         data: BatchCreatePageData
       ) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/batchCreateWithAutoTextBoxesStart"
-        );
-
-        try {
-          const response = await pageService.batchCreatePagesWithAutoTextBoxes(
-            data
-          );
-          const newPages = response.pages.map(convertApiPageToLegacy);
-
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [
-            ...(currentChapterData?.pages || []),
-            ...newPages,
-          ];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
-
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/batchCreateWithAutoTextBoxesSuccess"
-          );
-
-          // Fetch and update text boxes for the chapter since auto text boxes were created
-          try {
-            const { textBoxService } = await import(
-              "../services/textBoxService"
-            );
-            const { useTextBoxesStore } = await import("./textBoxesStore");
-
-            const textBoxes = await textBoxService.getTextBoxesByChapter(
-              chapterId
-            );
-            const { addTextBoxesToChapter } = useTextBoxesStore.getState();
-            addTextBoxesToChapter(chapterId, textBoxes);
-          } catch (textBoxError) {
-            console.warn(
-              "Failed to update text boxes store after auto creation:",
-              textBoxError
-            );
-            // Don't fail the page creation if text box store update fails
-          }
-
-          return response;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to batch create pages with auto text boxes";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/batchCreateWithAutoTextBoxesError"
-          );
-          throw error;
-        }
+        // Backend functionality removed - throw error for UI compatibility
+        throw new Error("Pages functionality has been disabled");
       },
 
       updatePage: async (pageId: string, data: Partial<CreatePageData>) => {
-        // Find which chapter this page belongs to
-        const state = get();
-        let targetChapterId = "";
-        for (const [chapterId, chapterData] of Object.entries(state.data)) {
-          if (chapterData.pages.some((page) => page.id === pageId)) {
-            targetChapterId = chapterId;
-            break;
-          }
-        }
-
-        if (!targetChapterId) {
-          throw new Error("Page not found in any chapter");
-        }
-
-        const chapterData = state.data[targetChapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [targetChapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/updateStart"
-        );
-
-        try {
-          const apiPage = await pageService.updatePage(pageId, data);
-          const updatedPage = convertApiPageToLegacy(apiPage);
-
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[targetChapterId];
-          const updatedPages = currentChapterData.pages.map((page) =>
-            page.id === pageId ? updatedPage : page
-          );
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
-
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [targetChapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/updateSuccess"
-          );
-
-          return updatedPage;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to update page";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [targetChapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/updateError"
-          );
-          throw error;
-        }
+        // Backend functionality removed - throw error for UI compatibility
+        throw new Error("Pages functionality has been disabled");
       },
 
       deletePage: async (chapterId: string, pageId: string) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/deleteStart"
-        );
-
-        try {
-          await pageService.deletePage(pageId);
-
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const filteredPages = currentChapterData.pages.filter(
-            (page) => page.id !== pageId
-          );
-
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: filteredPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/deleteSuccess"
-          );
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to delete page";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/deleteError"
-          );
-          throw error;
-        }
+        // Backend functionality removed - throw error for UI compatibility
+        throw new Error("Pages functionality has been disabled");
       },
 
       clearError: (chapterId?: string) => {

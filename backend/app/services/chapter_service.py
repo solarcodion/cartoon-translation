@@ -131,24 +131,14 @@ class ChapterService:
     async def update_next_page_number(self, chapter_id: str) -> None:
         """Update the next_page field based on existing pages"""
         try:
-            from app.services.page_service import PageService
-
-            # Get page service to fetch existing pages
-            page_service = PageService(self.supabase)
-            pages = await page_service.get_pages_by_chapter(chapter_id)
-
-            # Calculate next page number
-            if not pages:
-                next_page = 1
-            else:
-                # Find the highest page number and add 1
-                max_page_number = max(page.page_number for page in pages)
-                next_page = max_page_number + 1
+            # Since pages functionality is removed, always set next_page to 1 and page_count to 0
+            next_page = 1
+            page_count = 0
 
             # Update the chapter with new next_page value
             update_data = {
                 "next_page": next_page,
-                "page_count": len(pages),
+                "page_count": page_count,
                 "updated_at": datetime.utcnow().isoformat()
             }
 
