@@ -41,6 +41,14 @@ class TerminologyAnalysisService:
             if not chapters_data:
                 raise ValueError("No chapter data provided for analysis")
 
+            # Get series language for proper description language
+            series_language = "korean"  # Default fallback
+            if self.ai_glossary_service:
+                try:
+                    series_language = await self.ai_glossary_service.get_series_language(series_id)
+                except Exception as lang_error:
+                    print(f"Warning: Could not fetch series language: {str(lang_error)}")
+
             # Get TM data for better context
             tm_data = []
             if self.tm_service:
@@ -49,8 +57,8 @@ class TerminologyAnalysisService:
                 except Exception as tm_error:
                     print(f"Warning: Could not fetch TM data: {str(tm_error)}")
 
-            # Build the analysis prompt with TM data
-            system_prompt = self._build_system_prompt_with_tm()
+            # Build the analysis prompt with TM data and series language
+            system_prompt = self._build_system_prompt_with_tm(series_language)
             user_prompt = self._build_user_prompt_with_tm(chapters_data, tm_data)
 
             # Call OpenAI API
@@ -113,8 +121,20 @@ class TerminologyAnalysisService:
             print(f"❌ Terminology analysis error: {str(e)}")
             raise Exception(f"Terminology analysis failed: {str(e)}")
     
-    def _build_system_prompt_with_tm(self) -> str:
+    def _build_system_prompt_with_tm(self, series_language: str = "korean") -> str:
         """Build system prompt for terminology analysis with TM data"""
+
+        # Map language codes to language names for the prompt
+        language_names = {
+            "korean": "Korean",
+            "japanese": "Japanese",
+            "chinese": "Chinese",
+            "vietnamese": "Vietnamese",
+            "english": "English"
+        }
+
+        description_language = language_names.get(series_language, "Korean")
+
         return f"""You are an expert manhwa/manga terminology analyst specializing in identifying and categorizing manhwa-specific terms. You have access to translation memory data that can help understand term translations and context.
 
 Your task is to identify and extract ALL types of manhwa-specific terminology. You MUST find terms from MULTIPLE categories, not just characters:
@@ -131,12 +151,12 @@ Guidelines:
 - Extract ALL manhwa-specific terminology regardless of whether TM data helps or not
 - Categorize each term appropriately (character, place, item, skill, organization, title, concept)
 - For name: provide the term name as it appears in the manhwa
-- For description: provide detailed Vietnamese descriptions that explain the term's significance, role, or function in the story
-- For characters: describe their role, personality, abilities, and importance to the story in Vietnamese
-- For places: describe the location's purpose, significance, and characteristics in Vietnamese
-- For items: describe the item's function, power, rarity, and importance in Vietnamese
-- For skills/techniques: describe what the skill does, how it's used, and its effects in Vietnamese
-- For translated_text: provide the English translation of the Vietnamese description
+- For description: provide detailed {description_language} descriptions that explain the term's significance, role, or function in the story
+- For characters: describe their role, personality, abilities, and importance to the story in {description_language}
+- For places: describe the location's purpose, significance, and characteristics in {description_language}
+- For items: describe the item's function, power, rarity, and importance in {description_language}
+- For skills/techniques: describe what the skill does, how it's used, and its effects in {description_language}
+- For translated_text: provide the English translation of the {description_language} description
 - Use translation memory data to ensure consistent translations when available
 - IMPORTANT: When you use any TM entry to understand or translate a term, you MUST include its TM ID in the useful_tm_ids array
 - If a TM entry helps you understand character names, places, or terminology, include its TM ID
@@ -148,9 +168,9 @@ Format your response as a JSON object with this structure:
   "terminology": [
     {{
       "name": "Term Name",
-      "translated_text": "English translation of the Vietnamese description",
+      "translated_text": "English translation of the {description_language} description",
       "category": "character|place|item|skill|organization|title|concept",
-      "description": "Detailed Vietnamese description explaining the term's significance and role",
+      "description": "Detailed {description_language} description explaining the term's significance and role",
       "mentioned_chapters": [1, 2, 3],
       "confidence_score": 0.95
     }}

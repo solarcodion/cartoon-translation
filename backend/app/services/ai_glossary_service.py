@@ -6,10 +6,30 @@ from app.models import AIGlossaryCreate, AIGlossaryUpdate, AIGlossaryResponse, P
 
 class AIGlossaryService:
     """Service for handling AI glossary operations"""
-    
+
     def __init__(self, supabase: Client):
         self.supabase = supabase
         self.table_name = "ai_glossary"
+
+    async def get_series_language(self, series_id: str) -> str:
+        """Get the language of a series"""
+        try:
+            response = (
+                self.supabase.table("series")
+                .select("language")
+                .eq("id", series_id)
+                .execute()
+            )
+
+            if not response.data:
+                print(f"⚠️ Series {series_id} not found, defaulting to Korean")
+                return "korean"
+
+            return response.data[0].get("language", "korean")
+
+        except Exception as e:
+            print(f"❌ Error fetching series language: {str(e)}")
+            return "korean"  # Default fallback
     
     async def create_glossary_entry(
         self,

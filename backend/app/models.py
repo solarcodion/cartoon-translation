@@ -490,7 +490,7 @@ class TerminologyInfo(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Type: character, place, item, skill, technique, organization, etc.
-    description: str  # Detailed description in Vietnamese
+    description: str  # Detailed description in series language
     mentioned_chapters: list[int] = []
     confidence_score: Optional[float] = 0.8
     image_url: Optional[str] = None  # Best image showing this term
@@ -548,7 +548,7 @@ class AIGlossaryBase(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Type of term: character, place, item, skill, technique, organization, etc.
-    description: str  # Detailed description in Vietnamese
+    description: str  # Detailed description in series language
     tm_related_ids: Optional[List[str]] = None  # TM entry IDs that helped create this glossary entry
 
     class Config:
@@ -562,7 +562,7 @@ class AIGlossaryCreate(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Term category
-    description: str  # Description in Vietnamese
+    description: str  # Description in series language
     tm_related_ids: Optional[List[str]] = None  # Optional for backward compatibility
 
     class Config:
