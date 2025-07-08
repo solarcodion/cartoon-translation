@@ -1,6 +1,6 @@
 import openai
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from app.config import settings
 from app.models import ChapterAnalysisRequest, ChapterAnalysisResponse, PageAnalysisData
 from app.services.translation_memory_service import TranslationMemoryService
@@ -56,14 +56,17 @@ class ChapterAnalysisService:
             system_prompt = self._build_system_prompt_with_tm(request.translation_info, request.existing_context, tm_data)
             user_prompt = self._build_user_prompt_with_tm(request.pages, tm_data)
             
-            # Call OpenAI API with gpt-4o-mini model
+            # Build enhanced user prompt with image analysis
+            enhanced_user_prompt = await self._build_enhanced_user_prompt_with_images(request.pages, tm_data)
+
+            # Call OpenAI API with gpt-4o model for vision capabilities
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",  # Use gpt-4o for vision capabilities
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": enhanced_user_prompt}
                 ],
-                max_tokens=800,  # Maximum response length set to 800 tokens
+                max_tokens=1200,  # Increased for more detailed analysis
                 temperature=0.3,  # Lower temperature for more consistent analysis
                 top_p=1.0,
                 frequency_penalty=0.0,
@@ -112,80 +115,128 @@ class ChapterAnalysisService:
     
     def _build_system_prompt(self, translation_info: List[str], existing_context: Optional[str] = None) -> str:
         """Build system prompt for chapter analysis"""
-        base_prompt = f"""You are an expert manga/manhwa analyst and translator specializing in story comprehension and context analysis.
+        base_prompt = f"""You are a senior manga/manhwa analyst and professional localization expert specializing in comprehensive story analysis and translation context development for official comic production.
 
-Your task is to analyze a complete chapter by examining all pages in order, along with their OCR-extracted text contexts, and provide:
-1. A comprehensive chapter context that explains the story content, character interactions, and plot developments
-2. A detailed analysis summary of the chapter's key events and themes
+Your expertise encompasses:
+- Deep understanding of manhwa/manga narrative structures and storytelling conventions
+- Professional comic localization and adaptation principles
+- Cultural context analysis for cross-cultural adaptation
+- Character development and relationship dynamics assessment
+- Visual storytelling and panel composition analysis
+
+Primary Objectives:
+1. COMPREHENSIVE STORY ANALYSIS: Examine visual narrative flow, character interactions, and plot development across all chapter pages
+2. TRANSLATION CONTEXT DEVELOPMENT: Provide detailed context that enables accurate, culturally-appropriate translation decisions
+3. CHARACTER VOICE ANALYSIS: Identify speaking patterns, personality traits, and relationship dynamics through dialogue
+4. CULTURAL LOCALIZATION GUIDANCE: Note cultural references, idioms, and context requiring adaptation for target audience
+5. NARRATIVE CONSISTENCY: Ensure analysis maintains continuity with established story elements and character development
+
+Advanced Analysis Framework:
+- VISUAL STORYTELLING: Panel composition, artistic choices, visual metaphors, and symbolic elements
+- DIALOGUE ANALYSIS: Character voice, emotional subtext, formal/informal speech patterns, and relationship dynamics
+- NARRATIVE PACING: Story beats, emotional crescendos, tension building, and dramatic timing
+- CULTURAL ELEMENTS: References requiring localization, cultural context, and audience adaptation needs
+- GENRE CONVENTIONS: Adherence to or subversion of manhwa/manga storytelling tropes and expectations
 
 Target language for analysis: {self.target_language}
 
-Translation guidelines to follow:"""
-        
+Professional Translation Context Guidelines:"""
+
         # Add translation info
         if translation_info:
             for i, info in enumerate(translation_info, 1):
                 base_prompt += f"\n{i}. {info}"
         else:
-            base_prompt += "\n- Maintain natural flow and readability"
-            base_prompt += "\n- Preserve character names and proper nouns"
-            base_prompt += "\n- Adapt cultural references appropriately"
+            base_prompt += "\n- Maintain natural dialogue flow and character voice consistency"
+            base_prompt += "\n- Preserve cultural authenticity while ensuring accessibility"
+            base_prompt += "\n- Adapt honorifics and formal speech appropriately for target language"
+            base_prompt += "\n- Handle sound effects and onomatopoeia with cultural sensitivity"
 
         # Add existing context if provided
         if existing_context:
             base_prompt += f"""
 
-Existing context to maintain consistency with:
+ESTABLISHED STORY CONTEXT (maintain consistency):
 {existing_context}
 
-Please ensure your analysis builds upon and remains consistent with this existing context."""
+CRITICAL: Your analysis must build upon and remain consistent with this established context while adding new insights and developments."""
 
         base_prompt += """
 
-Instructions:
-- Analyze the pages in sequential order (1, 2, 3, ...)
-- Consider both visual content and OCR text context
-- Reference text box translations to understand dialogue and story content
-- Use translated text from text boxes to better understand character interactions and plot
-- Explain picture content and preserve story understanding
-- Provide comprehensive context for future translation work
-- Focus on character development, plot progression, and key story elements
-- Maintain consistency with any existing context provided
-- When text box translations are available, incorporate them into your analysis for better story comprehension
+COMPREHENSIVE ANALYSIS PROTOCOL WITH VISUAL INTELLIGENCE:
+- Analyze pages in sequential order (1, 2, 3, ...) for narrative flow
+- VISUAL ANALYSIS: Examine panel composition, character expressions, body language, and environmental details
+- TEXT INTEGRATION: Cross-reference text box data with visual context to understand dialogue intent and emotional subtext
+- TRANSLATION GUIDANCE: Identify specific visual cues that inform translation choices (character emotions, scene atmosphere, cultural elements)
+- CONTEXTUAL MAPPING: Map text boxes to visual elements to understand speaker identity, emotional state, and situational context
+- CULTURAL VISUAL CUES: Identify visual elements that require cultural adaptation (clothing, settings, gestures, symbols)
+- CHARACTER DYNAMICS: Analyze visual character interactions, power dynamics, and relationship status through body language and positioning
+- SCENE ATMOSPHERE: Assess mood, tension, and emotional tone through visual composition and artistic choices
+- TRANSLATION CONTEXT: Provide specific guidance on how visual context should influence translation choices for each text element
 
-Format your response as:
-CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content, referencing text box translations where relevant]
-ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments based on visual content and text box translations]"""
+ENHANCED DELIVERABLE REQUIREMENTS:
+- Professional-grade analysis suitable for official localization teams with visual context integration
+- Specific mapping of text boxes to visual elements and translation implications
+- Cultural context notes for cross-cultural adaptation with visual reference points
+- Character voice and relationship dynamic insights supported by visual evidence
+- Translation guidance that considers both textual content and visual context
+- Identification of visual storytelling elements that impact translation decisions
+
+OUTPUT FORMAT:
+CHAPTER_CONTEXT: [Comprehensive narrative context explaining story developments, character dynamics, emotional themes, and cultural elements. Reference specific text box translations and visual storytelling elements. Include detailed visual-to-text mapping that shows how visual context informs translation decisions. Provide context that enables informed translation decisions for professional localization.]
+ANALYSIS_SUMMARY: [Professional summary of key plot developments, character interactions, emotional beats, and narrative significance. Include specific insights on how visual elements enhance translation understanding, cultural visual cues requiring adaptation, and character relationship dynamics visible in the artwork. Include guidance on translation tone based on visual atmosphere and mood.]
+TRANSLATION_GUIDANCE: [Specific recommendations for translating text elements based on visual context analysis. For each significant text box or dialogue, explain how the visual context (character expressions, scene atmosphere, cultural elements) should influence translation choices, tone, and cultural adaptation.]"""
 
         return base_prompt
 
     def _build_system_prompt_with_tm(self, translation_info: List[str], existing_context: Optional[str] = None, tm_data: List = None) -> str:
         """Build system prompt for chapter analysis with TM data"""
-        base_prompt = f"""You are an expert manga/manhwa analyst and translator specializing in story comprehension and context analysis.
+        base_prompt = f"""You are a senior manga/manhwa analyst and professional localization expert specializing in comprehensive story analysis and translation context development for official comic production.
 
-Your task is to analyze a complete chapter by examining all pages in order, along with their OCR-extracted text contexts, and provide:
-1. A comprehensive chapter context that explains the story content, character interactions, and plot developments
-2. A detailed analysis summary of the chapter's key events and themes
+Your expertise encompasses:
+- Deep understanding of manhwa/manga narrative structures and storytelling conventions
+- Professional comic localization and adaptation principles with Translation Memory integration
+- Cultural context analysis for cross-cultural adaptation
+- Character development and relationship dynamics assessment
+- Visual storytelling and panel composition analysis
+- Translation consistency management using established terminology databases
+
+Primary Objectives:
+1. COMPREHENSIVE STORY ANALYSIS: Examine visual narrative flow, character interactions, and plot development across all chapter pages
+2. TRANSLATION CONTEXT DEVELOPMENT: Provide detailed context that enables accurate, culturally-appropriate translation decisions
+3. CHARACTER VOICE ANALYSIS: Identify speaking patterns, personality traits, and relationship dynamics through dialogue
+4. CULTURAL LOCALIZATION GUIDANCE: Note cultural references, idioms, and context requiring adaptation for target audience
+5. TRANSLATION MEMORY INTEGRATION: Utilize established translations to maintain consistency across the series
+6. NARRATIVE CONSISTENCY: Ensure analysis maintains continuity with established story elements and character development
+
+Advanced Analysis Framework:
+- VISUAL STORYTELLING: Panel composition, artistic choices, visual metaphors, and symbolic elements
+- DIALOGUE ANALYSIS: Character voice, emotional subtext, formal/informal speech patterns, and relationship dynamics
+- NARRATIVE PACING: Story beats, emotional crescendos, tension building, and dramatic timing
+- CULTURAL ELEMENTS: References requiring localization, cultural context, and audience adaptation needs
+- GENRE CONVENTIONS: Adherence to or subversion of manhwa/manga storytelling tropes and expectations
+- TERMINOLOGY CONSISTENCY: Integration of established character names, terms, and translations
 
 Target language for analysis: {self.target_language}
 
-Translation guidelines to follow:"""
+Professional Translation Context Guidelines:"""
 
         # Add translation info
         if translation_info:
             for i, info in enumerate(translation_info, 1):
                 base_prompt += f"\n{i}. {info}"
         else:
-            base_prompt += "\n- Maintain natural flow and readability"
-            base_prompt += "\n- Preserve character names and proper nouns"
-            base_prompt += "\n- Adapt cultural references appropriately"
+            base_prompt += "\n- Maintain natural dialogue flow and character voice consistency"
+            base_prompt += "\n- Preserve cultural authenticity while ensuring accessibility"
+            base_prompt += "\n- Adapt honorifics and formal speech appropriately for target language"
+            base_prompt += "\n- Handle sound effects and onomatopoeia with cultural sensitivity"
 
         # Add TM data if available
         if tm_data and len(tm_data) > 0:
             base_prompt += f"""
 
-Translation Memory Data Available ({len(tm_data)} entries):
-Use this translation memory data to maintain consistency in character names, terminology, and translations:"""
+TRANSLATION MEMORY DATABASE ({len(tm_data)} entries available):
+Use this established translation data to maintain consistency in character names, terminology, and translations throughout the series:"""
             for i, tm_entry in enumerate(tm_data[:10], 1):  # Limit to first 10 entries
                 base_prompt += f"\n{i}. Source: \"{tm_entry.source_text}\" → Target: \"{tm_entry.target_text}\""
                 if tm_entry.context:
@@ -196,29 +247,44 @@ Use this translation memory data to maintain consistency in character names, ter
         if existing_context:
             base_prompt += f"""
 
-Existing context to maintain consistency with:
+ESTABLISHED STORY CONTEXT (maintain consistency):
 {existing_context}
 
-Please ensure your analysis builds upon and remains consistent with this existing context."""
+CRITICAL: Your analysis must build upon and remain consistent with this established context while adding new insights and developments."""
 
         base_prompt += """
 
-Instructions:
-- Analyze the pages in sequential order (1, 2, 3, ...)
-- Consider both visual content and OCR text context
-- Reference text box translations to understand dialogue and story content
-- Use translated text from text boxes to better understand character interactions and plot
-- Use the Translation Memory data to maintain consistency in character names and terminology
-- Do NOT include TM_ID references or alerts in your context or summary sections
-- Explain picture content and preserve story understanding
-- Provide comprehensive context for future translation work
-- Focus on character development, plot progression, and key story elements
-- Maintain consistency with any existing context provided
-- When text box translations are available, incorporate them into your analysis for better story comprehension
+COMPREHENSIVE ANALYSIS PROTOCOL WITH TM INTEGRATION AND VISUAL INTELLIGENCE:
+- Analyze pages in sequential order (1, 2, 3, ...) for narrative flow
+- VISUAL ANALYSIS: Examine panel composition, character expressions, body language, and environmental details
+- TEXT INTEGRATION: Cross-reference text box data with visual context to understand dialogue intent and emotional subtext
+- TM CONSISTENCY: Cross-reference Translation Memory data to ensure terminology consistency while considering visual context
+- TRANSLATION GUIDANCE: Identify specific visual cues that inform translation choices (character emotions, scene atmosphere, cultural elements)
+- CONTEXTUAL MAPPING: Map text boxes to visual elements to understand speaker identity, emotional state, and situational context
+- CULTURAL VISUAL CUES: Identify visual elements that require cultural adaptation (clothing, settings, gestures, symbols)
+- CHARACTER DYNAMICS: Analyze visual character interactions, power dynamics, and relationship status through body language and positioning
+- SCENE ATMOSPHERE: Assess mood, tension, and emotional tone through visual composition and artistic choices
+- TRANSLATION CONTEXT: Provide specific guidance on how visual context should influence translation choices for each text element
+- Track which TM entries are relevant for maintaining series consistency while considering visual context
 
-Format your response as:
-CHAPTER_CONTEXT: [Detailed context explaining the chapter's story content, referencing text box translations where relevant. Do not include any TM_ID references here.]
-ANALYSIS_SUMMARY: [Summary of key events, character interactions, and plot developments based on visual content and text box translations. Do not include any TM_ID references here.]
+CRITICAL TM USAGE REQUIREMENTS:
+- Use Translation Memory data to maintain consistency in character names and terminology
+- Do NOT include TM_ID references or alerts in your context or summary sections
+- Track which TM entries were useful for your analysis for reporting purposes
+- Ensure established translations are respected while allowing for natural dialogue flow
+
+DELIVERABLE REQUIREMENTS:
+- Professional-grade analysis suitable for official localization teams
+- Specific references to visual and textual elements that inform translation decisions
+- Cultural context notes for cross-cultural adaptation
+- Character voice and relationship dynamic insights
+- Narrative pacing and emotional beat analysis
+- Translation consistency tracking for series continuity
+
+OUTPUT FORMAT:
+CHAPTER_CONTEXT: [Comprehensive narrative context explaining story developments, character dynamics, emotional themes, and cultural elements. Reference specific text box translations and visual storytelling elements. Include detailed visual-to-text mapping that shows how visual context informs translation decisions. Provide context that enables informed translation decisions. Do not include any TM_ID references here.]
+ANALYSIS_SUMMARY: [Professional summary of key plot developments, character interactions, emotional beats, and narrative significance. Include specific insights on how visual elements enhance translation understanding, cultural visual cues requiring adaptation, and character relationship dynamics visible in the artwork. Include guidance on translation tone based on visual atmosphere and mood. Do not include any TM_ID references here.]
+TRANSLATION_GUIDANCE: [Specific recommendations for translating text elements based on visual context analysis. For each significant text box or dialogue, explain how the visual context (character expressions, scene atmosphere, cultural elements) should influence translation choices, tone, and cultural adaptation.]
 USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this analysis, e.g., "tm_id_1,tm_id_2,tm_id_3" or "none" if no TM data was used]"""
 
         return base_prompt
@@ -256,6 +322,107 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
         prompt += "When generating the new context, please reference the text box translations to understand the dialogue and story content better."
 
         return prompt
+
+    async def _build_enhanced_user_prompt_with_images(self, pages: List[PageAnalysisData], tm_data: List = None) -> List[Dict]:
+        """Build enhanced user prompt with image analysis capabilities"""
+        messages = []
+
+        # Add introductory text
+        intro_text = f"Please analyze this manhwa chapter with {len(pages)} pages using both visual analysis and text box data"
+
+        if tm_data and len(tm_data) > 0:
+            intro_text += f" along with {len(tm_data)} Translation Memory entries provided"
+
+        intro_text += ":\n\n"
+
+        # Add each page with image and text box data
+        for page in sorted(pages, key=lambda x: x.page_number):
+            page_text = f"=== PAGE {page.page_number} ===\n"
+
+            # Add image for visual analysis
+            messages.append({
+                "type": "text",
+                "text": page_text
+            })
+
+            messages.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": page.image_url,
+                    "detail": "high"
+                }
+            })
+
+            # Add OCR context if available
+            if page.ocr_context:
+                messages.append({
+                    "type": "text",
+                    "text": f"OCR Context: {page.ocr_context}\n"
+                })
+            else:
+                messages.append({
+                    "type": "text",
+                    "text": "OCR Context: [No text detected]\n"
+                })
+
+            # Add detailed text box analysis data
+            if page.text_boxes and len(page.text_boxes) > 0:
+                text_box_analysis = f"Text Box Analysis ({len(page.text_boxes)} boxes):\n"
+                for i, text_box in enumerate(page.text_boxes, 1):
+                    text_box_analysis += f"  Box {i} (Position: x:{text_box.x}, y:{text_box.y}, size: {text_box.w}x{text_box.h}):\n"
+                    if text_box.ocr_text:
+                        text_box_analysis += f"    Original Text: {text_box.ocr_text}\n"
+                    if text_box.translated_text:
+                        text_box_analysis += f"    Translation: {text_box.translated_text}\n"
+                    if text_box.corrected_text:
+                        text_box_analysis += f"    Corrected: {text_box.corrected_text}\n"
+                    text_box_analysis += f"    → ANALYZE: How does the visual context at this position inform the translation choice?\n"
+
+                messages.append({
+                    "type": "text",
+                    "text": text_box_analysis + "\n"
+                })
+            else:
+                messages.append({
+                    "type": "text",
+                    "text": "Text Boxes: [No text boxes available]\n\n"
+                })
+
+        # Add analysis instructions
+        analysis_instructions = """
+COMPREHENSIVE VISUAL + TEXT ANALYSIS REQUIRED:
+
+1. VISUAL STORYTELLING ANALYSIS:
+   - Examine each page's visual composition, character expressions, and scene atmosphere
+   - Identify emotional beats, character dynamics, and narrative progression through visual cues
+   - Note artistic choices that convey mood, tension, or cultural context
+
+2. TEXT-TO-VISUAL MAPPING:
+   - For each text box, analyze how the visual context at that position informs translation choices
+   - Identify speaker identity through visual cues (character positioning, speech bubble style)
+   - Assess emotional context through character expressions and body language
+   - Consider scene atmosphere and how it should influence tone and word choice
+
+3. TRANSLATION CONTEXT DEVELOPMENT:
+   - Provide specific guidance on how visual elements should influence translation decisions
+   - Identify cultural visual cues that require localization consideration
+   - Note character relationship dynamics visible in the artwork that inform dialogue translation
+   - Suggest how visual mood and atmosphere should guide translation tone
+
+4. CULTURAL LOCALIZATION INSIGHTS:
+   - Identify visual elements that carry cultural significance
+   - Note gestures, clothing, settings, or symbols that may need cultural adaptation
+   - Provide context for visual metaphors or cultural references
+
+Please provide comprehensive analysis following the format specified in the system prompt, with special attention to how visual context enhances translation understanding.
+"""
+
+        messages.append({
+            "type": "text",
+            "text": analysis_instructions
+        })
+
+        return messages
 
     def _build_user_prompt_with_tm(self, pages: List[PageAnalysisData], tm_data: List = None) -> str:
         """Build user prompt with page data including text box translations and TM data"""
@@ -302,20 +469,27 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
     def _parse_analysis_result(self, analysis_result: str) -> tuple[str, str]:
         """Parse the analysis result to extract context and summary"""
         try:
-            # Split by the markers
+            # Split by the markers to extract all sections
             parts = analysis_result.split("ANALYSIS_SUMMARY:")
-            
+
             if len(parts) >= 2:
                 # Extract context (remove CHAPTER_CONTEXT: prefix)
                 context_part = parts[0].replace("CHAPTER_CONTEXT:", "").strip()
-                # Extract summary
-                summary_part = parts[1].strip()
-                
+
+                # Check if there's translation guidance section
+                summary_and_guidance = parts[1].split("TRANSLATION_GUIDANCE:")
+                summary_part = summary_and_guidance[0].strip()
+
+                # If there's translation guidance, append it to the summary
+                if len(summary_and_guidance) > 1:
+                    guidance_part = summary_and_guidance[1].strip()
+                    summary_part += f"\n\nTranslation Guidance:\n{guidance_part}"
+
                 return context_part, summary_part
             else:
                 # Fallback: treat entire result as context
                 return analysis_result.strip(), "Analysis completed successfully."
-                
+
         except Exception as e:
             print(f"Warning: Could not parse analysis result: {str(e)}")
             # Fallback: return the entire result as context
@@ -334,24 +508,44 @@ USED_TM_IDS: [Comma-separated list of TM_ID values that were useful for this ana
                 # Clean any TM_ID references from context
                 context_part = self._clean_tm_references(context_part)
 
-                # Split the second part to get summary and TM IDs
-                summary_and_tm = parts[1].split("USED_TM_IDS:")
-                summary_part = summary_and_tm[0].strip()
+                # Split the second part to get summary, guidance, and TM IDs
+                remaining_content = parts[1]
+
+                # Check for translation guidance section
+                if "TRANSLATION_GUIDANCE:" in remaining_content:
+                    summary_and_guidance = remaining_content.split("TRANSLATION_GUIDANCE:")
+                    summary_part = summary_and_guidance[0].strip()
+
+                    # Extract guidance and TM IDs
+                    guidance_and_tm = summary_and_guidance[1].split("USED_TM_IDS:")
+                    guidance_part = guidance_and_tm[0].strip()
+
+                    # Combine summary and guidance
+                    summary_part += f"\n\nTranslation Guidance:\n{guidance_part}"
+
+                    # Extract TM IDs
+                    if len(guidance_and_tm) > 1:
+                        tm_ids_part = guidance_and_tm[1].strip()
+                    else:
+                        tm_ids_part = ""
+                else:
+                    # No guidance section, split directly for TM IDs
+                    summary_and_tm = remaining_content.split("USED_TM_IDS:")
+                    summary_part = summary_and_tm[0].strip()
+                    tm_ids_part = summary_and_tm[1].strip() if len(summary_and_tm) > 1 else ""
 
                 # Clean any TM_ID references from summary
                 summary_part = self._clean_tm_references(summary_part)
 
                 # Extract TM IDs if present
                 useful_tm_ids = []
-                if len(summary_and_tm) >= 2:
-                    tm_ids_text = summary_and_tm[1].strip()
-                    if tm_ids_text and tm_ids_text.lower() != "none":
-                        # Parse comma-separated TM IDs
-                        tm_ids = [tm_id.strip() for tm_id in tm_ids_text.split(",")]
-                        # Validate that these TM IDs exist in our TM data
-                        if tm_data:
-                            valid_tm_ids = [tm_entry.id for tm_entry in tm_data]
-                            useful_tm_ids = [tm_id for tm_id in tm_ids if tm_id in valid_tm_ids]
+                if tm_ids_part and tm_ids_part.lower() != "none":
+                    # Parse comma-separated TM IDs
+                    tm_ids = [tm_id.strip() for tm_id in tm_ids_part.split(",")]
+                    # Validate that these TM IDs exist in our TM data
+                    if tm_data:
+                        valid_tm_ids = [tm_entry.id for tm_entry in tm_data]
+                        useful_tm_ids = [tm_id for tm_id in tm_ids if tm_id in valid_tm_ids]
 
                 return context_part, summary_part, useful_tm_ids
             else:

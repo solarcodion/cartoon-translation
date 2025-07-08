@@ -177,6 +177,67 @@ class OCRService {
     }
   }
 
+  // OpenAI OCR Methods
+
+  async extractTextWithOpenAI(imageData: string): Promise<OCRResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(`${API_BASE_URL}/ocr/openai/extract-text`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          image_data: imageData,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result: OCRResponse = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("❌ Error in OpenAI OCR request:", error);
+      throw error;
+    }
+  }
+
+  async detectTextRegionsWithOpenAI(imageData: string): Promise<any> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const response = await fetch(
+        `${API_BASE_URL}/ocr/openai/detect-text-regions`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            image_data: imageData,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("❌ Error in OpenAI text region detection request:", error);
+      throw error;
+    }
+  }
+
   async checkHealth(): Promise<ApiResponse> {
     try {
       const headers = await this.getAuthHeaders();
