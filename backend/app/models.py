@@ -390,6 +390,85 @@ class ChapterAnalysisRequest(BaseModel):
         validate_assignment = True
 
 
+# Page Models
+class PageBase(BaseModel):
+    """Base page model"""
+    chapter_id: str
+    page_number: int
+    file_name: str
+    width: Optional[int] = 0
+    height: Optional[int] = 0
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageCreate(BaseModel):
+    """Page creation model"""
+    chapter_id: str
+    page_number: int
+    file_name: str
+    width: Optional[int] = 0
+    height: Optional[int] = 0
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageUpdate(BaseModel):
+    """Page update model"""
+    page_number: Optional[int] = None
+    file_name: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageResponse(BaseModel):
+    """Page response model"""
+    id: str
+    chapter_id: str
+    page_number: int
+    file_path: str
+    file_name: str
+    width: int
+    height: int
+    created_at: str
+    updated_at: str
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class BatchCreatePageData(BaseModel):
+    """Batch page creation model"""
+    chapter_id: str
+    start_page_number: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class BatchPageUploadResponse(BaseModel):
+    """Batch page upload response model"""
+    success: bool
+    message: str
+    pages: List[PageResponse]
+    total_uploaded: int
+    failed_uploads: List[str]
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 # People Analysis Models
 class PersonInfo(BaseModel):
     """Information about a person/character detected in the series - DEPRECATED: Use TerminologyInfo instead"""

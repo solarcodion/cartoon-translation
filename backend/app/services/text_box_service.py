@@ -43,9 +43,18 @@ class TextBoxService:
                         print(f"📊 Calculated TM score: {tm_score:.3f} for text: '{text_box_data.ocr[:50]}...'")
                         if best_match:
                             print(f"📝 Best match: '{best_match.source_text}' -> '{best_match.target_text}'")
+                        else:
+                            print(f"📊 No TM match found for text: '{text_box_data.ocr[:50]}...' - setting TM to 0")
+                    else:
+                        print(f"⚠️ Could not get series_id for page - setting TM to 0")
+                        tm_score = 0.0
                 except Exception as tm_error:
-                    print(f"⚠️ TM calculation failed: {str(tm_error)}")
+                    print(f"⚠️ TM calculation failed: {str(tm_error)} - setting TM to 0")
                     tm_score = 0.0
+
+            # Ensure tm_score is never None - default to 0.0
+            if tm_score is None:
+                tm_score = 0.0
 
             # Prepare data for database insertion
             insert_data = {
@@ -284,7 +293,7 @@ class TextBoxService:
                         w=region.width,
                         h=region.height,
                         ocr=region.text,
-                        tm=region.confidence  # Use OCR confidence as TM score
+                        tm=None  # Let create_text_box calculate proper TM score from translation memory
                     )
 
                     # Create the text box
@@ -304,9 +313,23 @@ class TextBoxService:
 
     async def _get_page_image_url(self, page_id: str) -> str:
         """Get the page image URL from the page data"""
-        # Since pages functionality is removed, return empty string
-        print(f"⚠️ Pages functionality disabled - cannot get image URL for page: {page_id}")
-        return ""
+        try:
+            response = (
+                self.supabase.table("pages")
+                .select("file_path")
+                .eq("id", page_id)
+                .execute()
+            )
+
+            if not response.data or not response.data[0]:
+                print(f"❌ Page with ID {page_id} not found")
+                return ""
+
+            return response.data[0].get("file_path", "")
+
+        except Exception as e:
+            print(f"❌ Error getting page image URL for page {page_id}: {str(e)}")
+            return ""
 
     def _get_page_url(self, file_path: str) -> str:
         """Get public URL for a page file (same logic as PageService)"""
@@ -368,24 +391,41 @@ class TextBoxService:
     async def _get_series_id_from_page(self, page_id: str) -> Optional[str]:
         """Get series_id from page_id by joining pages and chapters tables"""
         try:
-            # Query to get series_id through page -> chapter -> series relationship
-            response = (
+            # First get the chapter_id from the page
+            page_response = (
                 self.supabase.table("pages")
-                .select("chapters(series_id)")
+                .select("chapter_id")
                 .eq("id", page_id)
                 .execute()
             )
 
-            if not response.data or not response.data[0]:
+            if not page_response.data or not page_response.data[0]:
                 print(f"❌ Page with ID {page_id} not found")
                 return None
 
-            page_data = response.data[0]
-            if not page_data.get("chapters") or not page_data["chapters"].get("series_id"):
-                print(f"❌ No series_id found for page {page_id}")
+            chapter_id = page_response.data[0].get("chapter_id")
+            if not chapter_id:
+                print(f"❌ No chapter_id found for page {page_id}")
                 return None
 
-            return page_data["chapters"]["series_id"]
+            # Then get the series_id from the chapter
+            chapter_response = (
+                self.supabase.table("chapters")
+                .select("series_id")
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not chapter_response.data or not chapter_response.data[0]:
+                print(f"❌ Chapter with ID {chapter_id} not found")
+                return None
+
+            series_id = chapter_response.data[0].get("series_id")
+            if not series_id:
+                print(f"❌ No series_id found for chapter {chapter_id}")
+                return None
+
+            return series_id
 
         except Exception as e:
             print(f"❌ Error getting series_id from page {page_id}: {str(e)}")
