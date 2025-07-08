@@ -380,22 +380,30 @@ async def batch_create_pages_with_auto_textboxes(
                         total_text_boxes
                     )
 
-            # Wrapper function to track completion
-            async def process_with_tracking(page: PageResponse):
+            # Process pages sequentially (one by one) instead of concurrently
+            async def process_pages_sequentially():
                 nonlocal total_text_boxes
 
-                # Process the page and get the number of text boxes created
-                try:
-                    # We need to modify process_page_text_detection to return the count
-                    text_boxes_count = await process_page_text_detection_with_count(page, user_id)
-                    total_text_boxes += text_boxes_count
-                except Exception as e:
-                    print(f"❌ Error in process_with_tracking for page {page.id}: {str(e)}")
+                for page in result.pages:
+                    try:
+                        print(f"🔄 Processing page {page.page_number} (ID: {page.id}) sequentially...")
 
-                await track_completion()
+                        # Process the page and get the number of text boxes created
+                        text_boxes_count = await process_page_text_detection_with_count(page, user_id)
+                        total_text_boxes += text_boxes_count
 
-            for page in result.pages:
-                asyncio.create_task(process_with_tracking(page))
+                        # Track completion for this page
+                        await track_completion()
+
+                        print(f"✅ Completed processing page {page.page_number} - Created {text_boxes_count} text boxes")
+
+                    except Exception as e:
+                        print(f"❌ Error processing page {page.id}: {str(e)}")
+                        # Still track completion even if processing failed
+                        await track_completion()
+
+            # Start sequential processing as a background task
+            asyncio.create_task(process_pages_sequentially())
 
         return result
 
