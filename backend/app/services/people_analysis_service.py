@@ -66,6 +66,14 @@ class PeopleAnalysisService:
             if not self.client:
                 raise ValueError("People analysis service is not properly configured. Please check OpenAI API key.")
 
+            # Get series language for proper description language
+            series_language = "korean"  # Default fallback
+            if self.ai_glossary_service:
+                try:
+                    series_language = await self.ai_glossary_service.get_series_language(series_id)
+                except Exception as lang_error:
+                    print(f"Warning: Could not fetch series language: {str(lang_error)}")
+
             # Get translation memory data for the series
             tm_data = []
             useful_tm_ids = []
@@ -75,8 +83,8 @@ class PeopleAnalysisService:
                 except Exception as tm_error:
                     print(f"Warning: Failed to fetch TM data: {str(tm_error)}")
 
-            # Build the analysis prompt with TM data
-            system_prompt = self._build_system_prompt_with_tm()
+            # Build the analysis prompt with TM data and series language
+            system_prompt = self._build_system_prompt_with_tm(series_language)
             user_prompt = self._build_user_prompt_with_tm(chapters_data, tm_data)
 
             # Call OpenAI API
@@ -137,7 +145,18 @@ class PeopleAnalysisService:
             print(f"People analysis error: {str(e)}")
             raise Exception(f"People analysis failed: {str(e)}")
     
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(self, series_language: str = "korean") -> str:
+        # Map language codes to language names for the prompt
+        language_names = {
+            "korean": "Korean",
+            "japanese": "Japanese",
+            "chinese": "Chinese",
+            "vietnamese": "Vietnamese",
+            "english": "English"
+        }
+
+        description_language = language_names.get(series_language, "Korean")
+
         return f"""You are a senior manga/manhwa character analyst and professional localization consultant specializing in comprehensive character identification and development tracking for official comic production.
 
 Your expertise encompasses:
@@ -179,7 +198,7 @@ Character Classification Guidelines:
 Professional Standards:
 - Focus on characters essential for story comprehension and translation context
 - Use descriptive names for unnamed characters based on appearance or narrative role
-- Provide descriptions in {self.target_language} suitable for professional localization teams
+- Provide descriptions in {description_language} suitable for professional localization teams
 - Include specific physical details, clothing, and distinguishing characteristics
 - Assess character relationships and dynamics for translation context
 - Select optimal visual references for character identification guides
@@ -291,8 +310,20 @@ Return only the JSON array without additional commentary."""
         
         return fallback_people
 
-    def _build_system_prompt_with_tm(self) -> str:
+    def _build_system_prompt_with_tm(self, series_language: str = "korean") -> str:
         """Build system prompt for people analysis with TM data"""
+
+        # Map language codes to language names for the prompt
+        language_names = {
+            "korean": "Korean",
+            "japanese": "Japanese",
+            "chinese": "Chinese",
+            "vietnamese": "Vietnamese",
+            "english": "English"
+        }
+
+        description_language = language_names.get(series_language, "Korean")
+
         return f"""You are a senior manga/manhwa character analyst and professional localization consultant specializing in comprehensive character identification and development tracking for official comic production, with advanced Translation Memory integration capabilities.
 
 Your expertise encompasses:
@@ -338,7 +369,7 @@ Character Classification Guidelines:
 Professional Standards with TM Integration:
 - Prioritize established character names from Translation Memory data
 - Use descriptive names for unnamed characters based on appearance or narrative role
-- Provide descriptions in {self.target_language} suitable for professional localization teams
+- Provide descriptions in {description_language} suitable for professional localization teams
 - Include specific physical details, clothing, and distinguishing characteristics
 - Assess character relationships and dynamics for translation context
 - Select optimal visual references for character identification guides

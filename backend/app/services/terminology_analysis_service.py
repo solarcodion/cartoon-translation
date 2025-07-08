@@ -352,40 +352,41 @@ Only return the JSON object, no additional text."""
         fallback_terms = []
         
         # Create generic terms based on common manhwa patterns using the 5 categories
+        # Using generic English terms for fallback data since this is used when analysis fails
         term_templates = [
             {
-                "name": "Nhân vật chính",
+                "name": "Main Character",
                 "translated_text": "The protagonist of the story who leads the plot and plays the most important role in developing events.",
                 "category": GlossaryCategory.CHARACTER,
-                "description": "Nhân vật chính của câu chuyện, người dẫn dắt cốt truyện và có vai trò quan trọng nhất trong việc phát triển các sự kiện.",
+                "description": "The protagonist of the story who leads the plot and plays the most important role in developing events.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
-                "name": "Vũ khí ma thuật",
+                "name": "Magical Weapon",
                 "translated_text": "A magical weapon with special powers used by characters in the story.",
                 "category": GlossaryCategory.ITEM,
-                "description": "Vũ khí ma thuật có sức mạnh đặc biệt được các nhân vật sử dụng trong truyện.",
+                "description": "A magical weapon with special powers used by characters in the story.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
-                "name": "Học viện",
+                "name": "Academy",
                 "translated_text": "The academy or school where characters learn and train their abilities.",
                 "category": GlossaryCategory.PLACE,
-                "description": "Học viện hoặc trường học nơi các nhân vật học hỏi và rèn luyện khả năng của mình.",
+                "description": "The academy or school where characters learn and train their abilities.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
-                "name": "Kỹ năng đặc biệt",
+                "name": "Special Skill",
                 "translated_text": "A special technique or ability that characters use in battles or difficult situations.",
                 "category": GlossaryCategory.TERM,
-                "description": "Kỹ năng hoặc kỹ thuật đặc biệt mà các nhân vật sử dụng trong các trận chiến hoặc tình huống khó khăn.",
+                "description": "A special technique or ability that characters use in battles or difficult situations.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             },
             {
-                "name": "Hệ thống tu luyện",
+                "name": "Cultivation System",
                 "translated_text": "The cultivation or training system used in the story world.",
                 "category": GlossaryCategory.OTHER,
-                "description": "Hệ thống tu luyện hoặc rèn luyện được sử dụng trong thế giới truyện.",
+                "description": "The cultivation or training system used in the story world.",
                 "chapters": list(range(1, min(num_chapters + 1, 3)))
             }
         ]

@@ -13,9 +13,9 @@ export interface PersonInfo {
 export interface TerminologyInfo {
   id: string;
   name: string; // Display name
-  translated_text: string; // Vietnamese translation
+  translated_text: string; // English translation
   category: string; // Type: character, place, item, skill, technique, organization, etc.
-  description: string; // Detailed description in Vietnamese
+  description: string; // Detailed description in series language
   mentioned_chapters: number[];
   confidence_score?: number;
   image_url?: string; // Best image showing this term
