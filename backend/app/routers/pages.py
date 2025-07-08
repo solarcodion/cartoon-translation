@@ -22,6 +22,13 @@ try:
 except ImportError:
     OCR_SERVICE_AVAILABLE = False
     print("Warning: OCRService not available")
+
+try:
+    from app.services.notification_service import NotificationService, get_notification_service
+    NOTIFICATION_SERVICE_AVAILABLE = True
+except ImportError:
+    NOTIFICATION_SERVICE_AVAILABLE = False
+    print("Warning: NotificationService not available")
 from app.models import (
     PageResponse,
     PageCreate,
@@ -216,7 +223,7 @@ async def batch_create_pages_with_auto_textboxes(
             return result
 
         # Process each created page for text detection in background
-        async def process_page_text_detection(page: PageResponse):
+        async def process_page_text_detection(page: PageResponse, user_id: str):
             try:
                 print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
 
@@ -237,24 +244,158 @@ async def batch_create_pages_with_auto_textboxes(
 
                 if not detection_result.success:
                     print(f"⚠️ OCR detection failed for page {page.id}")
+                    # Send error notification
+                    if NOTIFICATION_SERVICE_AVAILABLE:
+                        notification_service = get_notification_service()
+                        await notification_service.notify_error(
+                            user_id,
+                            "auto_extract_error",
+                            f"OCR detection failed for page {page.page_number}",
+                            {"page_id": page.id, "chapter_id": chapter_id}
+                        )
                     return
 
                 print(f"✅ Detected {len(detection_result.text_regions)} text regions for page {page.id}")
 
                 # 4. Create text boxes from detected regions
+                created_text_boxes = []
                 if text_box_service and len(detection_result.text_regions) > 0:
                     created_text_boxes = await text_box_service.create_text_boxes_from_detection(
                         page.id, detection_result, page.file_path
                     )
                     print(f"✅ Created {len(created_text_boxes)} text boxes for page {page.id}")
 
+                # 5. Send completion notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_completed(
+                        user_id,
+                        chapter_id,
+                        page.id,
+                        len(created_text_boxes),
+                        page.page_number
+                    )
+
             except Exception as e:
                 print(f"❌ Error processing text detection for page {page.id}: {str(e)}")
+                # Send error notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_error(
+                        user_id,
+                        "auto_extract_error",
+                        f"Error processing page {page.page_number}: {str(e)}",
+                        {"page_id": page.id, "chapter_id": chapter_id}
+                    )
+
+        # Version that returns text boxes count for batch tracking
+        async def process_page_text_detection_with_count(page: PageResponse, user_id: str) -> int:
+            try:
+                print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
+
+                # 1. Fetch image from storage
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(page.file_path)
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to fetch image: HTTP {response.status_code}")
+
+                    image_data = response.content
+
+                # 2. Convert to base64
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+                # 3. Call OCR service to detect text regions
+                ocr_request = OCRRequest(image_data=image_base64)
+                detection_result = ocr_service.detect_text_regions(ocr_request.image_data)
+
+                if not detection_result.success:
+                    print(f"⚠️ OCR detection failed for page {page.id}")
+                    # Send error notification
+                    if NOTIFICATION_SERVICE_AVAILABLE:
+                        notification_service = get_notification_service()
+                        await notification_service.notify_error(
+                            user_id,
+                            "auto_extract_error",
+                            f"OCR detection failed for page {page.page_number}",
+                            {"page_id": page.id, "chapter_id": chapter_id}
+                        )
+                    return 0
+
+                print(f"✅ Detected {len(detection_result.text_regions)} text regions for page {page.id}")
+
+                # 4. Create text boxes from detected regions
+                created_text_boxes = []
+                if text_box_service and len(detection_result.text_regions) > 0:
+                    created_text_boxes = await text_box_service.create_text_boxes_from_detection(
+                        page.id, detection_result, page.file_path
+                    )
+                    print(f"✅ Created {len(created_text_boxes)} text boxes for page {page.id}")
+
+                # 5. Send completion notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_completed(
+                        user_id,
+                        chapter_id,
+                        page.id,
+                        len(created_text_boxes),
+                        page.page_number
+                    )
+
+                return len(created_text_boxes)
+
+            except Exception as e:
+                print(f"❌ Error processing text detection for page {page.id}: {str(e)}")
+                # Send error notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_error(
+                        user_id,
+                        "auto_extract_error",
+                        f"Error processing page {page.page_number}: {str(e)}",
+                        {"page_id": page.id, "chapter_id": chapter_id}
+                    )
+                return 0
 
         # Start background tasks for text detection
         if ocr_service and text_box_service:
+            user_id = current_user.get("user_id", "unknown")
+
+            # Track completion for batch notification
+            total_pages = len(result.pages)
+            completed_pages = 0
+            total_text_boxes = 0
+
+            async def track_completion():
+                nonlocal completed_pages, total_text_boxes
+                completed_pages += 1
+
+                # If all pages are completed, send batch notification
+                if completed_pages == total_pages and NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_batch_completed(
+                        user_id,
+                        chapter_id,
+                        total_pages,
+                        total_text_boxes
+                    )
+
+            # Wrapper function to track completion
+            async def process_with_tracking(page: PageResponse):
+                nonlocal total_text_boxes
+
+                # Process the page and get the number of text boxes created
+                try:
+                    # We need to modify process_page_text_detection to return the count
+                    text_boxes_count = await process_page_text_detection_with_count(page, user_id)
+                    total_text_boxes += text_boxes_count
+                except Exception as e:
+                    print(f"❌ Error in process_with_tracking for page {page.id}: {str(e)}")
+
+                await track_completion()
+
             for page in result.pages:
-                asyncio.create_task(process_page_text_detection(page))
+                asyncio.create_task(process_with_tracking(page))
 
         return result
 

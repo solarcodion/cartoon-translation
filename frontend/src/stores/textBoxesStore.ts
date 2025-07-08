@@ -2,11 +2,16 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useMemo } from "react";
 import { textBoxService } from "../services/textBoxService";
+import { websocketService } from "../services/websocketService";
 import type {
   TextBoxApiItem,
   CreateTextBoxData,
   UpdateTextBoxData,
 } from "../services/textBoxService";
+import type {
+  AutoExtractCompletedData,
+  AutoExtractBatchCompletedData,
+} from "../services/websocketService";
 
 // Cache duration in milliseconds (5 minutes)
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -63,6 +68,13 @@ export interface TextBoxesActions {
     chapterId: string,
     itemsPerPage: number
   ) => Promise<void>;
+  // WebSocket event handlers
+  handleAutoExtractCompleted: (data: AutoExtractCompletedData) => void;
+  handleAutoExtractBatchCompleted: (
+    data: AutoExtractBatchCompletedData
+  ) => void;
+  setupWebSocketListeners: () => void;
+  cleanupWebSocketListeners: () => void;
 }
 
 export type TextBoxesStore = TextBoxesState & TextBoxesActions;
@@ -612,6 +624,65 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         setItemsPerPage(chapterId, itemsPerPage);
         await fetchTextBoxesByChapterId(chapterId, 1, true);
       },
+
+      // WebSocket event handlers
+      handleAutoExtractCompleted: (data: AutoExtractCompletedData) => {
+        console.log("📦 Auto-extract completed for page:", data);
+
+        // Invalidate cache for the chapter to trigger refetch
+        const { invalidateCache } = get();
+        invalidateCache(data.chapter_id);
+
+        // Optionally show a notification or update UI state
+        // This will cause components to refetch data when they next access it
+      },
+
+      handleAutoExtractBatchCompleted: (
+        data: AutoExtractBatchCompletedData
+      ) => {
+        console.log("📦 Auto-extract batch completed for chapter:", data);
+
+        // Invalidate cache for the chapter to trigger refetch
+        const { invalidateCache } = get();
+        invalidateCache(data.chapter_id);
+
+        // Force refetch for the chapter if it's currently being viewed
+        const state = get();
+        const chapterData = state.data[data.chapter_id];
+        if (chapterData) {
+          // Trigger a refetch by calling fetchTextBoxesByChapterId
+          const { fetchTextBoxesByChapterId } = get();
+          fetchTextBoxesByChapterId(
+            data.chapter_id,
+            chapterData.currentPage,
+            true
+          );
+        }
+      },
+
+      setupWebSocketListeners: () => {
+        const { handleAutoExtractCompleted, handleAutoExtractBatchCompleted } =
+          get();
+
+        websocketService.onAutoExtractCompleted(handleAutoExtractCompleted);
+        websocketService.onAutoExtractBatchCompleted(
+          handleAutoExtractBatchCompleted
+        );
+
+        console.log("✅ WebSocket listeners setup for textBoxes store");
+      },
+
+      cleanupWebSocketListeners: () => {
+        const { handleAutoExtractCompleted, handleAutoExtractBatchCompleted } =
+          get();
+
+        websocketService.offAutoExtractCompleted(handleAutoExtractCompleted);
+        websocketService.offAutoExtractBatchCompleted(
+          handleAutoExtractBatchCompleted
+        );
+
+        console.log("🧹 WebSocket listeners cleaned up for textBoxes store");
+      },
     }),
     {
       name: "textBoxes-store",
@@ -721,6 +792,12 @@ export const useTextBoxesActions = () => {
   const setItemsPerPageAndFetch = useTextBoxesStore(
     (state) => state.setItemsPerPageAndFetch
   );
+  const setupWebSocketListeners = useTextBoxesStore(
+    (state) => state.setupWebSocketListeners
+  );
+  const cleanupWebSocketListeners = useTextBoxesStore(
+    (state) => state.cleanupWebSocketListeners
+  );
 
   return useMemo(
     () => ({
@@ -737,6 +814,8 @@ export const useTextBoxesActions = () => {
       setPage,
       setItemsPerPage,
       setItemsPerPageAndFetch,
+      setupWebSocketListeners,
+      cleanupWebSocketListeners,
     }),
     [
       fetchTextBoxesByChapterId,
@@ -752,6 +831,8 @@ export const useTextBoxesActions = () => {
       setPage,
       setItemsPerPage,
       setItemsPerPageAndFetch,
+      setupWebSocketListeners,
+      cleanupWebSocketListeners,
     ]
   );
 };

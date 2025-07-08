@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+import json
+from typing import Dict, Set
 from app.config import settings
 from app.routers import users, series, chapters, pages, translation_memory, ocr, translation, text_boxes, ai_glossary, dashboard
+from app.services.notification_service import notification_service
 
 
 app = FastAPI(
@@ -11,6 +14,41 @@ app = FastAPI(
     description=settings.api_description,
     version=settings.api_version
 )
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = set()
+        self.active_connections[user_id].add(websocket)
+
+    def disconnect(self, websocket: WebSocket, user_id: str):
+        if user_id in self.active_connections:
+            self.active_connections[user_id].discard(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: dict, user_id: str):
+        if user_id in self.active_connections:
+            disconnected_connections = []
+            for connection in self.active_connections[user_id]:
+                try:
+                    await connection.send_text(json.dumps(message))
+                except:
+                    disconnected_connections.append(connection)
+
+            # Remove disconnected connections
+            for connection in disconnected_connections:
+                self.active_connections[user_id].discard(connection)
+
+manager = ConnectionManager()
+
+# Initialize notification service with the manager
+notification_service.set_manager(manager)
 
 
 app.add_middleware(
@@ -56,6 +94,16 @@ app.include_router(translation.router, prefix="/api")
 app.include_router(text_boxes.router, prefix="/api")
 app.include_router(ai_glossary.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, user_id)
 
 @app.get("/")
 async def root():
