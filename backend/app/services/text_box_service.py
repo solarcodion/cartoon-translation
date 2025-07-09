@@ -10,6 +10,7 @@ from app.models import (
     TextRegionDetectionResponse
 )
 from app.services.tm_calculation_service import TMCalculationService
+from app.services.translation_memory_service import TranslationMemoryService
 
 
 class TextBoxService:
@@ -19,6 +20,7 @@ class TextBoxService:
         self.supabase = supabase
         self.table_name = "text_boxes"
         self.tm_service = TMCalculationService(supabase)
+        self.tm_memory_service = TranslationMemoryService(supabase)
     
     async def create_text_box(self, text_box_data: TextBoxCreate) -> TextBoxResponse:
         """Create a new text box"""
@@ -43,9 +45,18 @@ class TextBoxService:
                         print(f"📊 Calculated TM score: {tm_score:.3f} for text: '{text_box_data.ocr[:50]}...'")
                         if best_match:
                             print(f"📝 Best match: '{best_match.source_text}' -> '{best_match.target_text}'")
+                        else:
+                            print(f"📊 No TM match found for text: '{text_box_data.ocr[:50]}...' - setting TM to 0")
+                    else:
+                        print(f"⚠️ Could not get series_id for page - setting TM to 0")
+                        tm_score = 0.0
                 except Exception as tm_error:
-                    print(f"⚠️ TM calculation failed: {str(tm_error)}")
+                    print(f"⚠️ TM calculation failed: {str(tm_error)} - setting TM to 0")
                     tm_score = 0.0
+
+            # Ensure tm_score is never None - default to 0.0
+            if tm_score is None:
+                tm_score = 0.0
 
             # Prepare data for database insertion
             insert_data = {
@@ -126,13 +137,19 @@ class TextBoxService:
             raise Exception(f"Failed to fetch text box: {str(e)}")
     
     async def update_text_box(self, text_box_id: str, text_box_data: TextBoxUpdate) -> Optional[TextBoxResponse]:
-        """Update a text box"""
+        """Update a text box and optionally create TM entry"""
         try:
+            # Get the current text box to check for changes
+            current_text_box = await self.get_text_box_by_id(text_box_id)
+            if not current_text_box:
+                print(f"❌ Text box with ID {text_box_id} not found")
+                return None
+
             # Prepare update data (only include non-None values)
             update_data = text_box_data.model_dump(exclude_unset=True)
             if update_data:
                 update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-            
+
             # Update in database
             response = (
                 self.supabase.table(self.table_name)
@@ -140,15 +157,19 @@ class TextBoxService:
                 .eq("id", text_box_id)
                 .execute()
             )
-            
+
             if not response.data:
                 print(f"❌ Text box with ID {text_box_id} not found for update")
                 return None
-            
+
             updated_text_box = response.data[0]
-            
-            return TextBoxResponse(**updated_text_box)
-            
+            updated_response = TextBoxResponse(**updated_text_box)
+
+            # Create TM entry if we have both OCR and corrected text
+            await self._create_tm_entry_if_needed(updated_response, current_text_box)
+
+            return updated_response
+
         except Exception as e:
             print(f"❌ Error updating text box {text_box_id}: {str(e)}")
             raise Exception(f"Failed to update text box: {str(e)}")
@@ -208,47 +229,47 @@ class TextBoxService:
                 text_boxes.append(TextBoxResponse(**text_box_data))
             
             return text_boxes
-            
+
         except Exception as e:
             print(f"❌ Error fetching text boxes for chapter {chapter_id}: {str(e)}")
             raise Exception(f"Failed to fetch text boxes: {str(e)}")
 
-    async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
-        """Clear all text boxes for a chapter (used when resetting chapter translations)"""
+    async def get_text_boxes_count_by_chapter(self, chapter_id: str) -> int:
+        """Get total count of text boxes for a specific chapter"""
         try:
-            # Delete all text boxes for this chapter
-            response = (
-                self.supabase.table(self.table_name)
-                .delete()
-                .eq("page_id", chapter_id)  # This will need to be updated to use a proper join
+            # First get all pages for the chapter
+            pages_response = (
+                self.supabase.table("pages")
+                .select("id")
+                .eq("chapter_id", chapter_id)
                 .execute()
             )
 
-            # Since we can't directly join in Supabase, we need to get pages first
-            # Get all pages for this chapter
-            from app.services.page_service import PageService
-            page_service = PageService(self.supabase)
-            pages = await page_service.get_pages_by_chapter(chapter_id)
-
-            if not pages:
+            if not pages_response.data:
                 return 0
 
-            page_ids = [page.id for page in pages]
+            page_ids = [page["id"] for page in pages_response.data]
 
-            # Delete text boxes for all pages in this chapter
-            deleted_count = 0
-            for page_id in page_ids:
-                response = (
-                    self.supabase.table(self.table_name)
-                    .delete()
-                    .eq("page_id", page_id)
-                    .execute()
-                )
-                if response.data:
-                    deleted_count += len(response.data)
+            # Count text boxes for those pages
+            response = (
+                self.supabase.table(self.table_name)
+                .select("id", count="exact")
+                .in_("page_id", page_ids)
+                .execute()
+            )
 
-            print(f"✅ Cleared {deleted_count} text boxes for chapter {chapter_id}")
-            return deleted_count
+            return response.count or 0
+
+        except Exception as e:
+            print(f"❌ Error counting text boxes for chapter {chapter_id}: {str(e)}")
+            return 0
+
+    async def clear_chapter_text_boxes(self, chapter_id: str) -> int:
+        """Clear all text boxes for a chapter (used when resetting chapter translations)"""
+        try:
+            # Since pages functionality is removed, we can't clear text boxes by chapter
+            # Return 0 as no text boxes were cleared
+            return 0
 
         except Exception as e:
             print(f"❌ Error clearing text boxes for chapter {chapter_id}: {str(e)}")
@@ -284,7 +305,7 @@ class TextBoxService:
                         w=region.width,
                         h=region.height,
                         ocr=region.text,
-                        tm=region.confidence  # Use OCR confidence as TM score
+                        tm=None  # Let create_text_box calculate proper TM score from translation memory
                     )
 
                     # Create the text box
@@ -305,22 +326,18 @@ class TextBoxService:
     async def _get_page_image_url(self, page_id: str) -> str:
         """Get the page image URL from the page data"""
         try:
-            # Fetch page data from database
-            response = self.supabase.table("pages").select("file_path").eq("id", page_id).execute()
+            response = (
+                self.supabase.table("pages")
+                .select("file_path")
+                .eq("id", page_id)
+                .execute()
+            )
 
-            if not response.data:
-                print(f"⚠️ Page not found: {page_id}")
+            if not response.data or not response.data[0]:
+                print(f"❌ Page with ID {page_id} not found")
                 return ""
 
-            page_data = response.data[0]
-            file_path = page_data.get("file_path", "")
-
-            if not file_path:
-                print(f"⚠️ No file_path found for page: {page_id}")
-                return ""
-
-            # Use the same URL construction logic as PageService
-            return self._get_page_url(file_path)
+            return response.data[0].get("file_path", "")
 
         except Exception as e:
             print(f"❌ Error getting page image URL for page {page_id}: {str(e)}")
@@ -386,25 +403,79 @@ class TextBoxService:
     async def _get_series_id_from_page(self, page_id: str) -> Optional[str]:
         """Get series_id from page_id by joining pages and chapters tables"""
         try:
-            # Query to get series_id through page -> chapter -> series relationship
-            response = (
+            # First get the chapter_id from the page
+            page_response = (
                 self.supabase.table("pages")
-                .select("chapters(series_id)")
+                .select("chapter_id")
                 .eq("id", page_id)
                 .execute()
             )
 
-            if not response.data or not response.data[0]:
+            if not page_response.data or not page_response.data[0]:
                 print(f"❌ Page with ID {page_id} not found")
                 return None
 
-            page_data = response.data[0]
-            if not page_data.get("chapters") or not page_data["chapters"].get("series_id"):
-                print(f"❌ No series_id found for page {page_id}")
+            chapter_id = page_response.data[0].get("chapter_id")
+            if not chapter_id:
+                print(f"❌ No chapter_id found for page {page_id}")
                 return None
 
-            return page_data["chapters"]["series_id"]
+            # Then get the series_id from the chapter
+            chapter_response = (
+                self.supabase.table("chapters")
+                .select("series_id")
+                .eq("id", chapter_id)
+                .execute()
+            )
+
+            if not chapter_response.data or not chapter_response.data[0]:
+                print(f"❌ Chapter with ID {chapter_id} not found")
+                return None
+
+            series_id = chapter_response.data[0].get("series_id")
+            if not series_id:
+                print(f"❌ No series_id found for chapter {chapter_id}")
+                return None
+
+            return series_id
 
         except Exception as e:
             print(f"❌ Error getting series_id from page {page_id}: {str(e)}")
             return None
+
+    async def _create_tm_entry_if_needed(self, updated_text_box: TextBoxResponse, original_text_box: TextBoxResponse) -> None:
+        """Create TM entry if text box has both OCR and corrected text"""
+        try:
+            # Check if we have both OCR and corrected text
+            if not updated_text_box.ocr or not updated_text_box.ocr.strip():
+                return
+
+            if not updated_text_box.corrected or not updated_text_box.corrected.strip():
+                return
+
+            # Check if corrected text was actually updated (avoid duplicate TM entries)
+            if (original_text_box.corrected and
+                original_text_box.corrected.strip() == updated_text_box.corrected.strip()):
+                return  # No change in corrected text, don't create duplicate TM entry
+
+            # Get series_id
+            series_id = await self._get_series_id_from_page(updated_text_box.page_id)
+            if not series_id:
+                print(f"⚠️ Could not get series_id for text box {updated_text_box.id}, skipping TM creation")
+                return
+
+            # Create TM entry
+            from app.models import TranslationMemoryCreate
+            tm_data = TranslationMemoryCreate(
+                series_id=series_id,
+                source_text=updated_text_box.ocr.strip(),
+                target_text=updated_text_box.corrected.strip(),
+                context=updated_text_box.reason or "Auto-created from text box save"
+            )
+
+            tm_entry = await self.tm_memory_service.create_tm_entry(tm_data)
+            print(f"✅ Created TM entry: '{tm_entry.source_text}' -> '{tm_entry.target_text}'")
+
+        except Exception as e:
+            print(f"⚠️ Failed to create TM entry for text box {updated_text_box.id}: {str(e)}")
+            # Don't raise exception - TM creation failure shouldn't break text box update

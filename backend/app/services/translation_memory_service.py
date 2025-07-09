@@ -54,17 +54,33 @@ class TranslationMemoryService:
                 .range(skip, skip + limit - 1)
                 .execute()
             )
-            
+
             if not response.data:
                 return []
-            
+
             tm_entries_list = [TranslationMemoryResponse(**entry) for entry in response.data]
-            
+
             return tm_entries_list
-            
+
         except Exception as e:
             print(f"❌ Error fetching TM entries for series {series_id}: {str(e)}")
             raise Exception(f"Failed to fetch TM entries: {str(e)}")
+
+    async def get_tm_entries_count_by_series(self, series_id: str) -> int:
+        """Get the total count of translation memory entries for a series"""
+        try:
+            response = (
+                self.supabase.table(self.table_name)
+                .select("id", count="exact")
+                .eq("series_id", series_id)
+                .execute()
+            )
+
+            return response.count or 0
+
+        except Exception as e:
+            print(f"❌ Error fetching TM entries count for series {series_id}: {str(e)}")
+            raise Exception(f"Failed to fetch TM entries count: {str(e)}")
     
     async def get_tm_entry_by_id(self, tm_id: str) -> Optional[TranslationMemoryResponse]:
         """Get a specific translation memory entry by ID"""

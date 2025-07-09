@@ -55,11 +55,35 @@ class ApiClient {
           );
         }
 
-        throw new Error(
+        // Handle database constraint errors with user-friendly messages
+        const errorMessage =
           errorData.message ||
-            errorData.detail ||
-            `HTTP error! status: ${response.status}`
-        );
+          errorData.detail ||
+          `HTTP error! status: ${response.status}`;
+
+        // Check for specific database constraint violations
+        if (typeof errorMessage === "string") {
+          if (
+            errorMessage.includes(
+              "duplicate key value violates unique constraint"
+            ) &&
+            errorMessage.includes("chapters_series_id_chapter_number_key")
+          ) {
+            // Extract chapter number from the error details if possible
+            const chapterNumberMatch = errorMessage.match(
+              /chapter_number\)=\([^,]+,\s*(\d+)\)/
+            );
+            const chapterNumber = chapterNumberMatch
+              ? chapterNumberMatch[1]
+              : "this number";
+
+            throw new Error(
+              `Failed to update chapter: A chapter with number '${chapterNumber}' already exists in this series.`
+            );
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       return await response.json();

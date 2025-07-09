@@ -16,6 +16,7 @@ import {
   ChaptersTableSkeleton,
   TranslationMemoryTableSkeleton,
   AIGlossaryGridSkeleton,
+  Pagination,
 } from "../common";
 import DropdownMenu from "../common/DropdownMenu";
 import type {
@@ -23,6 +24,8 @@ import type {
   TranslationMemory,
   GlossaryCharacter,
 } from "../../types";
+import { getSeriesById } from "../../stores/seriesStore";
+import { getLanguageLabel } from "../../constants/languages";
 
 // Chapters Tab Content
 interface ChaptersTabContentProps {
@@ -34,6 +37,13 @@ interface ChaptersTabContentProps {
   onDeleteChapter?: (chapterId: string) => void;
   canModify?: boolean;
   isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (itemsPerPage: number) => void;
+  };
 }
 
 export function ChaptersTabContent({
@@ -45,6 +55,7 @@ export function ChaptersTabContent({
   onDeleteChapter,
   canModify = true,
   isLoading = false,
+  pagination,
 }: ChaptersTabContentProps) {
   const navigate = useNavigate();
 
@@ -199,6 +210,18 @@ export function ChaptersTabContent({
               }
             />
           )}
+
+          {/* Pagination */}
+          {pagination && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalItems={pagination.totalItems}
+              itemsPerPage={pagination.itemsPerPage}
+              onPageChange={pagination.onPageChange}
+              onItemsPerPageChange={pagination.onItemsPerPageChange}
+              disabled={isLoading}
+            />
+          )}
         </div>
       </div>
     </TabContent>
@@ -216,6 +239,13 @@ interface TranslationMemoryTabContentProps {
   onDeleteEntry?: (tmId: string) => void;
   canModifyTM?: boolean;
   isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (itemsPerPage: number) => void;
+  };
 }
 
 export function TranslationMemoryTabContent({
@@ -228,6 +258,7 @@ export function TranslationMemoryTabContent({
   onDeleteEntry,
   canModifyTM = true,
   isLoading = false,
+  pagination,
 }: TranslationMemoryTabContentProps) {
   return (
     <TabContent activeTab={activeTab} tabId="translation">
@@ -356,6 +387,18 @@ export function TranslationMemoryTabContent({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination - Always show but disable when no data */}
+        {pagination && (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={pagination.onPageChange}
+            onItemsPerPageChange={pagination.onItemsPerPageChange}
+            disabled={isLoading || pagination.totalItems === 0}
+          />
+        )}
       </div>
     </TabContent>
   );
@@ -379,6 +422,11 @@ export function AIGlossaryTabContent({
   isRefreshing = false,
   isLoading = false,
 }: AIGlossaryTabContentProps) {
+  // Get series data to determine language
+  const seriesData = seriesId ? getSeriesById(seriesId) : null;
+  const seriesLanguage = seriesData?.language || "vietnamese";
+  const languageLabel = getLanguageLabel(seriesLanguage);
+
   return (
     <TabContent activeTab={activeTab} tabId="glossary">
       <div>
@@ -486,13 +534,13 @@ export function AIGlossaryTabContent({
                       </div>
                     )}
 
-                    {/* Vietnamese Description */}
+                    {/* Dynamic Language Description */}
                     {character.summary && (
                       <div className="mb-3">
                         <div className="flex items-center gap-1 mb-1">
                           <LuBrain className="text-xs text-gray-500" />
                           <span className="text-xs text-gray-500">
-                            Vietnamese Description
+                            {languageLabel} Description
                           </span>
                         </div>
                         <p className="text-sm text-gray-700 leading-relaxed">

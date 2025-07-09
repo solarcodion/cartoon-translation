@@ -239,64 +239,7 @@ class TranslationMemoryInDB(TranslationMemoryResponse):
     pass
 
 
-# Page Models
-class PageBase(BaseModel):
-    """Base page model"""
-    chapter_id: str
-    page_number: int
-    file_path: str
-    file_name: str
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
 
-
-class PageCreate(BaseModel):
-    """Page creation model"""
-    chapter_id: str
-    page_number: int
-    file_name: str
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
-
-    class Config:
-        str_strip_whitespace = True
-        validate_assignment = True
-
-
-class PageUpdate(BaseModel):
-    """Page update model"""
-    page_number: Optional[int] = None
-    file_path: Optional[str] = None
-    file_name: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    context: Optional[str] = None
-
-
-class PageResponse(PageBase):
-    """Page response model"""
-    id: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class PageInDB(PageResponse):
-    """Page model as stored in database"""
-    pass
-
-
-class BatchPageUploadResponse(BaseModel):
-    """Batch page upload response model"""
-    success: bool
-    message: str
-    pages: List[PageResponse]
-    total_uploaded: int
-    failed_uploads: List[str] = []
 
     class Config:
         from_attributes = True
@@ -306,6 +249,7 @@ class BatchPageUploadResponse(BaseModel):
 class OCRRequest(BaseModel):
     """OCR request model"""
     image_data: str  # Base64 encoded image data
+    series_language: Optional[str] = None  # Optional series language for optimization
 
     class Config:
         str_strip_whitespace = True
@@ -447,6 +391,85 @@ class ChapterAnalysisRequest(BaseModel):
         validate_assignment = True
 
 
+# Page Models
+class PageBase(BaseModel):
+    """Base page model"""
+    chapter_id: str
+    page_number: int
+    file_name: str
+    width: Optional[int] = 0
+    height: Optional[int] = 0
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageCreate(BaseModel):
+    """Page creation model"""
+    chapter_id: str
+    page_number: int
+    file_name: str
+    width: Optional[int] = 0
+    height: Optional[int] = 0
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageUpdate(BaseModel):
+    """Page update model"""
+    page_number: Optional[int] = None
+    file_name: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class PageResponse(BaseModel):
+    """Page response model"""
+    id: str
+    chapter_id: str
+    page_number: int
+    file_path: str
+    file_name: str
+    width: int
+    height: int
+    created_at: str
+    updated_at: str
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class BatchCreatePageData(BaseModel):
+    """Batch page creation model"""
+    chapter_id: str
+    start_page_number: int
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
+class BatchPageUploadResponse(BaseModel):
+    """Batch page upload response model"""
+    success: bool
+    message: str
+    pages: List[PageResponse]
+    total_uploaded: int
+    failed_uploads: List[str]
+
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
+
+
 # People Analysis Models
 class PersonInfo(BaseModel):
     """Information about a person/character detected in the series - DEPRECATED: Use TerminologyInfo instead"""
@@ -468,7 +491,7 @@ class TerminologyInfo(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Type: character, place, item, skill, technique, organization, etc.
-    description: str  # Detailed description in Vietnamese
+    description: str  # Detailed description in series language
     mentioned_chapters: list[int] = []
     confidence_score: Optional[float] = 0.8
     image_url: Optional[str] = None  # Best image showing this term
@@ -526,7 +549,7 @@ class AIGlossaryBase(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Type of term: character, place, item, skill, technique, organization, etc.
-    description: str  # Detailed description in Vietnamese
+    description: str  # Detailed description in series language
     tm_related_ids: Optional[List[str]] = None  # TM entry IDs that helped create this glossary entry
 
     class Config:
@@ -540,7 +563,7 @@ class AIGlossaryCreate(BaseModel):
     name: str  # Display name
     translated_text: str  # English translation of description
     category: GlossaryCategory  # Term category
-    description: str  # Description in Vietnamese
+    description: str  # Description in series language
     tm_related_ids: Optional[List[str]] = None  # Optional for backward compatibility
 
     class Config:

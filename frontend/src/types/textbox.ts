@@ -29,6 +29,7 @@ export interface TextBoxCreate {
   aiTranslatedText?: string;
   correctedText?: string;
   correctionReason?: string;
+  tm?: number;
 }
 
 export interface TextBoxUpdate {
@@ -37,6 +38,7 @@ export interface TextBoxUpdate {
   aiTranslatedText?: string;
   correctedText?: string;
   correctionReason?: string;
+  tm?: number;
 }
 
 // API-compatible types that match the database schema

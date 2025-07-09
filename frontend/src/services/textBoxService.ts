@@ -44,6 +44,13 @@ export interface UpdateTextBoxData {
   reason?: string;
 }
 
+// Paginated response type
+export interface PaginatedTextBoxResponse {
+  textBoxes: TextBoxApiItem[];
+  totalCount: number;
+  hasNextPage: boolean;
+}
+
 class TextBoxService {
   private async getAuthHeaders(): Promise<HeadersInit> {
     const {
@@ -122,7 +129,7 @@ class TextBoxService {
   async getTextBoxesByChapter(
     chapterId: string,
     skip = 0,
-    limit = 1000
+    limit = 10000
   ): Promise<TextBoxApiItem[]> {
     try {
       const headers = await this.getAuthHeaders();
@@ -148,6 +155,45 @@ class TextBoxService {
       return result;
     } catch (error) {
       console.error("Error fetching text boxes:", error);
+      throw error;
+    }
+  }
+
+  async getTextBoxesByChapterPaginated(
+    chapterId: string,
+    skip = 0,
+    limit = 10
+  ): Promise<PaginatedTextBoxResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const url = new URL(
+        `${API_BASE_URL}/text-boxes/chapter/${chapterId}/paginated`
+      );
+      url.searchParams.append("skip", skip.toString());
+      url.searchParams.append("limit", limit.toString());
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result = await response.json();
+
+      return {
+        textBoxes: result.text_boxes || result.textBoxes || [],
+        totalCount: result.total_count || result.totalCount || 0,
+        hasNextPage: result.has_next_page || result.hasNextPage || false,
+      };
+    } catch (error) {
+      console.error("Error fetching paginated text boxes:", error);
       throw error;
     }
   }

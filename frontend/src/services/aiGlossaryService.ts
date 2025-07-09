@@ -9,7 +9,7 @@ export interface AIGlossaryEntry {
   name: string; // Display name
   translated_text: string; // English translation of description
   category: string; // Type: character, place, item, skill, technique, organization, etc.
-  description: string; // Detailed description in Vietnamese
+  description: string; // Detailed description in series language
   tm_related_ids?: string[]; // TM entry IDs that helped create this glossary entry
   created_at: string;
   updated_at: string;
@@ -20,7 +20,7 @@ export interface AIGlossaryCreate {
   name: string; // Display name
   translated_text: string; // English translation of description
   category: string; // Term category
-  description: string; // Description in Vietnamese
+  description: string; // Description in series language
   tm_related_ids?: string[];
 }
 

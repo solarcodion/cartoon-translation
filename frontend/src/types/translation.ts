@@ -36,10 +36,10 @@ export function convertApiTMToLegacy(
 export interface GlossaryCharacter {
   id: string;
   name: string;
-  originalText?: string; // Original Korean/Japanese text
+  originalText?: string; // Original text in series language
   translatedText?: string; // English description
   category?: string; // Term category
-  summary: string; // Vietnamese summary
+  summary: string; // Description in series language
   mentionedChapters: number[];
   status: "Ongoing" | "All";
   image?: string;

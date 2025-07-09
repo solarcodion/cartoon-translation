@@ -19,6 +19,9 @@ export interface TMData {
     lastFetched: number;
     isLoading: boolean;
     error: string | null;
+    totalCount: number;
+    currentPage: number;
+    itemsPerPage: number;
   };
 }
 
@@ -29,7 +32,13 @@ export interface TMState {
 }
 
 export interface TMActions {
-  fetchTMBySeriesId: (seriesId: string) => Promise<void>;
+  fetchTMBySeriesId: (
+    seriesId: string,
+    page?: number,
+    itemsPerPage?: number,
+    forceRefresh?: boolean
+  ) => Promise<void>;
+  fetchTMEntriesCount: (seriesId: string) => Promise<void>;
   createTMEntry: (
     seriesId: string,
     data: TMEntryCreateRequest
@@ -47,6 +56,8 @@ export interface TMActions {
   clearError: (seriesId?: string) => void;
   reset: () => void;
   invalidateCache: (seriesId?: string) => void;
+  setTMPage: (seriesId: string, page: number) => void;
+  setTMItemsPerPage: (seriesId: string, itemsPerPage: number) => void;
 }
 
 export type TMStore = TMState & TMActions;
@@ -62,15 +73,23 @@ export const useTMStore = create<TMStore>()(
     (set, get) => ({
       ...initialState,
 
-      fetchTMBySeriesId: async (seriesId: string) => {
+      fetchTMBySeriesId: async (
+        seriesId: string,
+        page: number = 1,
+        itemsPerPage: number = 10,
+        forceRefresh: boolean = false
+      ) => {
         const state = get();
         const seriesData = state.data[seriesId];
 
-        // Check if data is still fresh (within cache duration)
+        // Check if data is still fresh (within cache duration) and not forcing refresh
         if (
+          !forceRefresh &&
           seriesData?.entries.length > 0 &&
           seriesData.lastFetched &&
-          Date.now() - seriesData.lastFetched < CACHE_DURATION
+          Date.now() - seriesData.lastFetched < CACHE_DURATION &&
+          seriesData.currentPage === page &&
+          seriesData.itemsPerPage === itemsPerPage
         ) {
           return; // Use cached data
         }
@@ -85,6 +104,9 @@ export const useTMStore = create<TMStore>()(
                 lastFetched: seriesData?.lastFetched || 0,
                 isLoading: true,
                 error: null,
+                totalCount: seriesData?.totalCount || 0,
+                currentPage: page,
+                itemsPerPage: itemsPerPage,
               },
             },
             globalError: null,
@@ -94,8 +116,11 @@ export const useTMStore = create<TMStore>()(
         );
 
         try {
+          const skip = (page - 1) * itemsPerPage;
           const apiEntries = await translationMemoryService.getTMEntries(
-            seriesId
+            seriesId,
+            skip,
+            itemsPerPage
           );
           const legacyEntries = apiEntries.map(convertApiTMToLegacy);
 
@@ -108,6 +133,9 @@ export const useTMStore = create<TMStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: seriesData?.totalCount || 0,
+                  currentPage: page,
+                  itemsPerPage: itemsPerPage,
                 },
               },
             },
@@ -129,6 +157,9 @@ export const useTMStore = create<TMStore>()(
                   lastFetched: seriesData?.lastFetched || 0,
                   isLoading: false,
                   error: errorMessage,
+                  totalCount: seriesData?.totalCount || 0,
+                  currentPage: page,
+                  itemsPerPage: itemsPerPage,
                 },
               },
               globalError: errorMessage,
@@ -183,6 +214,9 @@ export const useTMStore = create<TMStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: (currentSeriesData?.totalCount || 0) + 1,
+                  currentPage: currentSeriesData?.currentPage || 1,
+                  itemsPerPage: currentSeriesData?.itemsPerPage || 10,
                 },
               },
             },
@@ -271,6 +305,9 @@ export const useTMStore = create<TMStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: currentSeriesData?.totalCount || 0,
+                  currentPage: currentSeriesData?.currentPage || 1,
+                  itemsPerPage: currentSeriesData?.itemsPerPage || 10,
                 },
               },
             },
@@ -341,6 +378,12 @@ export const useTMStore = create<TMStore>()(
                   lastFetched: Date.now(),
                   isLoading: false,
                   error: null,
+                  totalCount: Math.max(
+                    (currentSeriesData?.totalCount || 0) - 1,
+                    0
+                  ),
+                  currentPage: currentSeriesData?.currentPage || 1,
+                  itemsPerPage: currentSeriesData?.itemsPerPage || 10,
                 },
               },
             },
@@ -484,6 +527,80 @@ export const useTMStore = create<TMStore>()(
           set({ data: updatedData }, false, "tm/invalidateAllCache");
         }
       },
+
+      fetchTMEntriesCount: async (seriesId: string) => {
+        try {
+          const count = await translationMemoryService.getTMEntriesCount(
+            seriesId
+          );
+          const state = get();
+          const seriesData = state.data[seriesId];
+
+          set(
+            {
+              data: {
+                ...state.data,
+                [seriesId]: {
+                  entries: seriesData?.entries || [],
+                  lastFetched: seriesData?.lastFetched || 0,
+                  isLoading: seriesData?.isLoading || false,
+                  error: seriesData?.error || null,
+                  totalCount: count,
+                  currentPage: seriesData?.currentPage || 1,
+                  itemsPerPage: seriesData?.itemsPerPage || 10,
+                },
+              },
+            },
+            false,
+            "tm/fetchCountSuccess"
+          );
+        } catch (error) {
+          console.error("Error fetching TM entries count:", error);
+        }
+      },
+
+      setTMPage: (seriesId: string, page: number) => {
+        const state = get();
+        const seriesData = state.data[seriesId];
+
+        if (seriesData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [seriesId]: {
+                  ...seriesData,
+                  currentPage: page,
+                },
+              },
+            },
+            false,
+            "tm/setPage"
+          );
+        }
+      },
+
+      setTMItemsPerPage: (seriesId: string, itemsPerPage: number) => {
+        const state = get();
+        const seriesData = state.data[seriesId];
+
+        if (seriesData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [seriesId]: {
+                  ...seriesData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "tm/setItemsPerPage"
+          );
+        }
+      },
     }),
     {
       name: "tm-store",
@@ -506,6 +623,15 @@ const selectTMErrorBySeriesId = (seriesId: string) => (state: TMStore) =>
 const selectTMGlobalLoading = (state: TMStore) => state.globalLoading;
 const selectTMGlobalError = (state: TMStore) => state.globalError;
 
+const selectTMTotalCountBySeriesId = (seriesId: string) => (state: TMStore) =>
+  state.data[seriesId]?.totalCount || 0;
+
+const selectTMCurrentPageBySeriesId = (seriesId: string) => (state: TMStore) =>
+  state.data[seriesId]?.currentPage || 1;
+
+const selectTMItemsPerPageBySeriesId = (seriesId: string) => (state: TMStore) =>
+  state.data[seriesId]?.itemsPerPage || 10;
+
 // Selector hooks for better performance
 export const useTMBySeriesId = (seriesId: string) =>
   useTMStore(selectTMBySeriesId(seriesId));
@@ -518,6 +644,15 @@ export const useTMErrorBySeriesId = (seriesId: string) =>
 
 export const useTMGlobalLoading = () => useTMStore(selectTMGlobalLoading);
 export const useTMGlobalError = () => useTMStore(selectTMGlobalError);
+
+export const useTMTotalCountBySeriesId = (seriesId: string) =>
+  useTMStore(selectTMTotalCountBySeriesId(seriesId));
+
+export const useTMCurrentPageBySeriesId = (seriesId: string) =>
+  useTMStore(selectTMCurrentPageBySeriesId(seriesId));
+
+export const useTMItemsPerPageBySeriesId = (seriesId: string) =>
+  useTMStore(selectTMItemsPerPageBySeriesId(seriesId));
 
 // Check if data is stale (older than cache duration)
 export const useTMIsStale = (seriesId: string) => {
@@ -539,6 +674,7 @@ export const useHasCachedTM = (seriesId: string) => {
 // Actions hook with memoization
 export const useTMActions = () => {
   const fetchTMBySeriesId = useTMStore((state) => state.fetchTMBySeriesId);
+  const fetchTMEntriesCount = useTMStore((state) => state.fetchTMEntriesCount);
   const createTMEntry = useTMStore((state) => state.createTMEntry);
   const updateTMEntry = useTMStore((state) => state.updateTMEntry);
   const deleteTMEntry = useTMStore((state) => state.deleteTMEntry);
@@ -547,10 +683,13 @@ export const useTMActions = () => {
   const clearError = useTMStore((state) => state.clearError);
   const reset = useTMStore((state) => state.reset);
   const invalidateCache = useTMStore((state) => state.invalidateCache);
+  const setTMPage = useTMStore((state) => state.setTMPage);
+  const setTMItemsPerPage = useTMStore((state) => state.setTMItemsPerPage);
 
   return useMemo(
     () => ({
       fetchTMBySeriesId,
+      fetchTMEntriesCount,
       createTMEntry,
       updateTMEntry,
       deleteTMEntry,
@@ -559,9 +698,12 @@ export const useTMActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setTMPage,
+      setTMItemsPerPage,
     }),
     [
       fetchTMBySeriesId,
+      fetchTMEntriesCount,
       createTMEntry,
       updateTMEntry,
       deleteTMEntry,
@@ -570,6 +712,8 @@ export const useTMActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setTMPage,
+      setTMItemsPerPage,
     ]
   );
 };

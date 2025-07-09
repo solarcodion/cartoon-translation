@@ -15,6 +15,13 @@ from app.models import (
     ApiResponse,
     OCRRequest
 )
+from pydantic import BaseModel
+
+# Paginated response model
+class PaginatedTextBoxResponse(BaseModel):
+    text_boxes: List[TextBoxResponse]
+    total_count: int
+    has_next_page: bool
 
 router = APIRouter(prefix="/text-boxes", tags=["text-boxes"])
 
@@ -119,7 +126,7 @@ async def get_text_boxes_by_page(
 async def get_text_boxes_by_chapter(
     chapter_id: str = Path(..., description="Chapter ID"),
     skip: int = Query(0, ge=0, description="Number of text boxes to skip"),
-    limit: int = Query(1000, ge=1, le=10000, description="Number of text boxes to return"),
+    limit: int = Query(10000, ge=1, le=10000, description="Number of text boxes to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     text_box_service: TextBoxService = Depends(get_text_box_service)
 ):
@@ -139,6 +146,47 @@ async def get_text_boxes_by_chapter(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch text boxes: {str(e)}"
+        )
+
+
+@router.get("/chapter/{chapter_id}/paginated", response_model=PaginatedTextBoxResponse)
+async def get_text_boxes_by_chapter_paginated(
+    chapter_id: str = Path(..., description="Chapter ID"),
+    skip: int = Query(0, ge=0, description="Number of text boxes to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Number of text boxes to return"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    text_box_service: TextBoxService = Depends(get_text_box_service)
+):
+    """
+    Get text boxes for a specific chapter with pagination metadata
+
+    - **chapter_id**: ID of the chapter
+    - **skip**: Number of text boxes to skip (for pagination)
+    - **limit**: Maximum number of text boxes to return
+
+    Returns paginated text boxes with total count and pagination metadata.
+    """
+    try:
+        # Get text boxes for the current page
+        text_boxes = await text_box_service.get_text_boxes_by_chapter(chapter_id, skip, limit)
+
+        # Get total count for pagination
+        total_count = await text_box_service.get_text_boxes_count_by_chapter(chapter_id)
+
+        # Calculate if there's a next page
+        has_next_page = (skip + limit) < total_count
+
+        return PaginatedTextBoxResponse(
+            text_boxes=text_boxes,
+            total_count=total_count,
+            has_next_page=has_next_page
+        )
+
+    except Exception as e:
+        print(f"❌ Error in get_text_boxes_by_chapter_paginated endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch paginated text boxes: {str(e)}"
         )
 
 

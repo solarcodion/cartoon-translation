@@ -34,9 +34,10 @@ import {
   usePagesActions,
   useHasCachedPages,
   usePagesIsStale,
+  usePagesPagination,
   useTextBoxesActions,
 } from "../stores";
-import TextBoxModal from "../components/Modals/TextBoxModal";
+import AddTextBoxModal from "../components/Modals/AddTextBoxModal";
 
 export default function Pages() {
   const { seriesId, chapterId } = useParams<{
@@ -65,12 +66,15 @@ export default function Pages() {
   const pagesError = usePagesErrorByChapterId(chapterId || "");
   const hasCachedPages = useHasCachedPages(chapterId || "");
   const isPagesStale = usePagesIsStale(chapterId || "");
+  const pagesPagination = usePagesPagination(chapterId || "");
   const {
     fetchPagesByChapterId,
     batchCreatePages,
     batchCreatePagesWithAutoTextBoxes,
     updatePage,
     deletePage,
+    setPage,
+    setItemsPerPageAndFetch,
   } = usePagesActions();
 
   // Use text boxes store actions
@@ -217,23 +221,48 @@ export default function Pages() {
     fetchChapterInfo,
   ]);
 
-  // Update chapter info when pages are loaded to get accurate total_pages count
+  // Update chapter info when pages are loaded to get accurate total_pages count and next_page
   useEffect(() => {
-    if (
-      chapterInfo &&
-      pages.length > 0 &&
-      chapterInfo.total_pages !== pages.length
-    ) {
-      setChapterInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              total_pages: pages.length,
-            }
-          : null
-      );
+    if (chapterInfo && chapterId) {
+      // Get the latest chapter data from store
+      const storeChapter = getChapterFromStore(chapterId);
+
+      // Update both total_pages and next_page if they've changed
+      const needsUpdate =
+        (pages.length > 0 && chapterInfo.total_pages !== pages.length) ||
+        (storeChapter && chapterInfo.next_page !== storeChapter.next_page);
+
+      if (needsUpdate) {
+        setChapterInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                total_pages: pages.length,
+                next_page: storeChapter?.next_page || prev.next_page,
+              }
+            : null
+        );
+      }
     }
-  }, [pages.length, chapterInfo]);
+  }, [pages.length, chapterInfo, chapterId, getChapterFromStore]);
+
+  // Helper function to refresh chapter info from store
+  const refreshChapterInfo = useCallback(() => {
+    if (chapterId) {
+      const storeChapter = getChapterFromStore(chapterId);
+      if (storeChapter) {
+        setChapterInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                next_page: storeChapter.next_page,
+                context: storeChapter.context || "",
+              }
+            : null
+        );
+      }
+    }
+  }, [chapterId, getChapterFromStore]);
 
   const handleUploadPage = () => {
     setIsUploadModalOpen(true);
@@ -283,6 +312,9 @@ export default function Pages() {
         newPages.forEach((page) => {
           syncAfterPageCreate(page.number, chapterTitle);
         });
+
+        // Refresh chapter info to get updated next_page value
+        refreshChapterInfo();
       }
 
       // Show any failed uploads
@@ -335,6 +367,9 @@ export default function Pages() {
         newPages.forEach((page) => {
           syncAfterPageCreate(page.number, chapterTitle);
         });
+
+        // Refresh chapter info to get updated next_page value
+        refreshChapterInfo();
       }
 
       // Show any failed uploads
@@ -367,6 +402,9 @@ export default function Pages() {
     try {
       // Update via store (which will handle API call and state update)
       await updatePage(pageId, pageData);
+
+      // Refresh chapter info to get updated next_page value
+      refreshChapterInfo();
 
       // Chapter analysis is now manual via the Analyze button in Context tab
     } catch (error) {
@@ -414,6 +452,26 @@ export default function Pages() {
   const handleCloseAddTextBoxModal = () => {
     setIsAddTextBoxModalOpen(false);
   };
+
+  // Pagination handlers
+  const handlePageChange = useCallback(
+    (page: number) => {
+      if (chapterId) {
+        setPage(chapterId, page);
+        fetchPagesByChapterId(chapterId, page, true); // Force refetch for new page
+      }
+    },
+    [chapterId, setPage, fetchPagesByChapterId]
+  );
+
+  const handleItemsPerPageChange = useCallback(
+    async (itemsPerPage: number) => {
+      if (chapterId) {
+        await setItemsPerPageAndFetch(chapterId, itemsPerPage);
+      }
+    },
+    [chapterId, setItemsPerPageAndFetch]
+  );
 
   const handleConfirmAddTextBox = async (textBoxData: TextBoxCreate) => {
     try {
@@ -465,6 +523,9 @@ export default function Pages() {
 
       // Update dashboard stats in real-time
       syncAfterPageDelete(pageNumber, chapterTitle);
+
+      // Refresh chapter info to get updated next_page value
+      refreshChapterInfo();
     } catch (error) {
       console.error("Error deleting page:", error);
       throw error;
@@ -563,6 +624,7 @@ export default function Pages() {
             onSaveNotes={canModifyTM ? handleSaveContext : undefined}
             canModifyTM={canModifyTM}
             chapterId={chapterId}
+            seriesId={seriesId}
             onContextUpdate={async (context) => {
               setChapterInfo((prev) => (prev ? { ...prev, context } : null));
             }}
@@ -675,6 +737,13 @@ export default function Pages() {
             onDeletePage={canModify ? handleDeletePage : undefined}
             canModify={canModify}
             isLoading={isLoading}
+            pagination={{
+              currentPage: pagesPagination.currentPage,
+              totalItems: pagesPagination.totalCount,
+              itemsPerPage: pagesPagination.itemsPerPage,
+              onPageChange: handlePageChange,
+              onItemsPerPageChange: handleItemsPerPageChange,
+            }}
           />
 
           {/* Translations Tab Content */}
@@ -702,6 +771,7 @@ export default function Pages() {
             onSaveNotes={canModifyTM ? handleSaveContext : undefined}
             canModifyTM={canModifyTM}
             chapterId={chapterId}
+            seriesId={seriesId}
             onContextUpdate={async (context) => {
               // Update local chapter info state immediately
               setChapterInfo((prev) => (prev ? { ...prev, context } : null));
@@ -749,7 +819,7 @@ export default function Pages() {
       />
 
       {/* Add Text Box Modal */}
-      <TextBoxModal
+      <AddTextBoxModal
         isOpen={isAddTextBoxModalOpen}
         onClose={handleCloseAddTextBoxModal}
         onAdd={handleConfirmAddTextBox}

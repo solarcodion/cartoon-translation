@@ -1,163 +1,115 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, UploadFile, File, Form
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+import base64
+import asyncio
+import httpx
 from supabase import Client
 
 from app.database import get_supabase
 from app.auth import get_current_user
 from app.services.page_service import PageService
-from app.services.ocr_service import OCRService
-from app.services.dashboard_service import DashboardService
-from app.services.text_box_service import TextBoxService
-from app.services.chapter_service import ChapterService
-from app.services.series_service import SeriesService
+# Optional imports for text box and OCR functionality
+try:
+    from app.services.text_box_service import TextBoxService
+    TEXT_BOX_SERVICE_AVAILABLE = True
+except ImportError:
+    TEXT_BOX_SERVICE_AVAILABLE = False
+    print("Warning: TextBoxService not available")
+
+try:
+    from app.services.ocr_service import OCRService
+    OCR_SERVICE_AVAILABLE = True
+except ImportError:
+    OCR_SERVICE_AVAILABLE = False
+    print("Warning: OCRService not available")
+
+try:
+    from app.services.notification_service import NotificationService, get_notification_service
+    NOTIFICATION_SERVICE_AVAILABLE = True
+except ImportError:
+    NOTIFICATION_SERVICE_AVAILABLE = False
+    print("Warning: NotificationService not available")
 from app.models import (
     PageResponse,
     PageCreate,
     PageUpdate,
+    BatchPageUploadResponse,
     ApiResponse,
-    BatchPageUploadResponse
+    OCRRequest
 )
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 
 
-def get_ocr_service() -> OCRService:
-    """Dependency to get OCR service"""
-    return OCRService()
-
-def get_chapter_service(supabase: Client = Depends(get_supabase)) -> ChapterService:
-    """Dependency to get chapter service"""
-    return ChapterService(supabase)
-
-def get_series_service(supabase: Client = Depends(get_supabase)) -> SeriesService:
-    """Dependency to get series service"""
-    return SeriesService(supabase)
-
-def get_page_service(
-    supabase: Client = Depends(get_supabase),
-    ocr_service: OCRService = Depends(get_ocr_service),
-    chapter_service: ChapterService = Depends(get_chapter_service),
-    series_service: SeriesService = Depends(get_series_service)
-) -> PageService:
-    """Dependency to get page service with OCR support"""
-    return PageService(supabase, ocr_service, chapter_service, series_service)
+def get_page_service(supabase: Client = Depends(get_supabase)) -> PageService:
+    """Dependency to get page service"""
+    return PageService(supabase)
 
 
-def get_dashboard_service(supabase: Client = Depends(get_supabase)) -> DashboardService:
-    """Dependency to get dashboard service"""
-    return DashboardService(supabase)
-
-
-def get_text_box_service(supabase: Client = Depends(get_supabase)) -> TextBoxService:
+def get_text_box_service(supabase: Client = Depends(get_supabase)):
     """Dependency to get text box service"""
+    if not TEXT_BOX_SERVICE_AVAILABLE:
+        return None
     return TextBoxService(supabase)
 
 
+# Global OCR service instance (initialized once)
+ocr_service = None
 
 
-
-async def update_chapter_status_and_count(chapter_id: str):
-    """Update chapter status and page count"""
-    try:
-        from app.services.chapter_service import ChapterService
-        from app.database import get_supabase
-        from app.models import ChapterUpdate, ChapterStatus
-
-        supabase = get_supabase()
-        chapter_service = ChapterService(supabase)
-        page_service = PageService(supabase)
-
-        # Get current page count
-        pages = await page_service.get_pages_by_chapter(chapter_id)
-        page_count = len(pages)
-
-        # Determine status based on page count
-        if page_count == 0:
-            status = ChapterStatus.DRAFT
-        else:
-            status = ChapterStatus.IN_PROGRESS  # Set to in_progress when pages exist
-
-        # Update chapter
-        chapter_update = ChapterUpdate(
-            page_count=page_count,
-            status=status
-        )
-        await chapter_service.update_chapter(chapter_id, chapter_update)
-
-    except Exception as e:
-        print(f"❌ Error updating chapter status and count for {chapter_id}: {str(e)}")
+def get_ocr_service():
+    """Dependency to get OCR service (singleton pattern)"""
+    if not OCR_SERVICE_AVAILABLE:
+        return None
+    global ocr_service
+    if ocr_service is None:
+        ocr_service = OCRService()
+    return ocr_service
 
 
-
-
-
-@router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/chapter/{chapter_id}", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
 async def create_page(
-    chapter_id: str = Form(...),
-    page_number: int = Form(...),
-    file: UploadFile = File(...),
-    width: int = Form(None),
-    height: int = Form(None),
-    context: str = Form(None),
+    chapter_id: str = Path(..., description="Chapter ID"),
+    file: UploadFile = File(..., description="Image file to upload"),
+    page_number: int = Form(..., description="Page number"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
-    Create a new page with file upload
-
-    - **chapter_id**: ID of the chapter this page belongs to
-    - **page_number**: Page number within the chapter
+    Create a new page for a specific chapter
+    
+    - **chapter_id**: ID of the chapter to add the page to
     - **file**: Image file to upload
-    - **width**: Optional image width (will be detected if not provided)
-    - **height**: Optional image height (will be detected if not provided)
-    - **context**: Optional OCR text context extracted from the image
+    - **page_number**: Page number for the new page
     """
     try:
         # Validate file type
-        if not file.content_type or not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith("image/"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File must be an image"
+                detail="Only image files are allowed"
             )
+
+        # Read file data
+        file_data = await file.read()
+        file_extension = page_service._get_file_extension(file.filename or "image.jpg")
         
-        # Get file extension
-        file_extension = file.filename.split('.')[-1].lower() if file.filename else 'jpg'
-        if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unsupported file format. Use JPG, PNG, or WebP"
-            )
-        
-        # Read file content
-        file_content = await file.read()
-        
+        # Get image dimensions
+        width, height = page_service._get_image_dimensions(file_data)
+
         # Create page data
         page_data = PageCreate(
             chapter_id=chapter_id,
             page_number=page_number,
             file_name=file.filename or f"page_{page_number}.{file_extension}",
             width=width,
-            height=height,
-            context=context
+            height=height
         )
-        
-        # Create page
-        page = await page_service.create_page(page_data, file_content, file_extension)
 
-        # Update chapter status and page count (but don't analyze)
-        await update_chapter_status_and_count(chapter_id)
-
-        # Update dashboard statistics
-        try:
-            await dashboard_service.increment_pages_count()
-            await dashboard_service.add_recent_activity(f"New page {page.page_number} added to chapter")
-        except Exception as dashboard_error:
-            print(f"⚠️ Failed to update dashboard after page creation: {dashboard_error}")
-            # Don't fail the request if dashboard update fails
-
+        # Create the page
+        page = await page_service.create_page(page_data, file_data, file_extension)
         return page
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -168,79 +120,330 @@ async def create_page(
         )
 
 
-@router.post("/batch", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
-async def create_pages_batch(
-    chapter_id: str = Form(...),
-    start_page_number: int = Form(...),
-    files: List[UploadFile] = File(...),
+@router.post("/chapter/{chapter_id}/batch", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
+async def batch_create_pages(
+    chapter_id: str = Path(..., description="Chapter ID"),
+    files: List[UploadFile] = File(..., description="Image files to upload"),
+    start_page_number: int = Form(..., description="Starting page number"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
-    Create multiple pages with batch file upload
-
-    - **chapter_id**: ID of the chapter these pages belong to
+    Create multiple pages for a specific chapter in batch
+    
+    - **chapter_id**: ID of the chapter to add pages to
+    - **files**: List of image files to upload
     - **start_page_number**: Starting page number for the batch
-    - **files**: List of image files to upload (one page per image)
-
-    Page numbers will be assigned sequentially starting from the specified start page number.
     """
     try:
         if not files:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least one file must be provided"
+                detail="At least one file is required"
             )
 
-        # Validate and prepare file data
+        # Process all files
         files_data = []
         for file in files:
             # Validate file type
-            if not file.content_type or not file.content_type.startswith('image/'):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"File {file.filename} must be an image"
-                )
+            if not file.content_type or not file.content_type.startswith("image/"):
+                print(f"⚠️ Skipping non-image file: {file.filename}")
+                continue
 
-            # Get file extension
-            file_extension = file.filename.split('.')[-1].lower() if file.filename else 'jpg'
-            if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unsupported file format for {file.filename}. Use JPG, PNG, or WebP"
-                )
+            # Read file data
+            file_data = await file.read()
+            file_extension = page_service._get_file_extension(file.filename or "image.jpg")
+            
+            # Get image dimensions
+            width, height = page_service._get_image_dimensions(file_data)
 
-            # Read file content
-            file_content = await file.read()
-            files_data.append((file_content, file_extension, file.filename))
+            files_data.append({
+                "data": file_data,
+                "extension": file_extension,
+                "original_name": file.filename or f"page.{file_extension}",
+                "width": width,
+                "height": height
+            })
+
+        if not files_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid image files found"
+            )
 
         # Create pages in batch
-        result = await page_service.create_pages_batch(chapter_id, files_data, start_page_number)
+        result = await page_service.batch_create_pages(chapter_id, files_data, start_page_number)
+        return result
 
-        # Update chapter status and page count
-        await update_chapter_status_and_count(chapter_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in batch_create_pages endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create pages: {str(e)}"
+        )
 
-        # Update dashboard statistics for batch upload
-        try:
-            pages_created = len(result.created_pages)
-            # Increment pages count by the number of successfully created pages
-            for _ in range(pages_created):
-                await dashboard_service.increment_pages_count()
-            await dashboard_service.add_recent_activity(f"Batch upload: {pages_created} pages added to chapter")
-        except Exception as dashboard_error:
-            print(f"⚠️ Failed to update dashboard after batch page creation: {dashboard_error}")
-            # Don't fail the request if dashboard update fails
+
+@router.post("/chapter/{chapter_id}/batch-with-auto-textboxes", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
+async def batch_create_pages_with_auto_textboxes(
+    chapter_id: str = Path(..., description="Chapter ID"),
+    files: List[UploadFile] = File(..., description="Image files to upload"),
+    start_page_number: int = Form(..., description="Starting page number"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    page_service: PageService = Depends(get_page_service),
+    text_box_service = Depends(get_text_box_service),
+    ocr_service = Depends(get_ocr_service)
+):
+    """
+    Create multiple pages for a specific chapter in batch with automatic text box creation
+    
+    - **chapter_id**: ID of the chapter to add pages to
+    - **files**: List of image files to upload
+    - **start_page_number**: Starting page number for the batch
+    
+    This endpoint creates pages and automatically detects text regions to create text boxes.
+    """
+    try:
+        if not files:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one file is required"
+            )
+
+        # First, create pages normally
+        result = await batch_create_pages(chapter_id, files, start_page_number, current_user, page_service)
+
+        if not result.success or not result.pages:
+            return result
+
+        # Check if OCR and text box services are available
+        if not OCR_SERVICE_AVAILABLE or not TEXT_BOX_SERVICE_AVAILABLE:
+            print("⚠️ Warning: OCR or TextBox services not available. Skipping automatic text detection.")
+            return result
+
+        # Helper function to get series language from chapter_id
+        async def get_series_language_from_chapter(chapter_id: str) -> str:
+            try:
+                # Get series_id from chapter
+                chapter_response = supabase.table("chapters").select("series_id").eq("id", chapter_id).execute()
+                if not chapter_response.data:
+                    return "korean"  # Default fallback
+
+                series_id = chapter_response.data[0].get("series_id")
+                if not series_id:
+                    return "korean"
+
+                # Get series language
+                series_response = supabase.table("series").select("language").eq("id", series_id).execute()
+                if not series_response.data:
+                    return "korean"
+
+                return series_response.data[0].get("language", "korean")
+            except Exception as e:
+                print(f"⚠️ Error getting series language: {str(e)}")
+                return "korean"
+
+        # Process each created page for text detection in background
+        async def process_page_text_detection(page: PageResponse, user_id: str):
+            try:
+                print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
+
+                # 1. Get series language for optimization
+                series_language = await get_series_language_from_chapter(chapter_id)
+                print(f"🎯 Using series language for optimization: {series_language}")
+
+                # 2. Fetch image from storage
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(page.file_path)
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to fetch image: HTTP {response.status_code}")
+
+                    image_data = response.content
+
+                # 3. Convert to base64
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+                # 4. Call OCR service to detect text regions with series language optimization
+                ocr_request = OCRRequest(image_data=image_base64, series_language=series_language)
+                detection_result = ocr_service.detect_text_regions_with_series_language(ocr_request.image_data, series_language)
+
+                if not detection_result.success:
+                    print(f"⚠️ OCR detection failed for page {page.id}")
+                    # Send error notification
+                    if NOTIFICATION_SERVICE_AVAILABLE:
+                        notification_service = get_notification_service()
+                        await notification_service.notify_error(
+                            user_id,
+                            "auto_extract_error",
+                            f"OCR detection failed for page {page.page_number}",
+                            {"page_id": page.id, "chapter_id": chapter_id}
+                        )
+                    return
+
+                print(f"✅ Detected {len(detection_result.text_regions)} text regions for page {page.id}")
+
+                # 4. Create text boxes from detected regions
+                created_text_boxes = []
+                if text_box_service and len(detection_result.text_regions) > 0:
+                    created_text_boxes = await text_box_service.create_text_boxes_from_detection(
+                        page.id, detection_result, page.file_path
+                    )
+                    print(f"✅ Created {len(created_text_boxes)} text boxes for page {page.id}")
+
+                # 5. Send completion notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_completed(
+                        user_id,
+                        chapter_id,
+                        page.id,
+                        len(created_text_boxes),
+                        page.page_number
+                    )
+
+            except Exception as e:
+                print(f"❌ Error processing text detection for page {page.id}: {str(e)}")
+                # Send error notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_error(
+                        user_id,
+                        "auto_extract_error",
+                        f"Error processing page {page.page_number}: {str(e)}",
+                        {"page_id": page.id, "chapter_id": chapter_id}
+                    )
+
+        # Version that returns text boxes count for batch tracking
+        async def process_page_text_detection_with_count(page: PageResponse, user_id: str) -> int:
+            try:
+                print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
+
+                # 1. Get series language for optimization
+                series_language = await get_series_language_from_chapter(chapter_id)
+                print(f"🎯 Using series language for optimization: {series_language}")
+
+                # 2. Fetch image from storage
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(page.file_path)
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to fetch image: HTTP {response.status_code}")
+
+                    image_data = response.content
+
+                # 3. Convert to base64
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+                # 4. Call OCR service to detect text regions with series language optimization
+                ocr_request = OCRRequest(image_data=image_base64, series_language=series_language)
+                detection_result = ocr_service.detect_text_regions_with_series_language(ocr_request.image_data, series_language)
+
+                if not detection_result.success:
+                    print(f"⚠️ OCR detection failed for page {page.id}")
+                    # Send error notification
+                    if NOTIFICATION_SERVICE_AVAILABLE:
+                        notification_service = get_notification_service()
+                        await notification_service.notify_error(
+                            user_id,
+                            "auto_extract_error",
+                            f"OCR detection failed for page {page.page_number}",
+                            {"page_id": page.id, "chapter_id": chapter_id}
+                        )
+                    return 0
+
+                print(f"✅ Detected {len(detection_result.text_regions)} text regions for page {page.id}")
+
+                # 4. Create text boxes from detected regions
+                created_text_boxes = []
+                if text_box_service and len(detection_result.text_regions) > 0:
+                    created_text_boxes = await text_box_service.create_text_boxes_from_detection(
+                        page.id, detection_result, page.file_path
+                    )
+                    print(f"✅ Created {len(created_text_boxes)} text boxes for page {page.id}")
+
+                # 5. Send completion notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_completed(
+                        user_id,
+                        chapter_id,
+                        page.id,
+                        len(created_text_boxes),
+                        page.page_number
+                    )
+
+                return len(created_text_boxes)
+
+            except Exception as e:
+                print(f"❌ Error processing text detection for page {page.id}: {str(e)}")
+                # Send error notification
+                if NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_error(
+                        user_id,
+                        "auto_extract_error",
+                        f"Error processing page {page.page_number}: {str(e)}",
+                        {"page_id": page.id, "chapter_id": chapter_id}
+                    )
+                return 0
+
+        # Start background tasks for text detection
+        if ocr_service and text_box_service:
+            user_id = current_user.get("user_id", "unknown")
+
+            # Track completion for batch notification
+            total_pages = len(result.pages)
+            completed_pages = 0
+            total_text_boxes = 0
+
+            async def track_completion():
+                nonlocal completed_pages, total_text_boxes
+                completed_pages += 1
+
+                # If all pages are completed, send batch notification
+                if completed_pages == total_pages and NOTIFICATION_SERVICE_AVAILABLE:
+                    notification_service = get_notification_service()
+                    await notification_service.notify_auto_extract_batch_completed(
+                        user_id,
+                        chapter_id,
+                        total_pages,
+                        total_text_boxes
+                    )
+
+            # Process pages sequentially (one by one) instead of concurrently
+            async def process_pages_sequentially():
+                nonlocal total_text_boxes
+
+                for page in result.pages:
+                    try:
+                        print(f"🔄 Processing page {page.page_number} (ID: {page.id}) sequentially...")
+
+                        # Process the page and get the number of text boxes created
+                        text_boxes_count = await process_page_text_detection_with_count(page, user_id)
+                        total_text_boxes += text_boxes_count
+
+                        # Track completion for this page
+                        await track_completion()
+
+                        print(f"✅ Completed processing page {page.page_number} - Created {text_boxes_count} text boxes")
+
+                    except Exception as e:
+                        print(f"❌ Error processing page {page.id}: {str(e)}")
+                        # Still track completion even if processing failed
+                        await track_completion()
+
+            # Start sequential processing as a background task
+            asyncio.create_task(process_pages_sequentially())
 
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error in batch upload endpoint: {str(e)}")
+        print(f"❌ Error in batch_create_pages_with_auto_textboxes endpoint: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to batch upload pages: {str(e)}"
+            detail=f"Failed to create pages with auto text boxes: {str(e)}"
         )
 
 
@@ -248,12 +451,12 @@ async def create_pages_batch(
 async def get_pages_by_chapter(
     chapter_id: str = Path(..., description="Chapter ID"),
     skip: int = Query(0, ge=0, description="Number of pages to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of pages to return"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of pages to return"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
 ):
     """
-    Get all pages for a specific chapter
+    Get all pages for a specific chapter with pagination
     
     - **chapter_id**: ID of the chapter
     - **skip**: Number of pages to skip (for pagination)
@@ -261,13 +464,8 @@ async def get_pages_by_chapter(
     """
     try:
         pages = await page_service.get_pages_by_chapter(chapter_id, skip, limit)
-        
-        # Add public URLs to pages
-        for page in pages:
-            page.file_path = page_service.get_page_url(page.file_path)
-        
         return pages
-        
+
     except Exception as e:
         print(f"❌ Error in get_pages_by_chapter endpoint: {str(e)}")
         raise HTTPException(
@@ -276,8 +474,31 @@ async def get_pages_by_chapter(
         )
 
 
+@router.get("/chapter/{chapter_id}/count", response_model=Dict[str, int])
+async def get_page_count_by_chapter(
+    chapter_id: str = Path(..., description="Chapter ID"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    page_service: PageService = Depends(get_page_service)
+):
+    """
+    Get total count of pages for a specific chapter
+    
+    - **chapter_id**: ID of the chapter
+    """
+    try:
+        count = await page_service.get_page_count_by_chapter(chapter_id)
+        return {"count": count}
+
+    except Exception as e:
+        print(f"❌ Error in get_page_count_by_chapter endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get page count: {str(e)}"
+        )
+
+
 @router.get("/{page_id}", response_model=PageResponse)
-async def get_page(
+async def get_page_by_id(
     page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     page_service: PageService = Depends(get_page_service)
@@ -289,22 +510,10 @@ async def get_page(
     """
     try:
         page = await page_service.get_page_by_id(page_id)
-        
-        if not page:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Page not found"
-            )
-        
-        # Add public URL
-        page.file_path = page_service.get_page_url(page.file_path)
-        
         return page
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
-        print(f"❌ Error in get_page endpoint: {str(e)}")
+        print(f"❌ Error in get_page_by_id endpoint: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch page: {str(e)}"
@@ -319,30 +528,15 @@ async def update_page(
     page_service: PageService = Depends(get_page_service)
 ):
     """
-    Update a page
+    Update an existing page
     
     - **page_id**: ID of the page to update
     - **page_data**: Updated page data
     """
     try:
         page = await page_service.update_page(page_id, page_data)
-        
-        if not page:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Page not found"
-            )
-        
-        # Add public URL
-        page.file_path = page_service.get_page_url(page.file_path)
-
-        # Update chapter status and page count (but don't analyze)
-        await update_chapter_status_and_count(page.chapter_id)
-
         return page
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
         print(f"❌ Error in update_page endpoint: {str(e)}")
         raise HTTPException(
@@ -355,144 +549,23 @@ async def update_page(
 async def delete_page(
     page_id: str = Path(..., description="Page ID"),
     current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
+    page_service: PageService = Depends(get_page_service)
 ):
     """
-    Delete a page
+    Delete a page and its associated file
     
     - **page_id**: ID of the page to delete
     """
     try:
-        # Get page info before deletion to get chapter_id
-        page = await page_service.get_page_by_id(page_id)
-        if not page:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Page not found"
-            )
-
-        chapter_id = page.chapter_id
-
-        # Delete the page
-        success = await page_service.delete_page(page_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete page"
-            )
-
-        # Update chapter status and page count after deletion
-        await update_chapter_status_and_count(chapter_id)
-
-        # Update dashboard statistics
-        try:
-            await dashboard_service.decrement_pages_count()
-            await dashboard_service.add_recent_activity(f"Page {page.page_number} deleted from chapter")
-        except Exception as dashboard_error:
-            print(f"⚠️ Failed to update dashboard after page deletion: {dashboard_error}")
-            # Don't fail the request if dashboard update fails
-
+        await page_service.delete_page(page_id)
         return ApiResponse(
             success=True,
             message="Page deleted successfully"
         )
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
         print(f"❌ Error in delete_page endpoint: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete page: {str(e)}"
         )
-
-
-@router.post("/batch-upload-with-auto-textboxes", response_model=BatchPageUploadResponse, status_code=status.HTTP_201_CREATED)
-async def batch_upload_pages_with_auto_textboxes(
-    chapter_id: str = Form(...),
-    start_page_number: int = Form(...),
-    files: List[UploadFile] = File(...),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    page_service: PageService = Depends(get_page_service),
-    text_box_service: TextBoxService = Depends(get_text_box_service),
-    dashboard_service: DashboardService = Depends(get_dashboard_service)
-):
-    """
-    Upload multiple pages with automatic text box creation
-
-    This endpoint uploads multiple image files as pages and automatically
-    detects text regions to create text boxes for each detected region.
-
-    - **chapter_id**: ID of the chapter these pages belong to
-    - **start_page_number**: Starting page number for the batch
-    - **files**: List of image files to upload
-
-    Returns information about successfully uploaded pages and any failures,
-    along with the number of automatically created text boxes.
-    """
-    try:
-        # Validate files
-        if not files:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least one file is required"
-            )
-
-        # Validate file types and prepare file data
-        files_data = []
-        for file in files:
-            if not file.content_type or not file.content_type.startswith('image/'):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"File {file.filename} must be an image"
-                )
-
-            # Get file extension
-            file_extension = file.filename.split('.')[-1].lower() if file.filename else 'jpg'
-            if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unsupported file format for {file.filename}. Use JPG, PNG, or WebP"
-                )
-
-            # Read file content
-            file_content = await file.read()
-            files_data.append((file_content, file_extension, file.filename))
-
-        # Upload pages with auto text box creation
-        result = await page_service.create_pages_batch_with_auto_textboxes(
-            chapter_id, files_data, start_page_number, text_box_service
-        )
-
-        # Update chapter status and count
-        await update_chapter_status_and_count(chapter_id)
-
-        # Update dashboard statistics
-        try:
-            if result.pages:
-                # Increment page count for each successfully uploaded page
-                for _ in result.pages:
-                    await dashboard_service.increment_page_count()
-
-                await dashboard_service.add_recent_activity(
-                    f"Batch uploaded {len(result.pages)} pages with auto text detection"
-                )
-        except Exception as dashboard_error:
-            print(f"⚠️ Failed to update dashboard after batch upload: {dashboard_error}")
-            # Don't fail the request if dashboard update fails
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Error in batch_upload_pages_with_auto_textboxes endpoint: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload pages with auto text boxes: {str(e)}"
-        )
-
-
-

@@ -58,7 +58,11 @@ class TranslationMemoryService {
     }
   }
 
-  async getTMEntries(seriesId: string): Promise<TMEntryResponse[]> {
+  async getTMEntries(
+    seriesId: string,
+    skip: number = 0,
+    limit: number = 100
+  ): Promise<TMEntryResponse[]> {
     try {
       const token = await this.getAuthToken();
 
@@ -67,7 +71,7 @@ class TranslationMemoryService {
       }
 
       const response = await apiClient.get<TMEntryResponse[]>(
-        `/translation-memory/series/${seriesId}`,
+        `/translation-memory/series/${seriesId}?skip=${skip}&limit=${limit}`,
         token
       );
 
@@ -76,6 +80,30 @@ class TranslationMemoryService {
       console.error("Error fetching TM entries:", error);
       throw new Error(
         `Failed to fetch TM entries: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async getTMEntriesCount(seriesId: string): Promise<number> {
+    try {
+      const token = await this.getAuthToken();
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const response = await apiClient.get<{ count: number }>(
+        `/translation-memory/series/${seriesId}/count`,
+        token
+      );
+
+      return response.count;
+    } catch (error) {
+      console.error("Error fetching TM entries count:", error);
+      throw new Error(
+        `Failed to fetch TM entries count: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

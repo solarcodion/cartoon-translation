@@ -4,12 +4,14 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user
 from app.services.ocr_service import OCRService
+from app.services.openai_ocr_service import OpenAIOCRService
 from app.models import OCRRequest, OCRResponse, OCRWithTranslationResponse, ApiResponse, TextRegionDetectionResponse
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
 
-# Global OCR service instance (initialized once)
+# Global OCR service instances (initialized once)
 ocr_service = None
+openai_ocr_service = None
 
 
 class TextGroupingConfigRequest(BaseModel):
@@ -50,6 +52,21 @@ def get_ocr_service() -> OCRService:
     return ocr_service
 
 
+def get_openai_ocr_service() -> OpenAIOCRService:
+    """Dependency to get OpenAI OCR service (singleton pattern)"""
+    global openai_ocr_service
+    if openai_ocr_service is None:
+        try:
+            openai_ocr_service = OpenAIOCRService()
+        except Exception as e:
+            print(f"❌ Failed to initialize OpenAI OCR service: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"OpenAI OCR service initialization failed: {str(e)}"
+            )
+    return openai_ocr_service
+
+
 @router.post("/extract-text", response_model=OCRResponse, status_code=status.HTTP_200_OK)
 async def extract_text_from_image(
     request: OCRRequest,
@@ -87,8 +104,12 @@ async def extract_text_from_image(
                 detail="Invalid or too small image data"
             )
         
-        # Process the image with OCR
-        result = ocr_service.process_image(request.image_data)
+        # Process the image with OCR using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization: {request.series_language}")
+            result = ocr_service.process_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.process_image(request.image_data)
         
         if not result.success:
             raise HTTPException(
@@ -143,8 +164,12 @@ async def extract_text_from_image_enhanced(
                 detail="Invalid or too small image data"
             )
         
-        # Process the image with enhanced OCR
-        result = ocr_service.process_image_with_preprocessing(request.image_data)
+        # Process the image with enhanced OCR using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for enhanced OCR: {request.series_language}")
+            result = ocr_service.process_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.process_image_with_preprocessing(request.image_data)
         
         if not result.success:
             raise HTTPException(
@@ -324,8 +349,12 @@ async def detect_text_regions(
                 detail="Image data is required and cannot be empty"
             )
 
-        # Detect text regions
-        result = ocr_service.detect_text_regions(request.image_data)
+        # Detect text regions using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for text region detection: {request.series_language}")
+            result = ocr_service.detect_text_regions_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.detect_text_regions(request.image_data)
 
         if not result.success:
             raise HTTPException(
@@ -514,4 +543,105 @@ async def get_text_grouping_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get text grouping configuration: {str(e)}"
+        )
+
+
+# OpenAI OCR Endpoints
+
+@router.post("/openai/extract-text", response_model=OCRResponse, status_code=status.HTTP_200_OK)
+async def extract_text_with_openai(
+    request: OCRRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    openai_ocr_service: OpenAIOCRService = Depends(get_openai_ocr_service)
+):
+    """
+    Extract text from a base64 encoded image using OpenAI Vision API
+
+    This endpoint uses OpenAI's latest vision model (GPT-4o) for high-accuracy text extraction
+    from manhwa panels. It's optimized for professional comic localization workflows.
+
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns extracted text with confidence scores and processing metadata.
+    """
+    try:
+        print(f"🔍 OpenAI OCR request from user: {current_user.get('email', 'unknown')}")
+
+        if not request.image_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required"
+            )
+
+        # Extract text using OpenAI Vision with series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for OpenAI OCR: {request.series_language}")
+            result = await openai_ocr_service.extract_text_from_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = await openai_ocr_service.extract_text_from_image(request.image_data)
+
+        if result.success:
+            print(f"✅ OpenAI OCR successful - extracted {len(result.text)} characters in {result.processing_time:.2f}s")
+        else:
+            print(f"❌ OpenAI OCR failed")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in OpenAI OCR endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OpenAI OCR processing failed: {str(e)}"
+        )
+
+
+@router.post("/openai/detect-text-regions", response_model=TextRegionDetectionResponse, status_code=status.HTTP_200_OK)
+async def detect_text_regions_with_openai(
+    request: OCRRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    openai_ocr_service: OpenAIOCRService = Depends(get_openai_ocr_service)
+):
+    """
+    Detect text regions in an image using OpenAI Vision API
+
+    This endpoint analyzes a manhwa panel to detect all text regions and returns
+    their bounding boxes along with the extracted text for each region.
+    Uses OpenAI's vision model for superior accuracy in text region detection.
+
+    - **image_data**: Base64 encoded image data (with or without data URL prefix)
+
+    Returns detected text regions with bounding boxes and extracted text.
+    """
+    try:
+        print(f"🔍 OpenAI text region detection request from user: {current_user.get('email', 'unknown')}")
+
+        if not request.image_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image data is required"
+            )
+
+        # Detect text regions using OpenAI Vision with series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for OpenAI text region detection: {request.series_language}")
+            result = await openai_ocr_service.detect_text_regions_with_series_language(request.image_data, request.series_language)
+        else:
+            result = await openai_ocr_service.detect_text_regions(request.image_data)
+
+        if result.success:
+            print(f"✅ OpenAI text region detection successful - found {len(result.text_regions)} regions in {result.processing_time:.2f}s")
+        else:
+            print(f"❌ OpenAI text region detection failed")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in OpenAI text region detection endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OpenAI text region detection failed: {str(e)}"
         )

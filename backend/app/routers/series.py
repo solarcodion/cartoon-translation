@@ -210,6 +210,8 @@ async def update_series(
                 update_fields['title'] = json_data['title']
             if 'total_chapters' in json_data:
                 update_fields['total_chapters'] = json_data['total_chapters']
+            if 'language' in json_data:
+                update_fields['language'] = json_data['language']
 
             series_data = SeriesUpdate(**update_fields)
 

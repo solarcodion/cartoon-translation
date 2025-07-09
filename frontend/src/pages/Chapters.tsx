@@ -33,6 +33,7 @@ import {
   useChaptersActions,
   useHasCachedChapters,
   useChaptersIsStale,
+  useChaptersPagination,
   getSeriesById,
   useSeriesActions,
   useTMBySeriesId,
@@ -41,6 +42,9 @@ import {
   useTMActions,
   useHasCachedTM,
   useTMIsStale,
+  useTMTotalCountBySeriesId,
+  useTMCurrentPageBySeriesId,
+  useTMItemsPerPageBySeriesId,
   useGlossaryBySeriesId,
   useGlossaryLoadingBySeriesId,
   useGlossaryRefreshingBySeriesId,
@@ -62,11 +66,14 @@ export default function Chapters() {
   const chaptersError = useChaptersErrorBySeriesId(seriesId || "");
   const hasCachedChapters = useHasCachedChapters(seriesId || "");
   const isChaptersStale = useChaptersIsStale(seriesId || "");
+  const chaptersPagination = useChaptersPagination(seriesId || "");
   const {
     fetchChaptersBySeriesId,
     createChapter,
     updateChapter,
     deleteChapter,
+    setPage,
+    setItemsPerPage,
     clearError,
   } = useChaptersActions();
 
@@ -79,12 +86,18 @@ export default function Chapters() {
   const tmError = useTMErrorBySeriesId(seriesId || "");
   const hasCachedTM = useHasCachedTM(seriesId || "");
   const isTMStale = useTMIsStale(seriesId || "");
+  const tmTotalCount = useTMTotalCountBySeriesId(seriesId || "");
+  const tmCurrentPage = useTMCurrentPageBySeriesId(seriesId || "");
+  const tmItemsPerPage = useTMItemsPerPageBySeriesId(seriesId || "");
   const {
     fetchTMBySeriesId,
+    fetchTMEntriesCount,
     createTMEntry,
     updateTMEntry,
     deleteTMEntry,
     clearError: clearTMError,
+    setTMPage,
+    setTMItemsPerPage,
   } = useTMActions();
 
   // Use AI Glossary store for glossary data
@@ -192,13 +205,57 @@ export default function Chapters() {
     }
   }, [seriesId, fetchSeries]);
 
+  // Handle page changes
+  const handlePageChange = useCallback(
+    (page: number) => {
+      if (seriesId) {
+        setPage(seriesId, page);
+        fetchChaptersBySeriesId(seriesId, page);
+      }
+    },
+    [seriesId, setPage, fetchChaptersBySeriesId]
+  );
+
+  // Handle items per page changes
+  const handleItemsPerPageChange = useCallback(
+    (itemsPerPage: number) => {
+      if (seriesId) {
+        setItemsPerPage(seriesId, itemsPerPage);
+        fetchChaptersBySeriesId(seriesId, 1); // Reset to first page
+      }
+    },
+    [seriesId, setItemsPerPage, fetchChaptersBySeriesId]
+  );
+
+  // Handle TM page changes
+  const handleTMPageChange = useCallback(
+    (page: number) => {
+      if (seriesId) {
+        setTMPage(seriesId, page);
+        fetchTMBySeriesId(seriesId, page, tmItemsPerPage);
+      }
+    },
+    [seriesId, setTMPage, fetchTMBySeriesId, tmItemsPerPage]
+  );
+
+  // Handle TM items per page changes
+  const handleTMItemsPerPageChange = useCallback(
+    (itemsPerPage: number) => {
+      if (seriesId) {
+        setTMItemsPerPage(seriesId, itemsPerPage);
+        fetchTMBySeriesId(seriesId, 1, itemsPerPage); // Reset to first page
+      }
+    },
+    [seriesId, setTMItemsPerPage, fetchTMBySeriesId]
+  );
+
   // No need for separate fetch functions - using stores now
 
   useEffect(() => {
     if (seriesId) {
       // Only fetch chapters if we don't have cached data or if it's stale
       if (!hasCachedChapters || isChaptersStale) {
-        fetchChaptersBySeriesId(seriesId);
+        fetchChaptersBySeriesId(seriesId, chaptersPagination.currentPage);
       }
 
       // Always fetch series info (it's lightweight)
@@ -206,7 +263,8 @@ export default function Chapters() {
 
       // Fetch TM data if we don't have cached data or if it's stale
       if (!hasCachedTM || isTMStale) {
-        fetchTMBySeriesId(seriesId);
+        fetchTMBySeriesId(seriesId, tmCurrentPage, tmItemsPerPage);
+        fetchTMEntriesCount(seriesId);
       }
 
       // Fetch glossary data if we don't have cached data or if it's stale
@@ -557,6 +615,13 @@ export default function Chapters() {
         onDeleteChapter={canModify ? handleDeleteChapter : undefined}
         canModify={canModify}
         isLoading={combinedLoading}
+        pagination={{
+          currentPage: chaptersPagination.currentPage,
+          totalItems: chaptersPagination.totalCount,
+          itemsPerPage: chaptersPagination.itemsPerPage,
+          onPageChange: handlePageChange,
+          onItemsPerPageChange: handleItemsPerPageChange,
+        }}
       />
 
       {/* Translation Memory Section */}
@@ -570,6 +635,13 @@ export default function Chapters() {
         onDeleteEntry={canModifyTM ? handleDeleteTMEntry : undefined}
         canModifyTM={canModifyTM}
         isLoading={isTMLoading}
+        pagination={{
+          currentPage: tmCurrentPage,
+          totalItems: tmTotalCount,
+          itemsPerPage: tmItemsPerPage,
+          onPageChange: handleTMPageChange,
+          onItemsPerPageChange: handleTMItemsPerPageChange,
+        }}
       />
 
       {/* AI Glossary Section */}

@@ -36,9 +36,9 @@ class TranslationService:
             system_prompt = self._build_system_prompt(target_lang, context)
             user_prompt = f"Translate this text: {source_text.strip()}"
             
-            # Call OpenAI API
+            # Call OpenAI API with latest GPT model
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",  # Use latest GPT model for better accuracy
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -60,7 +60,7 @@ class TranslationService:
                 "translated_text": translated_text,
                 "target_language": target_lang,
                 "processing_time": processing_time,
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4o-mini",
                 "tokens_used": response.usage.total_tokens if response.usage else None
             }
             
@@ -81,21 +81,43 @@ class TranslationService:
             raise Exception(f"Translation failed: {str(e)}")
     
     def _build_system_prompt(self, target_language: str, context: Optional[str] = None) -> str:
-        base_prompt = f"""You are a professional translator specializing in manga/manhwa translation.
-        
-Your task is to translate text from images (likely Korean or Japanese) to {target_language}.
+        base_prompt = f"""You are assisting in the translation and localization of manhwa panels for professional comic production.
 
-Guidelines:
-1. Provide natural, fluent translations that preserve the original meaning
-2. Consider the context of manga/manhwa dialogue and narration
-3. Maintain the tone and style appropriate for the genre
-4. For onomatopoeia (sound effects), either translate to equivalent sounds in {target_language} or keep original if more appropriate
-5. For names and proper nouns, keep them in original form unless there's a standard translation
-6. Return ONLY the translated text, no explanations or additional comments"""
+Your task is to:
+
+1. Detect and transcribe all text in the image, including:
+   - Dialogue
+   - Narration
+   - Sound effects (SFX)
+   - Overlayed or stylized text
+
+2. Translate each piece of text accurately into {target_language}.
+
+3. Localize the translated text into natural, fluent {target_language} suitable for an official manhwa/webtoon adaptation. Keep the tone appropriate to the context (e.g., dramatic, somber, intense, comedic).
+
+Professional Translation Guidelines:
+- Preserve the original meaning and emotional impact
+- Adapt cultural references and idioms appropriately for {target_language} readers
+- Maintain character voice consistency and personality through dialogue
+- Handle honorifics and formal/informal speech patterns appropriately
+- For sound effects (SFX), either translate to equivalent sounds in {target_language} or keep original if more impactful
+- Preserve proper nouns, character names, and place names unless standard translations exist
+- Ensure dialogue flows naturally when read aloud
+- Consider panel layout and text space constraints for localization
+- Maintain narrative pacing and dramatic timing through translation choices
+
+Text Classification and Handling:
+- DIALOGUE: Character speech - maintain personality and speaking style
+- NARRATION: Story text - keep formal narrative tone
+- THOUGHTS: Internal monologue - often more casual or introspective
+- SFX: Sound effects - prioritize impact over literal translation
+- SIGNS/TEXT: Background text - translate for reader comprehension
+
+Return ONLY the translated text without explanations, formatting, or additional comments."""
 
         if context:
-            base_prompt += f"\n\nAdditional context: {context}"
-        
+            base_prompt += f"\n\nAdditional context for this translation: {context}"
+
         return base_prompt
     
     async def translate_with_memory(

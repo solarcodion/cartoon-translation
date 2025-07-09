@@ -9,6 +9,8 @@ import type {
   BatchPageUploadResponse,
 } from "../services/pageService";
 import { convertApiPageToLegacy } from "../types/pages";
+import { useTextBoxesStore } from "./textBoxesStore";
+import { useChaptersStore } from "./chaptersStore";
 
 // Cache duration in milliseconds (5 minutes)
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -20,6 +22,11 @@ export interface PagesData {
     lastFetched: number;
     isLoading: boolean;
     error: string | null;
+    // Pagination state
+    currentPage: number;
+    itemsPerPage: number;
+    totalCount: number;
+    hasNextPage: boolean;
   };
 }
 
@@ -30,7 +37,11 @@ export interface PagesState {
 }
 
 export interface PagesActions {
-  fetchPagesByChapterId: (chapterId: string) => Promise<void>;
+  fetchPagesByChapterId: (
+    chapterId: string,
+    page?: number,
+    force?: boolean
+  ) => Promise<void>;
   createPage: (chapterId: string, data: CreatePageData) => Promise<Page>;
   batchCreatePages: (
     chapterId: string,
@@ -45,6 +56,13 @@ export interface PagesActions {
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
+  // Pagination actions
+  setPage: (chapterId: string, page: number) => void;
+  setItemsPerPage: (chapterId: string, itemsPerPage: number) => void;
+  setItemsPerPageAndFetch: (
+    chapterId: string,
+    itemsPerPage: number
+  ) => Promise<void>;
 }
 
 export type PagesStore = PagesState & PagesActions;
@@ -60,147 +78,136 @@ export const usePagesStore = create<PagesStore>()(
     (set, get) => ({
       ...initialState,
 
-      fetchPagesByChapterId: async (chapterId: string) => {
+      fetchPagesByChapterId: async (
+        chapterId: string,
+        page = 1,
+        force = false
+      ) => {
         const state = get();
         const chapterData = state.data[chapterId];
 
-        // Check if data is still fresh (within cache duration)
+        // Initialize pagination defaults if not set
+        const currentPage = page || chapterData?.currentPage || 1;
+        const itemsPerPage = chapterData?.itemsPerPage || 10;
+
+        // Check if we need to fetch (force, no data, or stale data)
+        const now = Date.now();
+        const isStale =
+          !chapterData?.lastFetched ||
+          now - chapterData.lastFetched > CACHE_DURATION;
+
         if (
-          chapterData?.pages.length > 0 &&
-          chapterData.lastFetched &&
-          Date.now() - chapterData.lastFetched < CACHE_DURATION
+          !force &&
+          chapterData?.pages &&
+          !isStale &&
+          chapterData.currentPage === currentPage
         ) {
           return; // Use cached data
         }
 
-        // Set loading state for this chapter
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                pages: chapterData?.pages || [],
-                lastFetched: chapterData?.lastFetched || 0,
-                isLoading: true,
-                error: null,
-              },
+        // Set loading state
+        set({
+          data: {
+            ...state.data,
+            [chapterId]: {
+              ...chapterData,
+              isLoading: true,
+              error: null,
+              currentPage: currentPage,
+              itemsPerPage: itemsPerPage,
+              totalCount: 0,
+              hasNextPage: false,
             },
-            globalError: null,
           },
-          false,
-          "pages/fetchStart"
-        );
+          globalError: null,
+        });
 
         try {
-          const apiPages = await pageService.getPagesByChapter(chapterId);
-          const legacyPages = apiPages.map(convertApiPageToLegacy);
+          // Calculate skip for pagination
+          const skip = (currentPage - 1) * itemsPerPage;
 
-          // Sort pages by page number in ascending order
-          const sortedPages = legacyPages.sort((a, b) => a.number - b.number);
+          // Fetch pages from API
+          const pages = await pageService.getPagesByChapter(
+            chapterId,
+            skip,
+            itemsPerPage
+          );
+          const legacyPages = pages.map(convertApiPageToLegacy);
 
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
+          // Get total count
+          const totalCount = await pageService.getPageCountByChapter(chapterId);
+          const hasNextPage = skip + pages.length < totalCount;
+
+          // Update state with fetched data
+          set({
+            data: {
+              ...get().data,
+              [chapterId]: {
+                pages: legacyPages,
+                lastFetched: Date.now(),
+                isLoading: false,
+                error: null,
+                currentPage: currentPage,
+                itemsPerPage: itemsPerPage,
+                totalCount: totalCount,
+                hasNextPage: hasNextPage,
               },
             },
-            false,
-            "pages/fetchSuccess"
-          );
+          });
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to fetch pages";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  pages: chapterData?.pages || [],
-                  lastFetched: chapterData?.lastFetched || 0,
-                  isLoading: false,
-                  error: errorMessage,
-                },
+          console.error("Error fetching pages:", error);
+          set({
+            data: {
+              ...get().data,
+              [chapterId]: {
+                ...get().data[chapterId],
+                isLoading: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to fetch pages",
               },
-              globalError: errorMessage,
             },
-            false,
-            "pages/fetchError"
-          );
-          throw error;
+          });
         }
       },
 
       createPage: async (chapterId: string, data: CreatePageData) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/createStart"
-        );
-
         try {
           const apiPage = await pageService.createPage(data);
-          const newPage = convertApiPageToLegacy(apiPage);
+          const legacyPage = convertApiPageToLegacy(apiPage);
 
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [...(currentChapterData?.pages || []), newPage];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
+          // Update the store with the new page
+          const state = get();
+          const chapterData = state.data[chapterId];
+          if (chapterData) {
+            const updatedPages = [
+              ...(chapterData.pages || []),
+              legacyPage,
+            ].sort((a, b) => a.number - b.number);
 
-          set(
-            {
+            set({
               data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/createSuccess"
-          );
-
-          return newPage;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to create page";
-
-          set(
-            {
-              data: {
-                ...get().data,
+                ...state.data,
                 [chapterId]: {
                   ...chapterData,
-                  error: errorMessage,
+                  pages: updatedPages,
+                  totalCount: (chapterData.totalCount || 0) + 1,
                 },
               },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/createError"
-          );
+            });
+
+            // Update chapter status to in_progress since we now have pages
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              chapterId,
+              updatedPages.length
+            );
+          }
+
+          return legacyPage;
+        } catch (error) {
+          console.error("Error creating page:", error);
           throw error;
         }
       },
@@ -209,74 +216,44 @@ export const usePagesStore = create<PagesStore>()(
         chapterId: string,
         data: BatchCreatePageData
       ) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/batchCreateStart"
-        );
-
         try {
-          const response = await pageService.createPagesBatch(data);
-          const newPages = response.pages.map(convertApiPageToLegacy);
+          const result = await pageService.createPagesBatch(data);
 
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [
-            ...(currentChapterData?.pages || []),
-            ...newPages,
-          ];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
+          // Update the store with new pages
+          if (result.success && result.pages.length > 0) {
+            const state = get();
+            const chapterData = state.data[chapterId];
+            if (chapterData) {
+              const newLegacyPages = result.pages.map(convertApiPageToLegacy);
+              const updatedPages = [
+                ...(chapterData.pages || []),
+                ...newLegacyPages,
+              ].sort((a, b) => a.number - b.number);
 
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
+              set({
+                data: {
+                  ...state.data,
+                  [chapterId]: {
+                    ...chapterData,
+                    pages: updatedPages,
+                    totalCount:
+                      (chapterData.totalCount || 0) + result.pages.length,
+                  },
                 },
-              },
-            },
-            false,
-            "pages/batchCreateSuccess"
-          );
+              });
 
-          return response;
+              // Update chapter status to in_progress since we now have pages
+              const chaptersStore = useChaptersStore.getState();
+              await chaptersStore.updateChapterStatusAndPageCount(
+                chapterId,
+                updatedPages.length
+              );
+            }
+          }
+
+          return result;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to batch create pages";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/batchCreateError"
-          );
+          console.error("Error creating pages batch:", error);
           throw error;
         }
       },
@@ -285,245 +262,147 @@ export const usePagesStore = create<PagesStore>()(
         chapterId: string,
         data: BatchCreatePageData
       ) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/batchCreateWithAutoTextBoxesStart"
-        );
-
         try {
-          const response = await pageService.batchCreatePagesWithAutoTextBoxes(
+          const result = await pageService.batchCreatePagesWithAutoTextBoxes(
             data
           );
-          const newPages = response.pages.map(convertApiPageToLegacy);
 
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const updatedPages = [
-            ...(currentChapterData?.pages || []),
-            ...newPages,
-          ];
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
+          // Update the store with new pages
+          if (result.success && result.pages.length > 0) {
+            const state = get();
+            const chapterData = state.data[chapterId];
+            if (chapterData) {
+              const newLegacyPages = result.pages.map(convertApiPageToLegacy);
+              const updatedPages = [
+                ...(chapterData.pages || []),
+                ...newLegacyPages,
+              ].sort((a, b) => a.number - b.number);
 
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
+              set({
+                data: {
+                  ...state.data,
+                  [chapterId]: {
+                    ...chapterData,
+                    pages: updatedPages,
+                    totalCount:
+                      (chapterData.totalCount || 0) + result.pages.length,
+                  },
                 },
-              },
-            },
-            false,
-            "pages/batchCreateWithAutoTextBoxesSuccess"
-          );
+              });
 
-          // Fetch and update text boxes for the chapter since auto text boxes were created
-          try {
-            const { textBoxService } = await import(
-              "../services/textBoxService"
-            );
-            const { useTextBoxesStore } = await import("./textBoxesStore");
-
-            const textBoxes = await textBoxService.getTextBoxesByChapter(
-              chapterId
-            );
-            const { addTextBoxesToChapter } = useTextBoxesStore.getState();
-            addTextBoxesToChapter(chapterId, textBoxes);
-          } catch (textBoxError) {
-            console.warn(
-              "Failed to update text boxes store after auto creation:",
-              textBoxError
-            );
-            // Don't fail the page creation if text box store update fails
+              // Update chapter status to in_progress since we now have pages
+              const chaptersStore = useChaptersStore.getState();
+              await chaptersStore.updateChapterStatusAndPageCount(
+                chapterId,
+                updatedPages.length
+              );
+            }
           }
 
-          return response;
+          return result;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to batch create pages with auto text boxes";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [chapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/batchCreateWithAutoTextBoxesError"
-          );
+          console.error("Error creating pages with auto text boxes:", error);
           throw error;
         }
       },
 
       updatePage: async (pageId: string, data: Partial<CreatePageData>) => {
-        // Find which chapter this page belongs to
-        const state = get();
-        let targetChapterId = "";
-        for (const [chapterId, chapterData] of Object.entries(state.data)) {
-          if (chapterData.pages.some((page) => page.id === pageId)) {
-            targetChapterId = chapterId;
-            break;
-          }
-        }
-
-        if (!targetChapterId) {
-          throw new Error("Page not found in any chapter");
-        }
-
-        const chapterData = state.data[targetChapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [targetChapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/updateStart"
-        );
-
         try {
-          const apiPage = await pageService.updatePage(pageId, data);
-          const updatedPage = convertApiPageToLegacy(apiPage);
+          const updateData = {
+            page_number: data.page_number,
+            file_name: data.file?.name,
+            width: data.width,
+            height: data.height,
+          };
 
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[targetChapterId];
-          const updatedPages = currentChapterData.pages.map((page) =>
-            page.id === pageId ? updatedPage : page
-          );
-          const sortedPages = updatedPages.sort((a, b) => a.number - b.number);
+          const apiPage = await pageService.updatePage(pageId, updateData);
+          const legacyPage = convertApiPageToLegacy(apiPage);
 
-          set(
-            {
-              data: {
-                ...currentState.data,
-                [targetChapterId]: {
-                  pages: sortedPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/updateSuccess"
-          );
+          // Update the store
+          const state = get();
+          let updatedChapterId: string | null = null;
+          let updatedPageCount = 0;
 
-          return updatedPage;
+          Object.keys(state.data).forEach((chapterId) => {
+            const chapterData = state.data[chapterId];
+            if (chapterData && chapterData.pages) {
+              const pageIndex = chapterData.pages.findIndex(
+                (p) => p.id === pageId
+              );
+              if (pageIndex !== -1) {
+                const updatedPages = [...chapterData.pages];
+                updatedPages[pageIndex] = legacyPage;
+
+                set({
+                  data: {
+                    ...state.data,
+                    [chapterId]: {
+                      ...chapterData,
+                      pages: updatedPages.sort((a, b) => a.number - b.number),
+                    },
+                  },
+                });
+
+                // Store chapter info for status update
+                updatedChapterId = chapterId;
+                updatedPageCount = updatedPages.length;
+              }
+            }
+          });
+
+          // Update chapter status to in_progress since page was modified
+          if (updatedChapterId) {
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              updatedChapterId,
+              updatedPageCount
+            );
+          }
+
+          return legacyPage;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to update page";
-
-          set(
-            {
-              data: {
-                ...get().data,
-                [targetChapterId]: {
-                  ...chapterData,
-                  error: errorMessage,
-                },
-              },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/updateError"
-          );
+          console.error("Error updating page:", error);
           throw error;
         }
       },
 
       deletePage: async (chapterId: string, pageId: string) => {
-        const state = get();
-        const chapterData = state.data[chapterId];
-
-        set(
-          {
-            data: {
-              ...state.data,
-              [chapterId]: {
-                ...chapterData,
-                error: null,
-              },
-            },
-            globalError: null,
-          },
-          false,
-          "pages/deleteStart"
-        );
-
         try {
           await pageService.deletePage(pageId);
 
-          // Optimistically update the store
-          const currentState = get();
-          const currentChapterData = currentState.data[chapterId];
-          const filteredPages = currentChapterData.pages.filter(
-            (page) => page.id !== pageId
-          );
+          // Update the store
+          const state = get();
+          const chapterData = state.data[chapterId];
+          if (chapterData && chapterData.pages) {
+            const updatedPages = chapterData.pages.filter(
+              (p) => p.id !== pageId
+            );
 
-          set(
-            {
+            set({
               data: {
-                ...currentState.data,
-                [chapterId]: {
-                  pages: filteredPages,
-                  lastFetched: Date.now(),
-                  isLoading: false,
-                  error: null,
-                },
-              },
-            },
-            false,
-            "pages/deleteSuccess"
-          );
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to delete page";
-
-          set(
-            {
-              data: {
-                ...get().data,
+                ...state.data,
                 [chapterId]: {
                   ...chapterData,
-                  error: errorMessage,
+                  pages: updatedPages,
+                  totalCount: Math.max(0, (chapterData.totalCount || 0) - 1),
                 },
               },
-              globalError: errorMessage,
-            },
-            false,
-            "pages/deleteError"
-          );
+            });
+
+            // Also remove associated text boxes from the text boxes store
+            const textBoxesStore = useTextBoxesStore.getState();
+            textBoxesStore.removeTextBoxesByPageId(chapterId, pageId);
+
+            // Update chapter status based on remaining page count
+            // If no pages left, set to draft; otherwise set to in_progress
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              chapterId,
+              updatedPages.length
+            );
+          }
+        } catch (error) {
+          console.error("Error deleting page:", error);
           throw error;
         }
       },
@@ -593,6 +472,80 @@ export const usePagesStore = create<PagesStore>()(
           );
         }
       },
+
+      // Pagination actions
+      setPage: (chapterId: string, page: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  currentPage: page,
+                },
+              },
+            },
+            false,
+            "pages/setPage"
+          );
+        }
+      },
+
+      setItemsPerPage: (chapterId: string, itemsPerPage: number) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "pages/setItemsPerPage"
+          );
+        }
+      },
+
+      setItemsPerPageAndFetch: async (
+        chapterId: string,
+        itemsPerPage: number
+      ) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          // Update the state first
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  itemsPerPage: itemsPerPage,
+                  currentPage: 1, // Reset to first page when changing items per page
+                },
+              },
+            },
+            false,
+            "pages/setItemsPerPageAndFetch"
+          );
+
+          // Then fetch with the new settings
+          const { fetchPagesByChapterId } = get();
+          await fetchPagesByChapterId(chapterId, 1, true);
+        }
+      },
     }),
     {
       name: "pages-store",
@@ -614,6 +567,8 @@ const selectErrorByChapterId = (chapterId: string) => (state: PagesStore) =>
 const selectGlobalLoading = (state: PagesStore) => state.globalLoading;
 const selectGlobalError = (state: PagesStore) => state.globalError;
 
+// Pagination selectors
+
 // Selector hooks for better performance
 export const usePagesByChapterId = (chapterId: string) =>
   usePagesStore(selectPagesByChapterId(chapterId));
@@ -628,6 +583,32 @@ export const usePagesGlobalLoading = () => usePagesStore(selectGlobalLoading);
 
 export const usePagesGlobalError = () => usePagesStore(selectGlobalError);
 
+// Pagination hook with individual value selectors to avoid object recreation
+export const usePagesPagination = (chapterId: string) => {
+  const currentPage = usePagesStore(
+    (state) => state.data[chapterId]?.currentPage || 1
+  );
+  const itemsPerPage = usePagesStore(
+    (state) => state.data[chapterId]?.itemsPerPage || 10
+  );
+  const totalCount = usePagesStore(
+    (state) => state.data[chapterId]?.totalCount || 0
+  );
+  const hasNextPage = usePagesStore(
+    (state) => state.data[chapterId]?.hasNextPage || false
+  );
+
+  return useMemo(
+    () => ({
+      currentPage,
+      itemsPerPage,
+      totalCount,
+      hasNextPage,
+    }),
+    [currentPage, itemsPerPage, totalCount, hasNextPage]
+  );
+};
+
 // Check if data is stale (older than cache duration)
 export const usePagesIsStale = (chapterId: string) => {
   return usePagesStore((state) => {
@@ -641,7 +622,7 @@ export const usePagesIsStale = (chapterId: string) => {
 export const useHasCachedPages = (chapterId: string) => {
   return usePagesStore((state) => {
     const chapterData = state.data[chapterId];
-    return Boolean(chapterData?.pages.length);
+    return Boolean(chapterData?.pages?.length);
   });
 };
 
@@ -660,6 +641,11 @@ export const usePagesActions = () => {
   const clearError = usePagesStore((state) => state.clearError);
   const reset = usePagesStore((state) => state.reset);
   const invalidateCache = usePagesStore((state) => state.invalidateCache);
+  const setPage = usePagesStore((state) => state.setPage);
+  const setItemsPerPage = usePagesStore((state) => state.setItemsPerPage);
+  const setItemsPerPageAndFetch = usePagesStore(
+    (state) => state.setItemsPerPageAndFetch
+  );
 
   return useMemo(
     () => ({
@@ -672,6 +658,9 @@ export const usePagesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     }),
     [
       fetchPagesByChapterId,
@@ -683,6 +672,9 @@ export const usePagesActions = () => {
       clearError,
       reset,
       invalidateCache,
+      setPage,
+      setItemsPerPage,
+      setItemsPerPageAndFetch,
     ]
   );
 };
@@ -691,6 +683,13 @@ export const usePagesActions = () => {
 export const invalidatePagesCache = (chapterId?: string) => {
   const { invalidateCache } = usePagesStore.getState();
   invalidateCache(chapterId);
+};
+
+// Get page count for a chapter
+export const getPageCountByChapterId = (chapterId: string): number => {
+  const state = usePagesStore.getState();
+  const chapterData = state.data[chapterId];
+  return chapterData?.pages?.length || 0;
 };
 
 export const refreshPagesData = async (chapterId: string) => {
@@ -702,8 +701,10 @@ export const refreshPagesData = async (chapterId: string) => {
 export const getPageById = (pageId: string): Page | null => {
   const state = usePagesStore.getState();
   for (const chapterData of Object.values(state.data)) {
-    const page = chapterData.pages.find((p) => p.id === pageId);
-    if (page) return page;
+    if (chapterData.pages) {
+      const page = chapterData.pages.find((p) => p.id === pageId);
+      if (page) return page;
+    }
   }
   return null;
 };
@@ -711,5 +712,5 @@ export const getPageById = (pageId: string): Page | null => {
 // Get pages count for a chapter
 export const getPagesCountByChapterId = (chapterId: string): number => {
   const state = usePagesStore.getState();
-  return state.data[chapterId]?.pages.length || 0;
+  return state.data[chapterId]?.pages?.length || 0;
 };

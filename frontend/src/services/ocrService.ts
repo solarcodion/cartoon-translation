@@ -49,16 +49,26 @@ class OCRService {
     };
   }
 
-  async extractText(imageData: string): Promise<OCRResponse> {
+  async extractText(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(`${API_BASE_URL}/ocr/extract-text`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          image_data: imageData,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -77,18 +87,28 @@ class OCRService {
     }
   }
 
-  async extractTextEnhanced(imageData: string): Promise<OCRResponse> {
+  async extractTextEnhanced(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/ocr/extract-text-enhanced`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            image_data: imageData,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -173,6 +193,87 @@ class OCRService {
         "❌ Error in enhanced OCR with translation request:",
         error
       );
+      throw error;
+    }
+  }
+
+  // OpenAI OCR Methods
+
+  async extractTextWithOpenAI(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/ocr/openai/extract-text`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result: OCRResponse = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("❌ Error in OpenAI OCR request:", error);
+      throw error;
+    }
+  }
+
+  async detectTextRegionsWithOpenAI(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<any> {
+    try {
+      const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/ocr/openai/detect-text-regions`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("❌ Error in OpenAI text region detection request:", error);
       throw error;
     }
   }

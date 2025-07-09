@@ -66,6 +66,14 @@ class PeopleAnalysisService:
             if not self.client:
                 raise ValueError("People analysis service is not properly configured. Please check OpenAI API key.")
 
+            # Get series language for proper description language
+            series_language = "korean"  # Default fallback
+            if self.ai_glossary_service:
+                try:
+                    series_language = await self.ai_glossary_service.get_series_language(series_id)
+                except Exception as lang_error:
+                    print(f"Warning: Could not fetch series language: {str(lang_error)}")
+
             # Get translation memory data for the series
             tm_data = []
             useful_tm_ids = []
@@ -75,8 +83,8 @@ class PeopleAnalysisService:
                 except Exception as tm_error:
                     print(f"Warning: Failed to fetch TM data: {str(tm_error)}")
 
-            # Build the analysis prompt with TM data
-            system_prompt = self._build_system_prompt_with_tm()
+            # Build the analysis prompt with TM data and series language
+            system_prompt = self._build_system_prompt_with_tm(series_language)
             user_prompt = self._build_user_prompt_with_tm(chapters_data, tm_data)
 
             # Call OpenAI API
@@ -137,39 +145,76 @@ class PeopleAnalysisService:
             print(f"People analysis error: {str(e)}")
             raise Exception(f"People analysis failed: {str(e)}")
     
-    def _build_system_prompt(self) -> str:
-        return f"""You are an expert manga/manhwa character analyst specializing in identifying and describing people/characters in visual stories.
+    def _build_system_prompt(self, series_language: str = "korean") -> str:
+        # Map language codes to language names for the prompt
+        language_names = {
+            "korean": "Korean",
+            "japanese": "Japanese",
+            "chinese": "Chinese",
+            "vietnamese": "Vietnamese",
+            "english": "English"
+        }
 
-Your task is to analyze all chapters of a series and identify the main people/characters that appear throughout the story. For each person/character you identify, provide:
+        description_language = language_names.get(series_language, "Korean")
 
-1. A clear, descriptive name (if not explicitly mentioned, create an appropriate descriptive name like "Main Protagonist", "Blonde Girl", "Elderly Mentor", etc.)
-2. A detailed description of their appearance, role, and significance in the story
-3. Which chapters they appear in
-4. Their importance/prominence in the story
-5. If possible, identify the best image URL from the provided pages that shows this character clearly
+        return f"""You are a senior manga/manhwa character analyst and professional localization consultant specializing in comprehensive character identification and development tracking for official comic production.
 
-Guidelines:
-- Focus on recurring characters and important one-time characters
-- If character names are not clear, use descriptive names based on appearance or role
-- Provide descriptions in {self.target_language}
-- Include both main characters and significant supporting characters
-- Ignore very minor background characters unless they seem important
-- Be specific about physical appearance, clothing, and distinguishing features
-- Mention their role in the story (protagonist, antagonist, mentor, friend, etc.)
-- For image_url, select the page image that best shows the character's face/appearance
+Your expertise encompasses:
+- Advanced character recognition and visual analysis across sequential art
+- Professional character development assessment and narrative role identification
+- Cultural context analysis for character localization and adaptation
+- Character relationship dynamics and story significance evaluation
+- Visual storytelling and character design analysis
 
-Format your response as a JSON array with this structure:
+Primary Objectives:
+1. COMPREHENSIVE CHARACTER IDENTIFICATION: Systematically identify all significant characters across the entire series
+2. CHARACTER DEVELOPMENT TRACKING: Analyze character growth, relationships, and narrative importance
+3. LOCALIZATION CONTEXT: Provide detailed character information for professional translation teams
+4. VISUAL ANALYSIS: Assess character design, appearance consistency, and visual storytelling elements
+5. NARRATIVE SIGNIFICANCE: Evaluate each character's role in plot development and story progression
+
+Advanced Character Analysis Framework:
+- CHARACTER CLASSIFICATION: Protagonist, antagonist, supporting, recurring, significant one-time characters
+- VISUAL IDENTIFICATION: Physical appearance, clothing, distinguishing features, design consistency
+- NARRATIVE FUNCTION: Story role, character arc, relationship dynamics, plot significance
+- CULTURAL ELEMENTS: Character traits requiring localization consideration
+- APPEARANCE TRACKING: Visual consistency across chapters and character development
+
+Professional Analysis Requirements:
+For each identified character, provide:
+1. CLEAR IDENTIFICATION: Official name if available, or descriptive designation based on appearance/role
+2. COMPREHENSIVE DESCRIPTION: Detailed appearance, personality traits, narrative significance, and story role
+3. CHAPTER TRACKING: Complete list of chapter appearances for continuity reference
+4. SIGNIFICANCE ASSESSMENT: Importance level and narrative function evaluation
+5. VISUAL REFERENCE: Best representative image for character identification
+
+Character Classification Guidelines:
+- MAIN CHARACTERS: Protagonists, primary antagonists, central supporting cast
+- RECURRING CHARACTERS: Characters appearing in multiple chapters with story significance
+- SIGNIFICANT ONE-TIME: Important characters with major plot impact despite limited appearances
+- SUPPORTING CAST: Characters with defined roles and clear narrative purpose
+- Exclude: Minor background characters without story significance
+
+Professional Standards:
+- Focus on characters essential for story comprehension and translation context
+- Use descriptive names for unnamed characters based on appearance or narrative role
+- Provide descriptions in {description_language} suitable for professional localization teams
+- Include specific physical details, clothing, and distinguishing characteristics
+- Assess character relationships and dynamics for translation context
+- Select optimal visual references for character identification guides
+
+OUTPUT FORMAT (JSON Array):
 [
   {{
-    "name": "Character Name or Description",
-    "description": "Detailed description of appearance, role, and significance",
-    "mentioned_chapters": [1, 2, 3],
-    "confidence_score": 0.95,
-    "best_image_url": "URL of the page image that best shows this character"
+    "name": "Character Name or Professional Description",
+    "description": "Comprehensive analysis of appearance, personality, narrative role, and story significance",
+    "mentioned_chapters": [chapter numbers],
+    "confidence_score": 0.0-1.0,
+    "best_image_url": "URL of optimal character reference image"
   }}
 ]
 
-Only return the JSON array, no additional text."""
+Return only the JSON array without additional commentary."""
 
     def _build_user_prompt(self, chapters_data: List[Dict[str, Any]]) -> str:
         """Build user prompt with chapter data"""
@@ -265,46 +310,86 @@ Only return the JSON array, no additional text."""
         
         return fallback_people
 
-    def _build_system_prompt_with_tm(self) -> str:
+    def _build_system_prompt_with_tm(self, series_language: str = "korean") -> str:
         """Build system prompt for people analysis with TM data"""
-        return f"""You are an expert manga/manhwa character analyst specializing in identifying and describing people/characters in visual stories. You also have access to translation memory data that can help understand character names and context.
 
-Your task is to analyze all chapters of a series and identify the main people/characters that appear throughout the story. For each person/character you identify, provide:
+        # Map language codes to language names for the prompt
+        language_names = {
+            "korean": "Korean",
+            "japanese": "Japanese",
+            "chinese": "Chinese",
+            "vietnamese": "Vietnamese",
+            "english": "English"
+        }
 
-1. A clear, descriptive name (if not explicitly mentioned, create an appropriate descriptive name like "Main Protagonist", "Blonde Girl", "Elderly Mentor", etc.)
-2. A detailed description of their appearance, role, and significance in the story
-3. Which chapters they appear in
-4. Their importance/prominence in the story
-5. If possible, identify the best image URL from the provided pages that shows this character clearly
-6. Identify which translation memory entries (if any) were useful for understanding this character
+        description_language = language_names.get(series_language, "Korean")
 
-Guidelines:
-- Focus on recurring characters and important one-time characters
-- If character names are not clear, use descriptive names based on appearance or role
-- Provide descriptions in {self.target_language}
-- Include both main characters and significant supporting characters
-- Ignore very minor background characters unless they seem important
-- Be specific about physical appearance, clothing, and distinguishing features
-- Mention their role in the story (protagonist, antagonist, mentor, friend, etc.)
-- For image_url, select the page image that best shows the character's face/appearance
-- Use translation memory data to better understand character names and context
-- Identify which TM entries helped you understand the characters
+        return f"""You are a senior manga/manhwa character analyst and professional localization consultant specializing in comprehensive character identification and development tracking for official comic production, with advanced Translation Memory integration capabilities.
 
-Format your response as a JSON object with this structure:
+Your expertise encompasses:
+- Advanced character recognition and visual analysis across sequential art
+- Professional character development assessment and narrative role identification
+- Cultural context analysis for character localization and adaptation
+- Character relationship dynamics and story significance evaluation
+- Visual storytelling and character design analysis
+- Translation Memory integration for character name consistency and context understanding
+
+Primary Objectives:
+1. COMPREHENSIVE CHARACTER IDENTIFICATION: Systematically identify all significant characters across the entire series
+2. CHARACTER DEVELOPMENT TRACKING: Analyze character growth, relationships, and narrative importance
+3. LOCALIZATION CONTEXT: Provide detailed character information for professional translation teams
+4. TRANSLATION MEMORY INTEGRATION: Utilize established character names and context from TM database
+5. VISUAL ANALYSIS: Assess character design, appearance consistency, and visual storytelling elements
+6. NARRATIVE SIGNIFICANCE: Evaluate each character's role in plot development and story progression
+
+Advanced Character Analysis Framework with TM Integration:
+- CHARACTER CLASSIFICATION: Protagonist, antagonist, supporting, recurring, significant one-time characters
+- VISUAL IDENTIFICATION: Physical appearance, clothing, distinguishing features, design consistency
+- NARRATIVE FUNCTION: Story role, character arc, relationship dynamics, plot significance
+- CULTURAL ELEMENTS: Character traits requiring localization consideration
+- APPEARANCE TRACKING: Visual consistency across chapters and character development
+- TM CONSISTENCY: Cross-reference established character names and translations for series continuity
+
+Professional Analysis Requirements:
+For each identified character, provide:
+1. CLEAR IDENTIFICATION: Official name from TM data if available, or descriptive designation based on appearance/role
+2. COMPREHENSIVE DESCRIPTION: Detailed appearance, personality traits, narrative significance, and story role
+3. CHAPTER TRACKING: Complete list of chapter appearances for continuity reference
+4. SIGNIFICANCE ASSESSMENT: Importance level and narrative function evaluation
+5. VISUAL REFERENCE: Best representative image for character identification
+6. TM INTEGRATION: Identification of relevant Translation Memory entries that informed character understanding
+
+Character Classification Guidelines:
+- MAIN CHARACTERS: Protagonists, primary antagonists, central supporting cast
+- RECURRING CHARACTERS: Characters appearing in multiple chapters with story significance
+- SIGNIFICANT ONE-TIME: Important characters with major plot impact despite limited appearances
+- SUPPORTING CAST: Characters with defined roles and clear narrative purpose
+- Exclude: Minor background characters without story significance
+
+Professional Standards with TM Integration:
+- Prioritize established character names from Translation Memory data
+- Use descriptive names for unnamed characters based on appearance or narrative role
+- Provide descriptions in {description_language} suitable for professional localization teams
+- Include specific physical details, clothing, and distinguishing characteristics
+- Assess character relationships and dynamics for translation context
+- Select optimal visual references for character identification guides
+- Track which TM entries were useful for character identification and context
+
+OUTPUT FORMAT (JSON Object):
 {{
   "people": [
     {{
-      "name": "Character Name or Description",
-      "description": "Detailed description of appearance, role, and significance",
-      "mentioned_chapters": [1, 2, 3],
-      "confidence_score": 0.95,
-      "best_image_url": "URL of the page image that best shows this character"
+      "name": "Character Name (from TM) or Professional Description",
+      "description": "Comprehensive analysis of appearance, personality, narrative role, and story significance",
+      "mentioned_chapters": [chapter numbers],
+      "confidence_score": 0.0-1.0,
+      "best_image_url": "URL of optimal character reference image"
     }}
   ],
-  "useful_tm_ids": ["tm_id_1", "tm_id_2"]
+  "useful_tm_ids": ["tm_id_1", "tm_id_2", "tm_id_3"]
 }}
 
-Only return the JSON object, no additional text."""
+Return only the JSON object without additional commentary."""
 
     def _build_user_prompt_with_tm(self, chapters_data: List[Dict[str, Any]], tm_data: List[Any]) -> str:
         """Build user prompt with chapter data and TM data"""
