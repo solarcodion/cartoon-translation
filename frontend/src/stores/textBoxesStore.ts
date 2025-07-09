@@ -52,6 +52,7 @@ export interface TextBoxesActions {
     textBoxes: TextBoxApiItem[]
   ) => void;
   clearChapterTextBoxes: (chapterId: string) => void;
+  removeTextBoxesByPageId: (chapterId: string, pageId: string) => void;
   clearError: (chapterId?: string) => void;
   reset: () => void;
   invalidateCache: (chapterId?: string) => void;
@@ -415,6 +416,33 @@ export const useTextBoxesStore = create<TextBoxesStore>()(
         }
       },
 
+      removeTextBoxesByPageId: (chapterId: string, pageId: string) => {
+        const state = get();
+        const chapterData = state.data[chapterId];
+
+        if (chapterData) {
+          // Filter out text boxes that belong to the specified page
+          const filteredTextBoxes = chapterData.textBoxes.filter(
+            (textBox) => textBox.page_id !== pageId
+          );
+
+          set(
+            {
+              data: {
+                ...state.data,
+                [chapterId]: {
+                  ...chapterData,
+                  textBoxes: filteredTextBoxes,
+                  lastFetched: Date.now(),
+                },
+              },
+            },
+            false,
+            "textBoxes/removeByPageId"
+          );
+        }
+      },
+
       clearError: (chapterId?: string) => {
         if (chapterId) {
           const state = get();
@@ -640,6 +668,9 @@ export const useTextBoxesActions = () => {
   const clearChapterTextBoxes = useTextBoxesStore(
     (state) => state.clearChapterTextBoxes
   );
+  const removeTextBoxesByPageId = useTextBoxesStore(
+    (state) => state.removeTextBoxesByPageId
+  );
   const clearError = useTextBoxesStore((state) => state.clearError);
   const reset = useTextBoxesStore((state) => state.reset);
   const invalidateCache = useTextBoxesStore((state) => state.invalidateCache);
@@ -660,6 +691,7 @@ export const useTextBoxesActions = () => {
       deleteTextBox,
       addTextBoxesToChapter,
       clearChapterTextBoxes,
+      removeTextBoxesByPageId,
       clearError,
       reset,
       invalidateCache,
@@ -674,6 +706,7 @@ export const useTextBoxesActions = () => {
       deleteTextBox,
       addTextBoxesToChapter,
       clearChapterTextBoxes,
+      removeTextBoxesByPageId,
       clearError,
       reset,
       invalidateCache,

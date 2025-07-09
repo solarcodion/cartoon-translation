@@ -44,6 +44,10 @@ export interface ChaptersActions {
     data: ChapterUpdateRequest
   ) => Promise<Chapter>;
   deleteChapter: (seriesId: string, chapterId: string) => Promise<void>;
+  updateChapterStatusAndPageCount: (
+    chapterId: string,
+    pageCount: number
+  ) => Promise<void>;
   resetChapterContextAndTranslations: (chapterId: string) => Promise<void>;
   setPage: (seriesId: string, page: number) => void;
   setItemsPerPage: (seriesId: string, itemsPerPage: number) => void;
@@ -452,6 +456,74 @@ export const useChaptersStore = create<ChaptersStore>()(
         }
       },
 
+      updateChapterStatusAndPageCount: async (
+        chapterId: string,
+        pageCount: number
+      ) => {
+        try {
+          // Determine the appropriate status based on page count
+          const status: "draft" | "in_progress" | "translated" =
+            pageCount === 0 ? "draft" : "in_progress";
+
+          // Update the chapter via API with cleared context
+          const updatedChapter = await chapterService.updateChapter(chapterId, {
+            status,
+            page_count: pageCount,
+            context: "", // Clear context when pages are modified
+          });
+
+          // Find which series this chapter belongs to and update the store
+          const state = get();
+          let targetSeriesId: string | null = null;
+
+          for (const [seriesId, seriesData] of Object.entries(state.data)) {
+            if (
+              seriesData.chapters.some((chapter) => chapter.id === chapterId)
+            ) {
+              targetSeriesId = seriesId;
+              break;
+            }
+          }
+
+          if (targetSeriesId) {
+            // Update the chapter's status, page count, and context in the store
+            // Use the next_page value returned from the backend instead of calculating it manually
+            const seriesData = state.data[targetSeriesId];
+            const updatedChapters = seriesData.chapters.map((chapter) =>
+              chapter.id === chapterId
+                ? {
+                    ...chapter,
+                    status,
+                    next_page: updatedChapter.next_page, // Use backend-calculated value
+                    context: "", // Clear context in store as well
+                  }
+                : chapter
+            );
+
+            set(
+              {
+                data: {
+                  ...state.data,
+                  [targetSeriesId]: {
+                    ...seriesData,
+                    chapters: updatedChapters,
+                    lastFetched: Date.now(),
+                  },
+                },
+              },
+              false,
+              "chapters/updateStatusAndPageCount"
+            );
+          }
+        } catch (error) {
+          console.error(
+            "❌ Error updating chapter status and page count:",
+            error
+          );
+          throw error;
+        }
+      },
+
       clearError: (seriesId?: string) => {
         const state = get();
 
@@ -651,6 +723,9 @@ export const useChaptersActions = () => {
   const resetChapterContextAndTranslations = useChaptersStore(
     (state) => state.resetChapterContextAndTranslations
   );
+  const updateChapterStatusAndPageCount = useChaptersStore(
+    (state) => state.updateChapterStatusAndPageCount
+  );
   const setPage = useChaptersStore((state) => state.setPage);
   const setItemsPerPage = useChaptersStore((state) => state.setItemsPerPage);
   const clearError = useChaptersStore((state) => state.clearError);
@@ -664,6 +739,7 @@ export const useChaptersActions = () => {
       updateChapter,
       deleteChapter,
       resetChapterContextAndTranslations,
+      updateChapterStatusAndPageCount,
       setPage,
       setItemsPerPage,
       clearError,
@@ -676,6 +752,7 @@ export const useChaptersActions = () => {
       updateChapter,
       deleteChapter,
       resetChapterContextAndTranslations,
+      updateChapterStatusAndPageCount,
       setPage,
       setItemsPerPage,
       clearError,

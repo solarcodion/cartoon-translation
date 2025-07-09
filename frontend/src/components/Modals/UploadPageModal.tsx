@@ -27,8 +27,6 @@ export default function UploadPageModal({
   const [isLoading, setIsLoading] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [autoDetectText, setAutoDetectText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,19 +36,6 @@ export default function UploadPageModal({
 
     try {
       setIsLoading(true);
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + Math.random() * 15;
-        });
-      }, 200);
 
       // Use auto text detection if enabled and available
       if (autoDetectText && onUploadWithAutoTextBoxes) {
@@ -59,29 +44,18 @@ export default function UploadPageModal({
         await onUpload(selectedFiles, startNumber);
       }
 
-      // Complete the progress
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      // Wait a bit to show completion
-      setTimeout(() => {
-        // Reset form
-        setSelectedFiles([]);
-        setStartPageNumber("1");
-        setUploadProgress(0);
-        setIsUploading(false);
-        // Clean up preview URLs
-        previewUrls.forEach((url) => URL.revokeObjectURL(url));
-        setPreviewUrls([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-        onClose();
-      }, 1000);
+      // Reset form
+      setSelectedFiles([]);
+      setStartPageNumber("1");
+      // Clean up preview URLs
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      setPreviewUrls([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      onClose();
     } catch (error) {
       console.error("Error uploading pages:", error);
-      setUploadProgress(0);
-      setIsUploading(false);
     } finally {
       setIsLoading(false);
     }
@@ -400,60 +374,30 @@ export default function UploadPageModal({
                   </div>
 
                   {/* Image Previews Grid */}
-                  {!isUploading && (
-                    <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
-                      {selectedFiles.map((_, index) => (
-                        <div key={index} className="relative group">
-                          <div className="border-2 border-gray-200 rounded-lg p-2 bg-gray-50">
-                            <img
-                              src={previewUrls[index]}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-20 object-cover rounded"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            disabled={isLoading}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:opacity-50"
-                          >
-                            <FiX className="text-xs" />
-                          </button>
-                          <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded">
-                            Page {parseInt(startPageNumber) + index}
-                          </div>
+                  <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
+                    {selectedFiles.map((_, index) => (
+                      <div key={index} className="relative group">
+                        <div className="border-2 border-gray-200 rounded-lg p-2 bg-gray-50">
+                          <img
+                            src={previewUrls[index]}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-20 object-cover rounded"
+                          />
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Upload Progress */}
-                  {isUploading && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">
-                          {autoDetectText
-                            ? "Uploading & Auto-creating Text Boxes..."
-                            : "Uploading & Processing OCR..."}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">
-                            {Math.round(uploadProgress)}%
-                          </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          disabled={isLoading}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:opacity-50"
+                        >
+                          <FiX className="text-xs" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded">
+                          Page {parseInt(startPageNumber) + index}
                         </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Processing {selectedFiles.length} images with automatic
-                        OCR text extraction...
-                      </p>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

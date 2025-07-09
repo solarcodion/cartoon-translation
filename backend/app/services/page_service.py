@@ -22,7 +22,7 @@ class PageService:
         self.table_name = "pages"
         self.storage_bucket = "pages"
 
-    async def create_page(self, page_data: PageCreate, file_data: bytes, file_extension: str) -> PageResponse:
+    async def create_page(self, page_data: PageCreate, file_data: bytes, file_extension: str, clear_context: bool = True) -> PageResponse:
         """Create a new page with file upload"""
         try:
             # Generate unique filename
@@ -78,6 +78,18 @@ class PageService:
                 raise Exception("Failed to create page - no data returned")
 
             page_data = response.data[0]
+
+            # Update chapter's next_page and page_count, and clear context when page is created (if not in batch mode)
+            if clear_context:
+                try:
+                    from app.services.chapter_service import ChapterService
+                    chapter_service = ChapterService(self.supabase)
+                    await chapter_service.update_next_page_number(page_data["chapter_id"])
+                    await chapter_service.clear_chapter_context(page_data["chapter_id"])
+                except Exception as context_error:
+                    print(f"⚠️ Warning: Failed to update chapter or clear context: {str(context_error)}")
+                    # Don't fail the page creation if context clearing fails
+
             return PageResponse(**page_data)
 
         except Exception as e:
@@ -108,11 +120,12 @@ class PageService:
                         height=file_info.get("height", 0)
                     )
                     
-                    # Create the page
+                    # Create the page (skip individual context clearing in batch mode)
                     page = await self.create_page(
-                        page_data, 
-                        file_info["data"], 
-                        file_info["extension"]
+                        page_data,
+                        file_info["data"],
+                        file_info["extension"],
+                        clear_context=False
                     )
                     created_pages.append(page)
                     
@@ -120,17 +133,16 @@ class PageService:
                     print(f"❌ Failed to upload file {file_info.get('original_name', 'unknown')}: {str(e)}")
                     failed_uploads.append(file_info.get("original_name", "unknown"))
 
-            # Update chapter's next_page number
+            # Update chapter's next_page and page_count, and clear context when pages are created
             if created_pages:
-                next_page = start_page_number + len(created_pages)
                 try:
-                    self.supabase.table("chapters").update({
-                        "next_page": next_page,
-                        "page_count": len(created_pages),
-                        "updated_at": datetime.utcnow().isoformat()
-                    }).eq("id", chapter_id).execute()
+                    from app.services.chapter_service import ChapterService
+                    chapter_service = ChapterService(self.supabase)
+                    await chapter_service.update_next_page_number(chapter_id)
+                    await chapter_service.clear_chapter_context(chapter_id)
                 except Exception as update_error:
-                    print(f"⚠️ Warning: Failed to update chapter next_page: {str(update_error)}")
+                    print(f"⚠️ Warning: Failed to update chapter or clear context: {str(update_error)}")
+                    # Don't fail the batch creation if update fails
 
             return BatchPageUploadResponse(
                 success=len(created_pages) > 0,
@@ -236,7 +248,19 @@ class PageService:
             if not response.data:
                 raise Exception("Failed to update page - no data returned")
 
-            return PageResponse(**response.data[0])
+            updated_page = PageResponse(**response.data[0])
+
+            # Update chapter's next_page and page_count, and clear context when page is updated
+            try:
+                from app.services.chapter_service import ChapterService
+                chapter_service = ChapterService(self.supabase)
+                await chapter_service.update_next_page_number(updated_page.chapter_id)
+                await chapter_service.clear_chapter_context(updated_page.chapter_id)
+            except Exception as context_error:
+                print(f"⚠️ Warning: Failed to update chapter or clear context: {str(context_error)}")
+                # Don't fail the page update if context clearing fails
+
+            return updated_page
 
         except Exception as e:
             print(f"❌ Error updating page {page_id}: {str(e)}")
@@ -267,6 +291,16 @@ class PageService:
             except Exception as file_error:
                 print(f"⚠️ Warning: Failed to delete file from storage: {str(file_error)}")
                 # Don't fail the entire operation if file deletion fails
+
+            # Update chapter's next_page and page_count, and clear context when page is deleted
+            try:
+                from app.services.chapter_service import ChapterService
+                chapter_service = ChapterService(self.supabase)
+                await chapter_service.update_next_page_number(page.chapter_id)
+                await chapter_service.clear_chapter_context(page.chapter_id)
+            except Exception as context_error:
+                print(f"⚠️ Warning: Failed to update chapter or clear context: {str(context_error)}")
+                # Don't fail the page deletion if context clearing fails
 
         except Exception as e:
             print(f"❌ Error deleting page {page_id}: {str(e)}")

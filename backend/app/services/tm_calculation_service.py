@@ -16,33 +16,51 @@ class TMCalculationService:
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """
         Calculate similarity between two text strings using multiple algorithms
-        
+
         Args:
-            text1: First text string
-            text2: Second text string
-            
+            text1: First text string (OCR text)
+            text2: Second text string (TM source text)
+
         Returns:
             Similarity score between 0.0 and 1.0
         """
         if not text1 or not text2:
             return 0.0
-        
+
         # Normalize texts for comparison
         norm_text1 = self._normalize_text(text1)
         norm_text2 = self._normalize_text(text2)
-        
+
+        # Exact match after normalization
         if norm_text1 == norm_text2:
             return 1.0
-        
+
+        # Check for exact word matches (case-insensitive)
+        word_match_score = self._calculate_word_match_score(norm_text1, norm_text2)
+        if word_match_score >= 0.9:  # If we have a very high word match, return it
+            return word_match_score
+
+        # Check if shorter text is contained in longer text (substring matching)
+        substring_score = self._calculate_substring_score(norm_text1, norm_text2)
+
         # Use difflib's SequenceMatcher for similarity calculation
-        similarity = difflib.SequenceMatcher(None, norm_text1, norm_text2).ratio()
-        
+        sequence_similarity = difflib.SequenceMatcher(None, norm_text1, norm_text2).ratio()
+
         # Apply fuzzy matching bonus for partial matches
         fuzzy_bonus = self._calculate_fuzzy_bonus(norm_text1, norm_text2)
-        
-        # Combine similarity with fuzzy bonus (weighted average)
-        final_score = (similarity * 0.8) + (fuzzy_bonus * 0.2)
-        
+
+        # Combine all scores with weights
+        # Prioritize word matches and substring matches over sequence similarity
+        final_score = max(
+            word_match_score,
+            substring_score,
+            (sequence_similarity * 0.6) + (fuzzy_bonus * 0.4)
+        )
+
+        # Debug logging for similarity calculation
+        if word_match_score > 0 or substring_score > 0 or sequence_similarity > 0.1:
+            print(f"  📊 Similarity breakdown: word={word_match_score:.3f}, substring={substring_score:.3f}, sequence={sequence_similarity:.3f}, fuzzy={fuzzy_bonus:.3f} -> final={final_score:.3f}")
+
         return min(final_score, 1.0)
     
     def _normalize_text(self, text: str) -> str:
@@ -60,7 +78,48 @@ class TMCalculationService:
         text = re.sub(r'[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ一-龯ひらがなカタカナ]', '', text)
         
         return text.strip()
-    
+
+    def _calculate_word_match_score(self, text1: str, text2: str) -> float:
+        """
+        Calculate similarity based on exact word matches
+        Handles cases like "AIR" matching "air" perfectly
+        """
+        words1 = set(text1.split())
+        words2 = set(text2.split())
+
+        if not words1 or not words2:
+            return 0.0
+
+        # Check for exact word matches
+        common_words = words1.intersection(words2)
+
+        if not common_words:
+            return 0.0
+
+        # If one text is a single word and it matches a word in the other text
+        if len(words2) == 1 and words2.issubset(words1):
+            return 1.0  # Perfect match for single word
+        elif len(words1) == 1 and words1.issubset(words2):
+            return 1.0  # Perfect match for single word
+
+        # Calculate score based on word overlap
+        total_unique_words = len(words1.union(words2))
+        return len(common_words) / total_unique_words
+
+    def _calculate_substring_score(self, text1: str, text2: str) -> float:
+        """
+        Calculate similarity based on substring containment
+        """
+        # Check if shorter text is contained in longer text
+        shorter = text1 if len(text1) <= len(text2) else text2
+        longer = text2 if len(text1) <= len(text2) else text1
+
+        if shorter in longer:
+            # Score based on how much of the longer text the shorter text represents
+            return len(shorter) / len(longer)
+
+        return 0.0
+
     def _calculate_fuzzy_bonus(self, text1: str, text2: str) -> float:
         """
         Calculate fuzzy matching bonus for partial word matches
@@ -81,10 +140,10 @@ class TMCalculationService:
         return len(common_words) / len(total_words)
     
     async def calculate_tm_score(
-        self, 
-        ocr_text: str, 
+        self,
+        ocr_text: str,
         series_id: str,
-        threshold: float = 0.3
+        threshold: float = 0.1
     ) -> Tuple[float, Optional[TranslationMemoryResponse]]:
         """
         Calculate TM score for OCR text against existing translation memory
@@ -114,14 +173,20 @@ class TMCalculationService:
             for tm_entry in tm_entries:
                 if not tm_entry.source_text:
                     continue
-                
+
                 # Calculate similarity with source text
                 similarity = self.calculate_similarity(ocr_text, tm_entry.source_text)
-                
+
+                # Debug logging for TM calculation
+                print(f"🔍 TM Debug: OCR='{ocr_text}' vs TM='{tm_entry.source_text}' -> Score: {similarity:.3f}")
+
                 # Update best match if this is better
                 if similarity > best_score and similarity >= threshold:
                     best_score = similarity
                     best_match = tm_entry
+                    print(f"✅ New best match: {similarity:.3f} for '{tm_entry.source_text}'")
+
+            print(f"🎯 Final TM result: Best score = {best_score:.3f}, Threshold = {threshold}")
             
             return best_score, best_match
             
@@ -130,11 +195,11 @@ class TMCalculationService:
             return 0.0, None
     
     async def calculate_tm_score_with_suggestions(
-        self, 
-        ocr_text: str, 
+        self,
+        ocr_text: str,
         series_id: str,
         max_suggestions: int = 3,
-        threshold: float = 0.3
+        threshold: float = 0.1
     ) -> Tuple[float, List[Tuple[TranslationMemoryResponse, float]]]:
         """
         Calculate TM score and return top matching suggestions

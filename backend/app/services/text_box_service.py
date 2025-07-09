@@ -10,6 +10,7 @@ from app.models import (
     TextRegionDetectionResponse
 )
 from app.services.tm_calculation_service import TMCalculationService
+from app.services.translation_memory_service import TranslationMemoryService
 
 
 class TextBoxService:
@@ -19,6 +20,7 @@ class TextBoxService:
         self.supabase = supabase
         self.table_name = "text_boxes"
         self.tm_service = TMCalculationService(supabase)
+        self.tm_memory_service = TranslationMemoryService(supabase)
     
     async def create_text_box(self, text_box_data: TextBoxCreate) -> TextBoxResponse:
         """Create a new text box"""
@@ -135,13 +137,19 @@ class TextBoxService:
             raise Exception(f"Failed to fetch text box: {str(e)}")
     
     async def update_text_box(self, text_box_id: str, text_box_data: TextBoxUpdate) -> Optional[TextBoxResponse]:
-        """Update a text box"""
+        """Update a text box and optionally create TM entry"""
         try:
+            # Get the current text box to check for changes
+            current_text_box = await self.get_text_box_by_id(text_box_id)
+            if not current_text_box:
+                print(f"❌ Text box with ID {text_box_id} not found")
+                return None
+
             # Prepare update data (only include non-None values)
             update_data = text_box_data.model_dump(exclude_unset=True)
             if update_data:
                 update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-            
+
             # Update in database
             response = (
                 self.supabase.table(self.table_name)
@@ -149,15 +157,19 @@ class TextBoxService:
                 .eq("id", text_box_id)
                 .execute()
             )
-            
+
             if not response.data:
                 print(f"❌ Text box with ID {text_box_id} not found for update")
                 return None
-            
+
             updated_text_box = response.data[0]
-            
-            return TextBoxResponse(**updated_text_box)
-            
+            updated_response = TextBoxResponse(**updated_text_box)
+
+            # Create TM entry if we have both OCR and corrected text
+            await self._create_tm_entry_if_needed(updated_response, current_text_box)
+
+            return updated_response
+
         except Exception as e:
             print(f"❌ Error updating text box {text_box_id}: {str(e)}")
             raise Exception(f"Failed to update text box: {str(e)}")
@@ -430,3 +442,40 @@ class TextBoxService:
         except Exception as e:
             print(f"❌ Error getting series_id from page {page_id}: {str(e)}")
             return None
+
+    async def _create_tm_entry_if_needed(self, updated_text_box: TextBoxResponse, original_text_box: TextBoxResponse) -> None:
+        """Create TM entry if text box has both OCR and corrected text"""
+        try:
+            # Check if we have both OCR and corrected text
+            if not updated_text_box.ocr or not updated_text_box.ocr.strip():
+                return
+
+            if not updated_text_box.corrected or not updated_text_box.corrected.strip():
+                return
+
+            # Check if corrected text was actually updated (avoid duplicate TM entries)
+            if (original_text_box.corrected and
+                original_text_box.corrected.strip() == updated_text_box.corrected.strip()):
+                return  # No change in corrected text, don't create duplicate TM entry
+
+            # Get series_id
+            series_id = await self._get_series_id_from_page(updated_text_box.page_id)
+            if not series_id:
+                print(f"⚠️ Could not get series_id for text box {updated_text_box.id}, skipping TM creation")
+                return
+
+            # Create TM entry
+            from app.models import TranslationMemoryCreate
+            tm_data = TranslationMemoryCreate(
+                series_id=series_id,
+                source_text=updated_text_box.ocr.strip(),
+                target_text=updated_text_box.corrected.strip(),
+                context=updated_text_box.reason or "Auto-created from text box save"
+            )
+
+            tm_entry = await self.tm_memory_service.create_tm_entry(tm_data)
+            print(f"✅ Created TM entry: '{tm_entry.source_text}' -> '{tm_entry.target_text}'")
+
+        except Exception as e:
+            print(f"⚠️ Failed to create TM entry for text box {updated_text_box.id}: {str(e)}")
+            # Don't raise exception - TM creation failure shouldn't break text box update

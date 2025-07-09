@@ -35,15 +35,17 @@ export default function AddChapterModal({
 
         // Handle specific error cases for duplicate chapters
         if (
-          message.includes("duplicate") ||
-          message.includes("already exists")
+          message.includes("duplicate key value violates unique constraint") ||
+          message.includes("chapters_series_id_chapter_number_key") ||
+          message.includes("already exists") ||
+          message.includes("duplicate")
         ) {
           setErrorMessage(
-            `Chapter ${number} already exists in this series. Please choose a different chapter number.`
+            `Failed to add chapter: A chapter with number '${number}' already exists in this series.`
           );
         } else if (message.includes("constraint")) {
           setErrorMessage(
-            `Chapter ${number} already exists. Please choose a different chapter number.`
+            `Failed to add chapter: A chapter with number '${number}' already exists in this series.`
           );
         } else {
           setErrorMessage("Failed to add chapter. Please try again.");

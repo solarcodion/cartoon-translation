@@ -9,6 +9,8 @@ import type {
   BatchPageUploadResponse,
 } from "../services/pageService";
 import { convertApiPageToLegacy } from "../types/pages";
+import { useTextBoxesStore } from "./textBoxesStore";
+import { useChaptersStore } from "./chaptersStore";
 
 // Cache duration in milliseconds (5 minutes)
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -194,6 +196,13 @@ export const usePagesStore = create<PagesStore>()(
                 },
               },
             });
+
+            // Update chapter status to in_progress since we now have pages
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              chapterId,
+              updatedPages.length
+            );
           }
 
           return legacyPage;
@@ -232,6 +241,13 @@ export const usePagesStore = create<PagesStore>()(
                   },
                 },
               });
+
+              // Update chapter status to in_progress since we now have pages
+              const chaptersStore = useChaptersStore.getState();
+              await chaptersStore.updateChapterStatusAndPageCount(
+                chapterId,
+                updatedPages.length
+              );
             }
           }
 
@@ -273,6 +289,13 @@ export const usePagesStore = create<PagesStore>()(
                   },
                 },
               });
+
+              // Update chapter status to in_progress since we now have pages
+              const chaptersStore = useChaptersStore.getState();
+              await chaptersStore.updateChapterStatusAndPageCount(
+                chapterId,
+                updatedPages.length
+              );
             }
           }
 
@@ -297,6 +320,9 @@ export const usePagesStore = create<PagesStore>()(
 
           // Update the store
           const state = get();
+          let updatedChapterId: string | null = null;
+          let updatedPageCount = 0;
+
           Object.keys(state.data).forEach((chapterId) => {
             const chapterData = state.data[chapterId];
             if (chapterData && chapterData.pages) {
@@ -316,9 +342,22 @@ export const usePagesStore = create<PagesStore>()(
                     },
                   },
                 });
+
+                // Store chapter info for status update
+                updatedChapterId = chapterId;
+                updatedPageCount = updatedPages.length;
               }
             }
           });
+
+          // Update chapter status to in_progress since page was modified
+          if (updatedChapterId) {
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              updatedChapterId,
+              updatedPageCount
+            );
+          }
 
           return legacyPage;
         } catch (error) {
@@ -349,6 +388,18 @@ export const usePagesStore = create<PagesStore>()(
                 },
               },
             });
+
+            // Also remove associated text boxes from the text boxes store
+            const textBoxesStore = useTextBoxesStore.getState();
+            textBoxesStore.removeTextBoxesByPageId(chapterId, pageId);
+
+            // Update chapter status based on remaining page count
+            // If no pages left, set to draft; otherwise set to in_progress
+            const chaptersStore = useChaptersStore.getState();
+            await chaptersStore.updateChapterStatusAndPageCount(
+              chapterId,
+              updatedPages.length
+            );
           }
         } catch (error) {
           console.error("Error deleting page:", error);
@@ -632,6 +683,13 @@ export const usePagesActions = () => {
 export const invalidatePagesCache = (chapterId?: string) => {
   const { invalidateCache } = usePagesStore.getState();
   invalidateCache(chapterId);
+};
+
+// Get page count for a chapter
+export const getPageCountByChapterId = (chapterId: string): number => {
+  const state = usePagesStore.getState();
+  const chapterData = state.data[chapterId];
+  return chapterData?.pages?.length || 0;
 };
 
 export const refreshPagesData = async (chapterId: string) => {

@@ -17,7 +17,7 @@ import { TabContent, TranslationsTableSkeleton, TextSkeleton } from "../common";
 import { SimplePageHeader } from "../Header/PageHeader";
 import { PagesTable } from "../Lists";
 import DeleteTextBoxModal from "../Modals/DeleteTextBoxModal";
-import type { Page, ChapterInfo } from "../../types";
+import type { Page, ChapterInfo, Chapter } from "../../types";
 import type { TextBoxApiItem } from "../../services/textBoxService";
 import type { TextBoxApiUpdate } from "../../types/textbox";
 import {
@@ -32,6 +32,7 @@ import {
   useTextBoxesActions,
   useHasCachedTextBoxes,
   useTextBoxesIsStale,
+  useChaptersBySeriesId,
 } from "../../stores";
 import EditTextBoxModal from "../Modals/EditTextBoxModal";
 
@@ -603,6 +604,7 @@ interface ContextTabContentProps {
   onSaveNotes?: (notes: string) => Promise<void> | void;
   canModifyTM?: boolean;
   chapterId?: string;
+  seriesId?: string;
   onContextUpdate?: (context: string) => void;
 }
 
@@ -613,6 +615,7 @@ export function ContextTabContent({
   onSaveNotes,
   canModifyTM = true,
   chapterId,
+  seriesId,
   onContextUpdate,
 }: ContextTabContentProps) {
   // Use pages store instead of props
@@ -621,16 +624,29 @@ export function ContextTabContent({
   // Use text boxes store actions
   const { fetchTextBoxesByPageId } = useTextBoxesActions();
 
-  const [notes, setNotes] = useState(contextNotes);
+  // Get chapter context directly from the chapters store
+  const chapters = useChaptersBySeriesId(seriesId || "");
+  const currentChapter = chapters.find(
+    (chapter: Chapter) => chapter.id === chapterId
+  );
+  const storeContext = currentChapter?.context;
+
+  // Prioritize store context over prop context
+  // If store context is defined (even if empty string), use it
+  // Otherwise fall back to contextNotes prop
+  const effectiveContext =
+    storeContext !== undefined ? storeContext : contextNotes;
+
+  const [notes, setNotes] = useState(effectiveContext);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveComplete, setSaveComplete] = useState(false);
 
-  // Update notes when contextNotes prop changes
+  // Update notes when effective context changes (this will catch context clearing)
   useEffect(() => {
-    setNotes(contextNotes);
-  }, [contextNotes]);
+    setNotes(effectiveContext);
+  }, [effectiveContext]);
 
   const handleSave = async () => {
     if (!onSaveNotes) {

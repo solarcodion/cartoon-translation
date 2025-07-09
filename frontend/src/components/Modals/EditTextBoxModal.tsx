@@ -712,16 +712,7 @@ export default function EditTextBoxModal({
     }
   }, [ocrText, seriesId]);
 
-  // Auto-calculate TM when OCR text changes (with debounce)
-  useEffect(() => {
-    if (!ocrText.trim() || !seriesId) return;
-
-    const timeoutId = setTimeout(() => {
-      handleCalculateTM();
-    }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [ocrText, seriesId, handleCalculateTM]);
+  // TM calculation is now manual only - no auto-calculation
 
   const handleSubmit = async () => {
     if (!textBox || !selectedPage || !ocrText.trim()) return;
@@ -738,6 +729,7 @@ export default function EditTextBoxModal({
         ocr: ocrText.trim(),
         corrected: correctedText.trim() || undefined,
         reason: correctionReason.trim() || undefined,
+        tm: tmScore,
       });
       onClose();
     } catch (error) {

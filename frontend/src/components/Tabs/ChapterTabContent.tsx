@@ -24,6 +24,8 @@ import type {
   TranslationMemory,
   GlossaryCharacter,
 } from "../../types";
+import { getSeriesById } from "../../stores/seriesStore";
+import { getLanguageLabel } from "../../constants/languages";
 
 // Chapters Tab Content
 interface ChaptersTabContentProps {
@@ -420,6 +422,11 @@ export function AIGlossaryTabContent({
   isRefreshing = false,
   isLoading = false,
 }: AIGlossaryTabContentProps) {
+  // Get series data to determine language
+  const seriesData = seriesId ? getSeriesById(seriesId) : null;
+  const seriesLanguage = seriesData?.language || "vietnamese";
+  const languageLabel = getLanguageLabel(seriesLanguage);
+
   return (
     <TabContent activeTab={activeTab} tabId="glossary">
       <div>
@@ -527,13 +534,13 @@ export function AIGlossaryTabContent({
                       </div>
                     )}
 
-                    {/* Vietnamese Description */}
+                    {/* Dynamic Language Description */}
                     {character.summary && (
                       <div className="mb-3">
                         <div className="flex items-center gap-1 mb-1">
                           <LuBrain className="text-xs text-gray-500" />
                           <span className="text-xs text-gray-500">
-                            Vietnamese Description
+                            {languageLabel} Description
                           </span>
                         </div>
                         <p className="text-sm text-gray-700 leading-relaxed">

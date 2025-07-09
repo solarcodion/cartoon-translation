@@ -662,17 +662,6 @@ export default function AddTextBoxModal({
     }
   }, [ocrText, seriesId]);
 
-  // Auto-calculate TM when OCR text changes (with debounce)
-  useEffect(() => {
-    if (!ocrText.trim() || !seriesId) return;
-
-    const timeoutId = setTimeout(() => {
-      handleCalculateTM();
-    }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [ocrText, seriesId, handleCalculateTM]);
-
   const handleSubmit = async () => {
     if (!selectedPage || !ocrText.trim()) return;
 
@@ -688,6 +677,7 @@ export default function AddTextBoxModal({
         aiTranslatedText: aiTranslatedText.trim() || undefined,
         correctedText: correctedText.trim() || undefined,
         correctionReason: correctionReason.trim() || undefined,
+        tm: tmScore,
       });
       onClose();
     } catch (error) {
