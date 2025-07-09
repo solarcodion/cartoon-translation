@@ -49,16 +49,26 @@ class OCRService {
     };
   }
 
-  async extractText(imageData: string): Promise<OCRResponse> {
+  async extractText(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(`${API_BASE_URL}/ocr/extract-text`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          image_data: imageData,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -77,18 +87,28 @@ class OCRService {
     }
   }
 
-  async extractTextEnhanced(imageData: string): Promise<OCRResponse> {
+  async extractTextEnhanced(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/ocr/extract-text-enhanced`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            image_data: imageData,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -179,16 +199,26 @@ class OCRService {
 
   // OpenAI OCR Methods
 
-  async extractTextWithOpenAI(imageData: string): Promise<OCRResponse> {
+  async extractTextWithOpenAI(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<OCRResponse> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(`${API_BASE_URL}/ocr/openai/extract-text`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          image_data: imageData,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -207,18 +237,28 @@ class OCRService {
     }
   }
 
-  async detectTextRegionsWithOpenAI(imageData: string): Promise<any> {
+  async detectTextRegionsWithOpenAI(
+    imageData: string,
+    seriesLanguage?: string
+  ): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();
+
+      const requestBody: any = {
+        image_data: imageData,
+      };
+
+      // Add series language for optimization if provided
+      if (seriesLanguage) {
+        requestBody.series_language = seriesLanguage;
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/ocr/openai/detect-text-regions`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            image_data: imageData,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 

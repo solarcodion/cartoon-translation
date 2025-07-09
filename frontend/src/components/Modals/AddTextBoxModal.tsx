@@ -24,6 +24,7 @@ import {
   tmCalculationService,
   type TMSuggestion,
 } from "../../services/tmCalculationService";
+import { useSeriesStore } from "../../stores/seriesStore";
 
 interface AddTextBoxModalProps {
   isOpen: boolean;
@@ -51,6 +52,11 @@ export default function AddTextBoxModal({
   onNavigateToTextBox,
   showNavigation = false,
 }: AddTextBoxModalProps) {
+  // Get series data from store for language optimization
+  const { data: seriesData } = useSeriesStore();
+  const currentSeries = seriesData.find((s) => s.id === seriesId);
+  const seriesLanguage = currentSeries?.language;
+
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [boundingBox, setBoundingBox] = useState<BoundingBox>({
     x: 0,
@@ -320,9 +326,17 @@ export default function AddTextBoxModal({
       const croppedDataUrl = canvas.toDataURL("image/png");
       setIsCropped(true);
 
-      // Process with OCR
+      // Process with OCR using series language optimization
       try {
-        const ocrResult = await ocrService.extractText(croppedDataUrl);
+        if (seriesLanguage) {
+          console.log(
+            `🎯 Using series language optimization: ${seriesLanguage}`
+          );
+        }
+        const ocrResult = await ocrService.extractText(
+          croppedDataUrl,
+          seriesLanguage
+        );
 
         if (ocrResult.success && ocrResult.text.trim()) {
           setOcrText(ocrResult.text.trim());
