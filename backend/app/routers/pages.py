@@ -222,12 +222,38 @@ async def batch_create_pages_with_auto_textboxes(
             print("⚠️ Warning: OCR or TextBox services not available. Skipping automatic text detection.")
             return result
 
+        # Helper function to get series language from chapter_id
+        async def get_series_language_from_chapter(chapter_id: str) -> str:
+            try:
+                # Get series_id from chapter
+                chapter_response = supabase.table("chapters").select("series_id").eq("id", chapter_id).execute()
+                if not chapter_response.data:
+                    return "korean"  # Default fallback
+
+                series_id = chapter_response.data[0].get("series_id")
+                if not series_id:
+                    return "korean"
+
+                # Get series language
+                series_response = supabase.table("series").select("language").eq("id", series_id).execute()
+                if not series_response.data:
+                    return "korean"
+
+                return series_response.data[0].get("language", "korean")
+            except Exception as e:
+                print(f"⚠️ Error getting series language: {str(e)}")
+                return "korean"
+
         # Process each created page for text detection in background
         async def process_page_text_detection(page: PageResponse, user_id: str):
             try:
                 print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
 
-                # 1. Fetch image from storage
+                # 1. Get series language for optimization
+                series_language = await get_series_language_from_chapter(chapter_id)
+                print(f"🎯 Using series language for optimization: {series_language}")
+
+                # 2. Fetch image from storage
                 async with httpx.AsyncClient() as client:
                     response = await client.get(page.file_path)
                     if response.status_code != 200:
@@ -235,12 +261,12 @@ async def batch_create_pages_with_auto_textboxes(
 
                     image_data = response.content
 
-                # 2. Convert to base64
+                # 3. Convert to base64
                 image_base64 = base64.b64encode(image_data).decode('utf-8')
 
-                # 3. Call OCR service to detect text regions
-                ocr_request = OCRRequest(image_data=image_base64)
-                detection_result = ocr_service.detect_text_regions(ocr_request.image_data)
+                # 4. Call OCR service to detect text regions with series language optimization
+                ocr_request = OCRRequest(image_data=image_base64, series_language=series_language)
+                detection_result = ocr_service.detect_text_regions_with_series_language(ocr_request.image_data, series_language)
 
                 if not detection_result.success:
                     print(f"⚠️ OCR detection failed for page {page.id}")
@@ -293,7 +319,11 @@ async def batch_create_pages_with_auto_textboxes(
             try:
                 print(f"🔍 Processing text detection for page {page.id} (page number {page.page_number})")
 
-                # 1. Fetch image from storage
+                # 1. Get series language for optimization
+                series_language = await get_series_language_from_chapter(chapter_id)
+                print(f"🎯 Using series language for optimization: {series_language}")
+
+                # 2. Fetch image from storage
                 async with httpx.AsyncClient() as client:
                     response = await client.get(page.file_path)
                     if response.status_code != 200:
@@ -301,12 +331,12 @@ async def batch_create_pages_with_auto_textboxes(
 
                     image_data = response.content
 
-                # 2. Convert to base64
+                # 3. Convert to base64
                 image_base64 = base64.b64encode(image_data).decode('utf-8')
 
-                # 3. Call OCR service to detect text regions
-                ocr_request = OCRRequest(image_data=image_base64)
-                detection_result = ocr_service.detect_text_regions(ocr_request.image_data)
+                # 4. Call OCR service to detect text regions with series language optimization
+                ocr_request = OCRRequest(image_data=image_base64, series_language=series_language)
+                detection_result = ocr_service.detect_text_regions_with_series_language(ocr_request.image_data, series_language)
 
                 if not detection_result.success:
                     print(f"⚠️ OCR detection failed for page {page.id}")

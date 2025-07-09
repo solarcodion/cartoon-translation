@@ -249,6 +249,7 @@ class TranslationMemoryInDB(TranslationMemoryResponse):
 class OCRRequest(BaseModel):
     """OCR request model"""
     image_data: str  # Base64 encoded image data
+    series_language: Optional[str] = None  # Optional series language for optimization
 
     class Config:
         str_strip_whitespace = True

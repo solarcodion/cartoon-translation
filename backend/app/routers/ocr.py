@@ -104,8 +104,12 @@ async def extract_text_from_image(
                 detail="Invalid or too small image data"
             )
         
-        # Process the image with OCR
-        result = ocr_service.process_image(request.image_data)
+        # Process the image with OCR using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization: {request.series_language}")
+            result = ocr_service.process_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.process_image(request.image_data)
         
         if not result.success:
             raise HTTPException(
@@ -160,8 +164,12 @@ async def extract_text_from_image_enhanced(
                 detail="Invalid or too small image data"
             )
         
-        # Process the image with enhanced OCR
-        result = ocr_service.process_image_with_preprocessing(request.image_data)
+        # Process the image with enhanced OCR using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for enhanced OCR: {request.series_language}")
+            result = ocr_service.process_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.process_image_with_preprocessing(request.image_data)
         
         if not result.success:
             raise HTTPException(
@@ -341,8 +349,12 @@ async def detect_text_regions(
                 detail="Image data is required and cannot be empty"
             )
 
-        # Detect text regions
-        result = ocr_service.detect_text_regions(request.image_data)
+        # Detect text regions using series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for text region detection: {request.series_language}")
+            result = ocr_service.detect_text_regions_with_series_language(request.image_data, request.series_language)
+        else:
+            result = ocr_service.detect_text_regions(request.image_data)
 
         if not result.success:
             raise HTTPException(
@@ -561,8 +573,12 @@ async def extract_text_with_openai(
                 detail="Image data is required"
             )
 
-        # Extract text using OpenAI Vision
-        result = await openai_ocr_service.extract_text_from_image(request.image_data)
+        # Extract text using OpenAI Vision with series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for OpenAI OCR: {request.series_language}")
+            result = await openai_ocr_service.extract_text_from_image_with_series_language(request.image_data, request.series_language)
+        else:
+            result = await openai_ocr_service.extract_text_from_image(request.image_data)
 
         if result.success:
             print(f"✅ OpenAI OCR successful - extracted {len(result.text)} characters in {result.processing_time:.2f}s")
@@ -607,8 +623,12 @@ async def detect_text_regions_with_openai(
                 detail="Image data is required"
             )
 
-        # Detect text regions using OpenAI Vision
-        result = await openai_ocr_service.detect_text_regions(request.image_data)
+        # Detect text regions using OpenAI Vision with series language optimization if provided
+        if request.series_language:
+            print(f"🎯 Using series language optimization for OpenAI text region detection: {request.series_language}")
+            result = await openai_ocr_service.detect_text_regions_with_series_language(request.image_data, request.series_language)
+        else:
+            result = await openai_ocr_service.detect_text_regions(request.image_data)
 
         if result.success:
             print(f"✅ OpenAI text region detection successful - found {len(result.text_regions)} regions in {result.processing_time:.2f}s")

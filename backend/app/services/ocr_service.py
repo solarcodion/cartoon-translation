@@ -625,6 +625,58 @@ class OCRService:
         language_config = settings.get_language_config(language)
         return self._get_specialized_reader(language_config)
 
+    def _get_series_language_config(self, series_language: str) -> list:
+        """
+        Get language configuration for series language optimization
+
+        Args:
+            series_language: Series language (korean, japanese, chinese, vietnamese, english)
+
+        Returns:
+            List of language codes for EasyOCR
+        """
+        language_mapping = {
+            'korean': settings.ocr_language_korean,
+            'japanese': settings.ocr_language_japanese,
+            'chinese': settings.ocr_language_chinese,
+            'vietnamese': settings.ocr_language_vietnamese,
+            'english': settings.ocr_language_english
+        }
+
+        return language_mapping.get(series_language, settings.ocr_languages)
+
+    def process_image_with_series_language(self, image_data: str, series_language: str = None) -> OCRResponse:
+        """
+        Process image with series language optimization for faster and more accurate OCR
+
+        Args:
+            image_data: Base64 encoded image data
+            series_language: Series language for optimization (korean, japanese, chinese, vietnamese, english)
+
+        Returns:
+            OCRResponse with extracted text and metadata
+        """
+        try:
+            start_time = time.time()
+
+            if series_language:
+                print(f"🎯 Using series language optimization: {series_language}")
+                # Get optimized language configuration for the series
+                language_config = self._get_series_language_config(series_language)
+                specialized_reader = self._get_specialized_reader(language_config)
+
+                # Process with optimized reader
+                return self.process_image_with_specific_reader(image_data, specialized_reader, series_language)
+            else:
+                # Fall back to standard processing
+                print("🔍 No series language provided, using standard OCR processing")
+                return self.process_image(image_data)
+
+        except Exception as e:
+            print(f"❌ Error in series language optimized OCR: {str(e)}")
+            # Fall back to standard processing on error
+            return self.process_image(image_data)
+
     def process_image_with_specific_reader(self, image_data: str, reader: 'easyocr.Reader', language: str) -> OCRResponse:
         """
         Process image with a specific OCR reader for targeted language detection
@@ -792,6 +844,78 @@ class OCRService:
                 detected_language=None,
                 language_confidence=None
             )
+
+    def detect_text_regions_with_series_language(self, image_data: str, series_language: str = None) -> TextRegionDetectionResponse:
+        """
+        Detect text regions with series language optimization for faster and more accurate detection
+
+        Args:
+            image_data: Base64 encoded image data
+            series_language: Series language for optimization (korean, japanese, chinese, vietnamese, english)
+
+        Returns:
+            TextRegionDetectionResponse with detected text regions and metadata
+        """
+        try:
+            start_time = time.time()
+
+            if series_language:
+                print(f"🎯 Using series language optimization for text detection: {series_language}")
+                # Get optimized language configuration for the series
+                language_config = self._get_series_language_config(series_language)
+                specialized_reader = self._get_specialized_reader(language_config)
+
+                # Clean base64 data (remove data URL prefix if present)
+                if image_data.startswith('data:image'):
+                    image_data = image_data.split(',')[1]
+
+                # Decode base64 image
+                image_bytes = base64.b64decode(image_data)
+
+                # Convert to PIL Image
+                try:
+                    pil_image = Image.open(io.BytesIO(image_bytes))
+                    # Convert PIL image to OpenCV format (numpy array)
+                    opencv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+                except Exception as img_error:
+                    print(f"❌ Error processing image: {str(img_error)}")
+                    raise Exception(f"Image processing failed: {str(img_error)}")
+
+                # Perform OCR using specialized reader
+                try:
+                    results = specialized_reader.readtext(opencv_image)
+                    print(f"🔍 Series language optimized OCR ({series_language}) found {len(results)} text regions")
+                except Exception as ocr_error:
+                    print(f"❌ Error in series language optimized OCR processing: {str(ocr_error)}")
+                    # Fall back to standard processing
+                    return self.detect_text_regions(image_data)
+
+                # Process results and create grouped text regions
+                text_regions = self._group_text_regions(results)
+                all_texts = [region.text for region in text_regions]
+
+                # Use series language as detected language since we know it
+                detected_language = series_language
+                language_confidence = 1.0  # High confidence since we know the series language
+
+                processing_time = time.time() - start_time
+
+                return TextRegionDetectionResponse(
+                    success=True,
+                    text_regions=text_regions,
+                    processing_time=processing_time,
+                    detected_language=detected_language,
+                    language_confidence=language_confidence
+                )
+            else:
+                # Fall back to standard processing
+                print("🔍 No series language provided, using standard text region detection")
+                return self.detect_text_regions(image_data)
+
+        except Exception as e:
+            print(f"❌ Error in series language optimized text detection: {str(e)}")
+            # Fall back to standard processing on error
+            return self.detect_text_regions(image_data)
 
     def detect_text_regions(self, image_data: str) -> 'TextRegionDetectionResponse':
         """
